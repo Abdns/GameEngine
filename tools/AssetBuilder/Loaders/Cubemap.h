@@ -8,6 +8,8 @@
 #include "Half.h"
 #include "HDR.h"
 
+#define CUBEMAP_MAX_RADIANCE 50.0f
+
 struct loaded_cubemap
 {
     uint16 *Pixels;
@@ -98,6 +100,10 @@ internal loaded_cubemap EquirectToCubemap(memory_arena *Arena, loaded_hdr *Sourc
 
                 real32 Color[3];
                 EquirectSample(Source, S, T, Color);
+
+                Color[0] = fminf(Color[0], CUBEMAP_MAX_RADIANCE);
+                Color[1] = fminf(Color[1], CUBEMAP_MAX_RADIANCE);
+                Color[2] = fminf(Color[2], CUBEMAP_MAX_RADIANCE);
 
                 uint16 *Out = FacePixels + ((memory_size)Y * FaceSize + X) * 4;
                 Out[0] = FloatToHalf(Color[0]);

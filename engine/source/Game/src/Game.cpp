@@ -188,8 +188,24 @@ internal void InitGame(game_memory *Memory, game_state *GameState, render_comman
     GameState->SpawnMaterialHandles[1] = GameState->SpawnMaterialHandles[0];
     GameState->SpawnMaterialHandles[2] = GameState->SpawnMaterialHandles[0];
 
-    uint32 LitMaterialHandle   = AddMaterial(Materials, LitMaterial(Vector4(0.9f, 0.5f, 0.2f, 1.0f)));
-    uint32 FloorMaterialHandle = AddMaterial(Materials, LitMaterial(Vector4(0.45f, 0.45f, 0.5f, 1.0f)));
+    uint32 LitMaterialHandle   = AddMaterial(Materials, LitMaterial(Vector4(0.9f, 0.5f, 0.2f, 1.0f), 1.0f, 0.25f));
+    uint32 FloorMaterialHandle = AddMaterial(Materials, LitMaterial(Vector4(0.45f, 0.45f, 0.5f, 1.0f), 0.0f, 0.7f));
+
+    for (uint32 Row = 0; Row < 2; ++Row)
+    {
+        real32 Metallic = (real32)Row;
+
+        for (uint32 Column = 0; Column < 7; ++Column)
+        {
+            real32 Roughness = 0.05f + (real32)Column * 0.15f;
+
+            uint32 BallMaterial = AddMaterial(Materials, LitMaterial(Vector4(0.75f, 0.05f, 0.05f, 1.0f), Metallic, Roughness));
+
+            Vector3 Position = Vector3(((real32)Column - 3.0f) * 1.3f, Metallic * 1.6f - 0.8f, -4.0f);
+
+            AddEntity(GameState, Entity_Prop, Position, GameState->SpawnMeshHandles[1], BallMaterial, true, 0);
+        }
+    }
 
     PushMaterialsToRender(Materials, RenderCommands);
 
@@ -290,8 +306,8 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             ShootBall(GameState, Region, PickRay);
         }
 
-        PushRenderCamera(RenderCommands, CameraView(Camera, CameraSimP), Camera->FovY);
-        PushRenderLight(RenderCommands, Vector3(30.0f, 0.0f, 0.0f));
+        PushRenderCamera(RenderCommands, CameraView(Camera, CameraSimP), CameraSimP, Camera->FovY);
+        PushRenderLight(RenderCommands, Vector3(0.4f, 1.0f, 0.3f), Vector3(3.0f, 2.85f, 2.6f));
         PushRenderSkybox(RenderCommands, GameState->SkyHandle);
         PushEntitiesToRender(Region, RenderCommands, GameState->SelectedStorageIndex, RenderAlpha);
 

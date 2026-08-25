@@ -12,6 +12,19 @@ static const float2 Positions[3] =
     float2(-1.0,  3.0),
 };
 
+static const float Exposure = 1.0;
+
+float3 ACESFilm(float3 x)
+{
+    const float a = 2.51;
+    const float b = 0.03;
+    const float c = 2.43;
+    const float d = 0.59;
+    const float e = 0.14;
+
+    return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+}
+
 struct vs_output
 {
     float4 Position : SV_Position;
@@ -34,7 +47,7 @@ float4 PSMain(vs_output input) : SV_Target
 
     float3 Color = Tex[params.TextureSlot].Sample(Samp, input.UV).rgb;
 
-    Color = Color / (Color + 1.0);
+    Color = ACESFilm(Color * Exposure);
 
     return float4(Color, 1.0);
 }

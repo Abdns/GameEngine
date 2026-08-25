@@ -141,7 +141,7 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
         {
             command_load_mesh *entry = (command_load_mesh *)header;
 
-            shared_alloc vertices = SharedBufferWrite(&res->VertexBuffer, entry->Vertices, entry->VertexCount * sizeof(vertex), sizeof(vertex));
+            shared_alloc vertices = SharedBufferWrite(&res->VertexBuffer, entry->Vertices, entry->VertexCount * sizeof(vertex), 4);
             shared_alloc indices  = SharedBufferWrite(&res->IndexBuffer,  entry->Indices,  entry->IndexCount  * sizeof(uint32), sizeof(uint32));
 
             Assert(entry->MeshHandle < MAX_MESHES);
@@ -173,6 +173,7 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
             gpu_texture *cube = CreateCubemap(context, res, entry->CubemapHandle, entry->FaceSize, entry->Format);
 
             CmdUploadImage(cmd, staging.Buffer, upload.Offset, cube->Image, entry->FaceSize, entry->FaceSize, 6);
+            CmdGenerateMips(cmd, cube->Image, entry->FaceSize, entry->FaceSize, 6, cube->MipLevels);
             WriteImageDescriptor(context, &res->Heap, res->Heap.CubemapOffset, entry->CubemapHandle, cube->View);
         }
     }
@@ -225,7 +226,8 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
 
                 frame_globals *globals = (frame_globals *)res->Globals.Cpu;
 
-                globals->LightDir = lightCmd->Direction;
+                globals->LightDir   = lightCmd->Direction;
+                globals->LightColor = lightCmd->Color;
 
             } break;
             case Render_Camera:
@@ -235,7 +237,8 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
                 frame_globals *globals = (frame_globals *)res->Globals.Cpu;
 
                 Matrix4 proj = Mat4Perspective(cameraCmd->FovY, FOVaspect, 0.1f, 100.0f);
-                globals->ViewProj = Mat4Multiply(proj, cameraCmd->View);
+                globals->ViewProj  = Mat4Multiply(proj, cameraCmd->View);
+                globals->CameraPos = cameraCmd->Position;
 
                 Matrix4 *view = &cameraCmd->View;
                 real32 rightScale = 1.0f / proj.Elements[0][0];
@@ -253,6 +256,11 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
                 uint32 cubeSlot = skyCmd->CubemapHandle;
                 Assert(cubeSlot < MAX_CUBEMAPS);
                 Assert(res->Cubemaps[cubeSlot].View);
+
+                frame_globals *globals = (frame_globals *)res->Globals.Cpu;
+
+                globals->SkyCubemap  = cubeSlot;
+                globals->SkyMipCount = res->Cubemaps[cubeSlot].MipLevels;
 
                 piplineId = Pipeline_Skybox;
                 pipeline = &pipelines[piplineId];

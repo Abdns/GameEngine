@@ -20,7 +20,7 @@ internal VkSampler CreateTextureSampler(vulkan_context *context, VkFilter filter
     samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
     samplerInfo.mipLodBias = 0.0f;
     samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = 0.0f;
+    samplerInfo.maxLod = VK_LOD_CLAMP_NONE;
 
     VkSampler sampler = VK_NULL_HANDLE;
 
@@ -158,6 +158,8 @@ internal void BindDescriptorHeap(vulkan_context *context, VkCommandBuffer cmd, v
 
 internal gpu_mesh CreateMesh(VkDeviceSize vertexOffset, uint32 VertexCount, VkDeviceSize indexOffset, uint32 IndexCount)
 {
+    Assert((vertexOffset % sizeof(vertex)) == 0);
+
     gpu_mesh result;
     result.FirstVertex = (uint32)(vertexOffset / sizeof(vertex));
     result.VertexCount = VertexCount;
@@ -186,7 +188,7 @@ internal gpu_texture *CreateTexture(vulkan_context *context, vulkan_resources *r
 
     VkFormat format = TextureVkFormat(TextureFormat, SRGB);
 
-    texture->Image = CreateTextureImage(context, Width, Height, format, 1, &texture->Memory);
+    texture->Image = CreateTextureImage(context, Width, Height, format, 1, 1, &texture->Memory);
     texture->View  = CreateColorImageView(context->device, texture->Image, format);
 
     return texture;
@@ -199,10 +201,12 @@ internal gpu_texture *CreateCubemap(vulkan_context *context, vulkan_resources *r
     gpu_texture *cube = &res->Cubemaps[CubemapHandle];
     Assert(cube->Image == VK_NULL_HANDLE);
 
-    VkFormat format = TextureVkFormat(TextureFormat, 0);
+    VkFormat format    = TextureVkFormat(TextureFormat, 0);
+    uint32   mipLevels = MipLevelCount(FaceSize);
 
-    cube->Image = CreateTextureImage(context, FaceSize, FaceSize, format, 6, &cube->Memory);
-    cube->View  = CreateCubeImageView(context->device, cube->Image, format);
+    cube->MipLevels = mipLevels;
+    cube->Image     = CreateTextureImage(context, FaceSize, FaceSize, format, 6, mipLevels, &cube->Memory);
+    cube->View      = CreateCubeImageView(context->device, cube->Image, format, mipLevels);
 
     return cube;
 }
@@ -226,6 +230,8 @@ internal gpu_material CreateMaterial(command_load_material *Description)
     gpu_material result = {};
     result.BaseColor   = Description->BaseColor;
     result.TextureSlot = Description->TextureHandle;
+    result.Metallic    = Description->Metallic;
+    result.Roughness   = Description->Roughness;
 
     return result;
 }

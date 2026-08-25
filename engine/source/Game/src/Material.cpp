@@ -15,6 +15,8 @@ struct material
 
     Vector4 BaseColor;
     uint32  TextureHandle;
+    real32  Metallic;
+    real32  Roughness;
 };
 
 struct materials
@@ -33,11 +35,13 @@ internal material UnlitMaterial(Vector4 BaseColor, uint32 TextureHandle)
     Result.DepthWrite    = true;
     Result.BaseColor     = BaseColor;
     Result.TextureHandle = TextureHandle;
+    Result.Metallic      = 0.0f;
+    Result.Roughness     = 1.0f;
 
     return Result;
 }
 
-internal material LitMaterial(Vector4 BaseColor)
+internal material LitMaterial(Vector4 BaseColor, real32 Metallic, real32 Roughness)
 {
     material Result = {};
     Result.Pipeline      = Pipeline_Lit;
@@ -47,6 +51,8 @@ internal material LitMaterial(Vector4 BaseColor)
     Result.DepthWrite    = true;
     Result.BaseColor     = BaseColor;
     Result.TextureHandle = 0;
+    Result.Metallic      = Metallic;
+    Result.Roughness     = Roughness;
 
     return Result;
 }
@@ -66,6 +72,6 @@ internal void PushMaterialsToRender(materials* Materials, render_commands* Comma
     for (uint32 Index = 0; Index < Materials->Count; ++Index)
     {
         material* Material = Materials->Items + Index;
-        PushLoadMaterial(Commands, Index, Material->Pipeline, Material->CullMode, Material->BlendMode, Material->DepthTest, Material->DepthWrite, Material->BaseColor, Material->TextureHandle);
+        PushLoadMaterial(Commands, Index, Material->Pipeline, Material->CullMode, Material->BlendMode, Material->DepthTest, Material->DepthWrite, Material->BaseColor, Material->TextureHandle, Material->Metallic, Material->Roughness);
     }
 }

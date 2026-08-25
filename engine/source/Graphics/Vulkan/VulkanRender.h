@@ -74,6 +74,7 @@ struct gpu_texture
 {
     VkImage        Image;
     VkImageView    View;
+    uint32         MipLevels;
     VkDeviceMemory Memory;
 };
 

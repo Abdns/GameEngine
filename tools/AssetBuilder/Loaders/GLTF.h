@@ -1,6 +1,8 @@
 ﻿#ifndef GLTF_H
 #define GLTF_H
 
+#include <math.h>
+
 #include "Types.h"
 #include "Memory.h"
 #include "EngaFormat.h"
@@ -143,6 +145,16 @@ internal gltf_geometry GLTFMeshGeometry(memory_arena *Arena, gltf_file *File, js
     uint8 *Pos = GLTFAccessorData(File, JsonGet(Attributes, "POSITION"), 3, &PosCount, &PosType, &PosStride);
     Assert(Pos && PosType == GLTF_FLOAT && PosCount);
 
+    uint32 NormalCount  = 0;
+    uint32 NormalType   = 0;
+    uint32 NormalStride = 0;
+    uint8 *Normal = GLTFAccessorData(File, JsonGet(Attributes, "NORMAL"), 3, &NormalCount, &NormalType, &NormalStride);
+    if (Normal && NormalType != GLTF_FLOAT)
+    {
+        DebugLog("GLTF: NORMAL is not float, ignored\n");
+        Normal = 0;
+    }
+
     uint32 UVCount  = 0;
     uint32 UVType   = 0;
     uint32 UVStride = 0;
@@ -183,14 +195,25 @@ internal gltf_geometry GLTFMeshGeometry(memory_arena *Arena, gltf_file *File, js
         real32 *SrcPos = (real32 *)(Pos + (memory_size)v * PosStride);
 
         enga_vertex *Dst = Out + v;
-        Dst->Pos[0]   = SrcPos[0];
-        Dst->Pos[1]   = SrcPos[1];
-        Dst->Pos[2]   = SrcPos[2];
-        Dst->Color[0] = 1.0f;
-        Dst->Color[1] = 1.0f;
-        Dst->Color[2] = 1.0f;
-        Dst->UV[0]    = 0.0f;
-        Dst->UV[1]    = 0.0f;
+        Dst->Pos[0]    = SrcPos[0];
+        Dst->Pos[1]    = SrcPos[1];
+        Dst->Pos[2]    = SrcPos[2];
+        Dst->Normal[0] = 0.0f;
+        Dst->Normal[1] = 1.0f;
+        Dst->Normal[2] = 0.0f;
+        Dst->Color[0]  = 1.0f;
+        Dst->Color[1]  = 1.0f;
+        Dst->Color[2]  = 1.0f;
+        Dst->UV[0]     = 0.0f;
+        Dst->UV[1]     = 0.0f;
+
+        if (Normal && v < NormalCount)
+        {
+            real32 *SrcNormal = (real32 *)(Normal + (memory_size)v * NormalStride);
+            Dst->Normal[0] = SrcNormal[0];
+            Dst->Normal[1] = SrcNormal[1];
+            Dst->Normal[2] = SrcNormal[2];
+        }
 
         if (UV && v < UVCount)
         {
@@ -211,6 +234,93 @@ internal gltf_geometry GLTFMeshGeometry(memory_arena *Arena, gltf_file *File, js
         Assert(Src < VertexCount);
 
         OutIndx[i] = Src;
+    }
+
+    if (!Normal)
+    {
+        DebugLog("GLTF: mesh has no NORMAL attribute, generating from geometry\n");
+
+        for (uint32 v = 0; v < VertexCount; ++v)
+        {
+            Out[v].Normal[0] = 0.0f;
+            Out[v].Normal[1] = 0.0f;
+            Out[v].Normal[2] = 0.0f;
+        }
+
+        for (uint32 i = 0; i + 2 < IndexCount; i += 3)
+        {
+            enga_vertex *A = Out + OutIndx[i + 0];
+            enga_vertex *B = Out + OutIndx[i + 1];
+            enga_vertex *C = Out + OutIndx[i + 2];
+
+            real32 ABx = B->Pos[0] - A->Pos[0];
+            real32 ABy = B->Pos[1] - A->Pos[1];
+            real32 ABz = B->Pos[2] - A->Pos[2];
+
+            real32 ACx = C->Pos[0] - A->Pos[0];
+            real32 ACy = C->Pos[1] - A->Pos[1];
+            real32 ACz = C->Pos[2] - A->Pos[2];
+
+            real32 Nx = ABy * ACz - ABz * ACy;
+            real32 Ny = ABz * ACx - ABx * ACz;
+            real32 Nz = ABx * ACy - ABy * ACx;
+
+            enga_vertex *Face[3] = { A, B, C };
+            for (uint32 f = 0; f < 3; ++f)
+            {
+                Face[f]->Normal[0] += Nx;
+                Face[f]->Normal[1] += Ny;
+                Face[f]->Normal[2] += Nz;
+            }
+        }
+
+        for (uint32 v = 0; v < VertexCount; ++v)
+        {
+            real32 *N = Out[v].Normal;
+
+            real32 Length = sqrtf(N[0] * N[0] + N[1] * N[1] + N[2] * N[2]);
+            if (Length > 1e-8f)
+            {
+                N[0] /= Length;
+                N[1] /= Length;
+                N[2] /= Length;
+            }
+            else
+            {
+                N[0] = 0.0f;
+                N[1] = 1.0f;
+                N[2] = 0.0f;
+            }
+        }
+
+        real32 Center[3] = { 0.0f, 0.0f, 0.0f };
+        for (uint32 v = 0; v < VertexCount; ++v)
+        {
+            Center[0] += Out[v].Pos[0];
+            Center[1] += Out[v].Pos[1];
+            Center[2] += Out[v].Pos[2];
+        }
+        Center[0] /= (real32)VertexCount;
+        Center[1] /= (real32)VertexCount;
+        Center[2] /= (real32)VertexCount;
+
+        for (uint32 v = 0; v < VertexCount; ++v)
+        {
+            real32 *N = Out[v].Normal;
+
+            real32 Outward[3];
+            Outward[0] = Out[v].Pos[0] - Center[0];
+            Outward[1] = Out[v].Pos[1] - Center[1];
+            Outward[2] = Out[v].Pos[2] - Center[2];
+
+            real32 Facing = N[0] * Outward[0] + N[1] * Outward[1] + N[2] * Outward[2];
+            if (Facing < -1e-4f)
+            {
+                N[0] = -N[0];
+                N[1] = -N[1];
+                N[2] = -N[2];
+            }
+        }
     }
 
     Result.Blob        = Blob;

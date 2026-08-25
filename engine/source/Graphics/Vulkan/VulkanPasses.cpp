@@ -8,7 +8,7 @@ internal gpu_texture CreateRenderTarget(vulkan_context *context, vulkan_resource
         context,
         context->swapchainExtent.width,
         context->swapchainExtent.height,
-        format, 1,
+        format, 1, 1,
         VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,

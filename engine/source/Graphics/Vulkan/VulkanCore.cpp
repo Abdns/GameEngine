@@ -236,7 +236,7 @@ internal void ResetFrameRegion(shared_buffer *buffer, uint32 frameSlot)
     buffer->Limit = buffer->Used + regionSize;
 }
 
-internal VkImageCreateInfo ImageInfo(uint32 width, uint32 height, VkFormat format, uint32 layers, VkImageTiling tiling, VkImageUsageFlags usage)
+internal VkImageCreateInfo ImageInfo(uint32 width, uint32 height, VkFormat format, uint32 layers, uint32 mipLevels, VkImageTiling tiling, VkImageUsageFlags usage)
 {
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -244,7 +244,7 @@ internal VkImageCreateInfo ImageInfo(uint32 width, uint32 height, VkFormat forma
     imageInfo.extent.width  = width;
     imageInfo.extent.height = height;
     imageInfo.extent.depth  = 1;
-    imageInfo.mipLevels = 1;
+    imageInfo.mipLevels = mipLevels;
     imageInfo.arrayLayers = layers;
     imageInfo.format = format;
     imageInfo.tiling = tiling;
@@ -261,9 +261,9 @@ internal VkImageCreateInfo ImageInfo(uint32 width, uint32 height, VkFormat forma
     return imageInfo;
 }
 
-internal VkImage CreateImage(vulkan_context *context, uint32 width, uint32 height, VkFormat format, uint32 layers, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags memoryProperties, VkDeviceMemory *outMemory)
+internal VkImage CreateImage(vulkan_context *context, uint32 width, uint32 height, VkFormat format, uint32 layers, uint32 mipLevels, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags memoryProperties, VkDeviceMemory *outMemory)
 {
-    VkImageCreateInfo imageInfo = ImageInfo(width, height, format, layers, tiling, usage);
+    VkImageCreateInfo imageInfo = ImageInfo(width, height, format, layers, mipLevels, tiling, usage);
 
     VkImage image = VK_NULL_HANDLE;
 
@@ -290,12 +290,12 @@ internal VkImage CreateImage(vulkan_context *context, uint32 width, uint32 heigh
     return image;
 }
 
-internal VkImage CreateTextureImage(vulkan_context *context, uint32 width, uint32 height, VkFormat format, uint32 layers, VkDeviceMemory *outMemory)
+internal VkImage CreateTextureImage(vulkan_context *context, uint32 width, uint32 height, VkFormat format, uint32 layers, uint32 mipLevels, VkDeviceMemory *outMemory)
 {
-    return CreateImage(context, width, height, format, layers, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, outMemory);
+    return CreateImage(context, width, height, format, layers, mipLevels, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, outMemory);
 }
 
-internal VkImageView CreateImageView(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspectMask, VkImageViewType viewType, uint32 layers)
+internal VkImageView CreateImageView(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspectMask, VkImageViewType viewType, uint32 layers, uint32 mipLevels)
 {
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -310,7 +310,7 @@ internal VkImageView CreateImageView(VkDevice device, VkImage image, VkFormat fo
 
     viewInfo.subresourceRange.aspectMask = aspectMask;
     viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.levelCount = mipLevels;
     viewInfo.subresourceRange.baseArrayLayer = 0;
     viewInfo.subresourceRange.layerCount = layers;
 
@@ -324,17 +324,17 @@ internal VkImageView CreateImageView(VkDevice device, VkImage image, VkFormat fo
 
 internal VkImageView CreateColorImageView(VkDevice device, VkImage image, VkFormat format)
 {
-    return CreateImageView(device, image, format, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D, 1);
+    return CreateImageView(device, image, format, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D, 1, 1);
 }
 
-internal VkImageView CreateCubeImageView(VkDevice device, VkImage image, VkFormat format)
+internal VkImageView CreateCubeImageView(VkDevice device, VkImage image, VkFormat format, uint32 mipLevels)
 {
-    return CreateImageView(device, image, format, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_CUBE, 6);
+    return CreateImageView(device, image, format, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_CUBE, 6, mipLevels);
 }
 
 internal VkImageView CreateDepthImageView(VkDevice device, VkImage image, VkFormat format)
 {
-    return CreateImageView(device, image, format, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D, 1);
+    return CreateImageView(device, image, format, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D, 1, 1);
 }
 
 internal void DestroyTexture(vulkan_context *context, gpu_texture *texture)
@@ -360,7 +360,7 @@ internal void CmdImageToGeneral(VkCommandBuffer cmd, VkImage image, VkImageAspec
     barrier.dstQueueFamilyIndex         = VK_QUEUE_FAMILY_IGNORED;
     barrier.image                       = image;
     barrier.subresourceRange.aspectMask = aspect;
-    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
     barrier.subresourceRange.layerCount = layers;
 
     VkDependencyInfo dependency{};
@@ -392,6 +392,77 @@ internal void CmdUploadImage(VkCommandBuffer cmd, VkBuffer staging, VkDeviceSize
 {
     CmdImageToGeneral(cmd, image, VK_IMAGE_ASPECT_COLOR_BIT, layers, VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
     CmdCopyBufferToImage(cmd, staging, stagingOffset, image, width, height, layers);
+}
+
+internal uint32 MipLevelCount(uint32 size)
+{
+    uint32 levels = 1;
+    while (size > 1)
+    {
+        size >>= 1;
+        ++levels;
+    }
+
+    return levels;
+}
+
+internal void CmdMipBarrier(VkCommandBuffer cmd, VkImage image, uint32 baseMipLevel, uint32 levelCount, uint32 layers, VkAccessFlags2 srcAccess, VkPipelineStageFlags2 dstStage, VkAccessFlags2 dstAccess)
+{
+    VkImageMemoryBarrier2 barrier{};
+    barrier.sType                         = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+    barrier.srcStageMask                  = VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT;
+    barrier.srcAccessMask                 = srcAccess;
+    barrier.dstStageMask                  = dstStage;
+    barrier.dstAccessMask                 = dstAccess;
+    barrier.oldLayout                     = VK_IMAGE_LAYOUT_GENERAL;
+    barrier.newLayout                     = VK_IMAGE_LAYOUT_GENERAL;
+    barrier.srcQueueFamilyIndex           = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex           = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image                         = image;
+    barrier.subresourceRange.aspectMask   = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = baseMipLevel;
+    barrier.subresourceRange.levelCount   = levelCount;
+    barrier.subresourceRange.layerCount   = layers;
+
+    VkDependencyInfo dependency{};
+    dependency.sType                   = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    dependency.imageMemoryBarrierCount = 1;
+    dependency.pImageMemoryBarriers    = &barrier;
+
+    vkCmdPipelineBarrier2(cmd, &dependency);
+}
+
+internal void CmdGenerateMips(VkCommandBuffer cmd, VkImage image, uint32 width, uint32 height, uint32 layers, uint32 mipLevels)
+{
+    for (uint32 level = 1; level < mipLevels; ++level)
+    {
+        CmdMipBarrier(cmd, image, level - 1, 1, layers, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_BLIT_BIT, VK_ACCESS_2_TRANSFER_READ_BIT);
+
+        uint32 srcWidth  = width  >> (level - 1);
+        uint32 srcHeight = height >> (level - 1);
+        uint32 dstWidth  = srcWidth  > 1 ? (srcWidth  >> 1) : 1;
+        uint32 dstHeight = srcHeight > 1 ? (srcHeight >> 1) : 1;
+
+        VkImageBlit blit{};
+        blit.srcSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        blit.srcSubresource.mipLevel       = level - 1;
+        blit.srcSubresource.baseArrayLayer = 0;
+        blit.srcSubresource.layerCount     = layers;
+        blit.srcOffsets[1].x               = (int32)srcWidth;
+        blit.srcOffsets[1].y               = (int32)srcHeight;
+        blit.srcOffsets[1].z               = 1;
+        blit.dstSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        blit.dstSubresource.mipLevel       = level;
+        blit.dstSubresource.baseArrayLayer = 0;
+        blit.dstSubresource.layerCount     = layers;
+        blit.dstOffsets[1].x               = (int32)dstWidth;
+        blit.dstOffsets[1].y               = (int32)dstHeight;
+        blit.dstOffsets[1].z               = 1;
+
+        vkCmdBlitImage(cmd, image, VK_IMAGE_LAYOUT_GENERAL, image, VK_IMAGE_LAYOUT_GENERAL, 1, &blit, VK_FILTER_LINEAR);
+    }
+
+    CmdMipBarrier(cmd, image, 0, VK_REMAINING_MIP_LEVELS, layers, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 }
 
 internal void CmdImageToPresent(VkCommandBuffer cmd, VkImage image)

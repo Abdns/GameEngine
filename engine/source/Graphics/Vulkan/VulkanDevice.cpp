@@ -726,7 +726,7 @@ internal void CreateDepthResources(vulkan_context *context)
     VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
 
     context->depth.Image = CreateImage(context, context->swapchainExtent.width, context->swapchainExtent.height,
-                                       depthFormat, 1, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                       depthFormat, 1, 1, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &context->depth.Memory);
 
     context->depth.View = CreateDepthImageView(context->device, context->depth.Image, depthFormat);

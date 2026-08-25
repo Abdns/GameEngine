@@ -17,7 +17,7 @@
 #define TEXTURE_SLOT_POST  (TEXTURE_SLOT_SCENE + 1)
 #define TEXTURE_HEAP_SIZE  (TEXTURE_SLOT_POST + 1)
 
-#define VERTEX_STRIDE    32
+#define VERTEX_STRIDE    44
 #define MATERIAL_STRIDE  32
 #define RECT_PARAMS_STRIDE 64
 
@@ -41,6 +41,7 @@ struct push_constants
 struct vertex
 {
     float3 Position;
+    float3 Normal;
     float3 Color;
     float2 UV;
 };
@@ -55,15 +56,26 @@ struct frame_globals
 
     float3 LightDir;
     float  GlobalsPad0;
+
+    float3 LightColor;
+    float  GlobalsPad1;
+
+    float3 CameraPos;
+    float  GlobalsPad2;
+
+    uint SkyCubemap;
+    uint SkyMipCount;
+    uint GlobalsPad3;
+    uint GlobalsPad4;
 };
 
 struct gpu_material
 {
     float4 BaseColor;
     uint   TextureSlot;
+    float  Metallic;
+    float  Roughness;
     uint   MaterialPad0;
-    uint   MaterialPad1;
-    uint   MaterialPad2;
 };
 
 struct draw_params
