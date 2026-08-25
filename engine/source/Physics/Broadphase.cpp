@@ -48,10 +48,10 @@ internal void BroadphaseSortByMinX(broadphase *Broad, sim_entity *Entities)
     for (uint32 Index = 1; Index < Broad->OrderCount; ++Index)
     {
         uint32 Entity = Broad->Order[Index];
-        real32 Key    = Entities[Entity].BoundsMin.X;
+        real32 Key    = Entities[Entity].Bounds.Min.X;
 
         uint32 Scan = Index;
-        while (Scan > 0 && Entities[Broad->Order[Scan - 1]].BoundsMin.X > Key)
+        while (Scan > 0 && Entities[Broad->Order[Scan - 1]].Bounds.Min.X > Key)
         {
             Broad->Order[Scan] = Broad->Order[Scan - 1];
             --Scan;
@@ -82,7 +82,7 @@ internal uint32 BroadphaseFindPairs(broadphase *Broad, sim_entity *Entities)
             uint32      EntityB = Broad->Order[IndexB];
             sim_entity *B       = Entities + EntityB;
 
-            if (B->BoundsMin.X > A->BoundsMax.X)
+            if (B->Bounds.Min.X > A->Bounds.Max.X)
             {
                 break;
             }
@@ -94,8 +94,8 @@ internal uint32 BroadphaseFindPairs(broadphase *Broad, sim_entity *Entities)
                 continue;
             }
 
-            if (A->BoundsMax.Y < B->BoundsMin.Y || B->BoundsMax.Y < A->BoundsMin.Y ||
-                A->BoundsMax.Z < B->BoundsMin.Z || B->BoundsMax.Z < A->BoundsMin.Z)
+            if (A->Bounds.Max.Y < B->Bounds.Min.Y || B->Bounds.Max.Y < A->Bounds.Min.Y ||
+                A->Bounds.Max.Z < B->Bounds.Min.Z || B->Bounds.Max.Z < A->Bounds.Min.Z)
             {
                 continue;
             }

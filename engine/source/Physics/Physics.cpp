@@ -104,15 +104,13 @@ internal void PhysicsComputeBounds(physics_state *Physics, sim_entity *Entity)
     if (Shape->Type == Shape_Sphere)
     {
         Vector3 Center = Entity->Position + QuatRotate(Entity->Orientation, Shape->Center);
-        Vector3 Radius = Vector3(Shape->Radius, Shape->Radius, Shape->Radius);
 
-        Entity->BoundsMin = Center - Radius;
-        Entity->BoundsMax = Center + Radius;
+        Entity->Bounds = Rect3CenterRadius(Center, Shape->Radius);
 
         return;
     }
 
-    ComputeWorldAABB(Entity->Position, Entity->Orientation, Shape->BoundsMin, Shape->BoundsMax, &Entity->BoundsMin, &Entity->BoundsMax);
+    ComputeWorldAABB(Entity->Position, Entity->Orientation, Shape->BoundsMin, Shape->BoundsMax, &Entity->Bounds.Min, &Entity->Bounds.Max);
 }
 
 inline real32 PhysicsInvMass(sim_entity *Entity)
@@ -130,8 +128,8 @@ internal Vector3 PhysicsRelativeVelocity(contact *Contact)
     Vector3 rA = Contact->Point - Contact->A->Position;
     Vector3 rB = Contact->Point - Contact->B->Position;
 
-    return (Contact->A->dP + Cross(Contact->A->dOrientation, rA))
-         - (Contact->B->dP + Cross(Contact->B->dOrientation, rB));
+    return (Contact->A->dPosition + Cross(Contact->A->dOrientation, rA))
+         - (Contact->B->dPosition + Cross(Contact->B->dOrientation, rB));
 }
 
 internal bool32 PhysicsPushContact(contact *Contacts, uint32 *Count, uint32 MaxContacts, sim_entity *A, sim_entity *B, Vector3 Point, Vector3 Normal, real32 Depth)
@@ -475,9 +473,9 @@ internal void ApplyContactImpulse(contact *Contact, real32 InvDt)
     NormalDelta = Contact->AccumulatedNormal - OldNormal;
 
     Vector3 Impulse = Contact->Normal * NormalDelta;
-    A->dP           += Impulse * InvMassA;
+    A->dPosition           += Impulse * InvMassA;
     A->dOrientation += InvInertiaA * Cross(rA, Impulse);
-    B->dP           -= Impulse * InvMassB;
+    B->dPosition           -= Impulse * InvMassB;
     B->dOrientation -= InvInertiaB * Cross(rB, Impulse);
 
     RelativeVelocity = PhysicsRelativeVelocity(Contact);
@@ -511,9 +509,9 @@ internal void ApplyContactImpulse(contact *Contact, real32 InvDt)
     Contact->AccumulatedFriction = NewFriction;
 
     Impulse = NewFriction - OldFriction;
-    A->dP           += Impulse * InvMassA;
+    A->dPosition           += Impulse * InvMassA;
     A->dOrientation += InvInertiaA * Cross(rA, Impulse);
-    B->dP           -= Impulse * InvMassB;
+    B->dPosition           -= Impulse * InvMassB;
     B->dOrientation -= InvInertiaB * Cross(rB, Impulse);
 }
 
@@ -530,8 +528,8 @@ internal void PhysicsSubStep(physics_state *Physics, sim_region *Region, real32 
 
         if (Entity->Updatable && Entity->InvMass > 0.0f)
         {
-            Entity->dP.Y += PHYSICS_GRAVITY_Y * dt;
-            Entity->Position    += Entity->dP * dt;
+            Entity->dPosition.Y += PHYSICS_GRAVITY_Y * dt;
+            Entity->Position    += Entity->dPosition * dt;
 
             Entity->dOrientation = Entity->dOrientation * (1.0f / (1.0f + PHYSICS_ANGULAR_DAMPING * dt));
             Entity->Orientation  = QuatIntegrate(Entity->Orientation, Entity->dOrientation, dt);

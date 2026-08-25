@@ -38,7 +38,7 @@ struct sim_entity
 
     Vector3     Position;
     Vector3     PrevPosition;
-    Vector3     dP;
+    Vector3     dPosition;
 
     Quaternion  Orientation;
     Quaternion  PrevOrientation;
@@ -51,8 +51,7 @@ struct sim_entity
     uint32      MaterialHandle;
     Vector4     Tint;
 
-    Vector3     BoundsMin;
-    Vector3     BoundsMax;
+    rectangle3  Bounds;
 
     bool32      Updatable;
 };

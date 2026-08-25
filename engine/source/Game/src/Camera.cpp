@@ -4,7 +4,7 @@
 
 struct camera
 {
-    world_position P;
+    world_position Position;
     real32         Yaw;
     real32         Pitch;
     real32         FovY;
@@ -19,7 +19,7 @@ struct camera_basis
 
 internal void InitCamera(camera *Camera, world_position P, real32 FovY)
 {
-    Camera->P     = P;
+    Camera->Position     = P;
     Camera->Yaw   = 0.0f;
     Camera->Pitch = 0.0f;
     Camera->FovY  = FovY;
@@ -83,5 +83,5 @@ internal void UpdateCamera(camera *Camera, world *World, game_input *Input)
 
     real32 Speed = 4.0f;
 
-    Camera->P = MapIntoChunkSpace(World, Camera->P, (Speed * Input->dtForFrame) * Move);
+    Camera->Position = MapIntoChunkSpace(World, Camera->Position, (Speed * Input->dtForFrame) * Move);
 }

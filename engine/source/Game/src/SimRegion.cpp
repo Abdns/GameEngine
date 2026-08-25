@@ -5,10 +5,10 @@
 #define SIM_HASH_SIZE           4096
 #define SIM_MAX_ENTITY_RADIUS   16.0f
 
-struct sim_entity_hash
+struct sim_entity_slot
 {
     sim_entity *Ptr;
-    uint32      Index;
+    uint32      StorageIndex;
 };
 
 struct sim_region
@@ -24,20 +24,20 @@ struct sim_region
     uint32      EntityCount;
     sim_entity *Entities;
 
-    sim_entity_hash Hash[SIM_HASH_SIZE];
+    sim_entity_slot HashTable[SIM_HASH_SIZE];
 };
 
-internal sim_entity_hash *GetHashFromStorageIndex(sim_region *Region, uint32 StorageIndex)
+internal sim_entity_slot *GetSlotFromStorageIndex(sim_region *Region, uint32 StorageIndex)
 {
     Assert(StorageIndex != ENTITY_STORAGE_NONE);
 
-    uint32 HashMask = ArrayCount(Region->Hash) - 1;
+    uint32 HashMask = ArrayCount(Region->HashTable) - 1;
 
-    for (uint32 Offset = 0; Offset < ArrayCount(Region->Hash); ++Offset)
+    for (uint32 Offset = 0; Offset < ArrayCount(Region->HashTable); ++Offset)
     {
-        sim_entity_hash *Entry = Region->Hash + ((StorageIndex + Offset) & HashMask);
+        sim_entity_slot *Entry = Region->HashTable + ((StorageIndex + Offset) & HashMask);
 
-        if (Entry->Index == ENTITY_STORAGE_NONE || Entry->Index == StorageIndex)
+        if (Entry->StorageIndex == ENTITY_STORAGE_NONE || Entry->StorageIndex == StorageIndex)
         {
             return Entry;
         }
@@ -53,12 +53,12 @@ internal sim_entity *GetEntityByStorageIndex(sim_region *Region, uint32 StorageI
         return 0;
     }
 
-    sim_entity_hash *Entry = GetHashFromStorageIndex(Region, StorageIndex);
+    sim_entity_slot *Entry = GetSlotFromStorageIndex(Region, StorageIndex);
 
-    return (Entry && Entry->Index == StorageIndex) ? Entry->Ptr : 0;
+    return (Entry && Entry->StorageIndex == StorageIndex) ? Entry->Ptr : 0;
 }
 
-internal Vector3 GetSimSpaceP(sim_region *Region, low_entity *Stored)
+internal Vector3 GetSimSpacePosition(sim_region *Region, low_entity *Stored)
 {
     return WorldSubtract(Region->World, &Stored->Position, &Region->Origin);
 }
@@ -67,7 +67,7 @@ internal sim_entity *AddEntityRaw(sim_region *Region, uint32 StorageIndex, low_e
 {
     Assert(StorageIndex != ENTITY_STORAGE_NONE);
 
-    sim_entity_hash *Entry = GetHashFromStorageIndex(Region, StorageIndex);
+    sim_entity_slot *Entry = GetSlotFromStorageIndex(Region, StorageIndex);
     if (!Entry)
     {
         return 0;
@@ -86,8 +86,8 @@ internal sim_entity *AddEntityRaw(sim_region *Region, uint32 StorageIndex, low_e
 
     sim_entity *Entity = Region->Entities + Region->EntityCount++;
 
-    Entry->Index = StorageIndex;
-    Entry->Ptr   = Entity;
+    Entry->StorageIndex = StorageIndex;
+    Entry->Ptr          = Entity;
 
     if (Source)
     {
@@ -137,7 +137,7 @@ internal void LoadEntityReference(sim_region *Region, sim_entity_reference *Refe
             Entity = AddEntityRaw(Region, StorageIndex, Stored);
             if (Entity)
             {
-                Entity->Position     = GetSimSpaceP(Region, Stored);
+                Entity->Position     = GetSimSpacePosition(Region, Stored);
                 Entity->PrevPosition = WorldSubtract(Region->World, &Stored->PrevPosition, &Region->Origin);
             }
         }
@@ -154,14 +154,14 @@ internal void StoreEntityReference(sim_entity_reference *Reference)
 internal sim_region *BeginSim(memory_arena *SimArena, world *World, entity_storage *Storage, world_position Origin, rectangle3 UpdatableBounds, uint32 MaxEntityCount)
 {
     sim_region *Region = PushStruct(SimArena, sim_region);
-    ZeroArray(ArrayCount(Region->Hash), Region->Hash);
+    ZeroArray(ArrayCount(Region->HashTable), Region->HashTable);
 
     Region->World   = World;
     Region->Storage = Storage;
     Region->Origin  = Origin;
 
-    Region->UpdatableBounds = UpdatableBounds;
     Region->Bounds          = Rect3AddRadius(UpdatableBounds, SIM_MAX_ENTITY_RADIUS);
+    Region->UpdatableBounds = UpdatableBounds;
 
     Region->MaxEntityCount = MaxEntityCount;
     Region->EntityCount    = 0;
@@ -194,7 +194,7 @@ internal sim_region *BeginSim(memory_arena *SimArena, world *World, entity_stora
                             continue;
                         }
 
-                        Vector3 SimSpaceP = GetSimSpaceP(Region, Stored);
+                        Vector3 SimSpaceP = GetSimSpacePosition(Region, Stored);
                         if (!Rect3Contains(Region->Bounds, SimSpaceP))
                         {
                             continue;

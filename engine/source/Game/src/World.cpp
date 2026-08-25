@@ -109,9 +109,7 @@ inline world_position WorldPositionFromChunk(int32 ChunkX, int32 ChunkY, int32 C
 
 inline Vector3 WorldSubtract(world *World, world_position *A, world_position *B)
 {
-    Vector3 ChunkDelta = Vector3((real32)(A->ChunkX - B->ChunkX),
-                                 (real32)(A->ChunkY - B->ChunkY),
-                                 (real32)(A->ChunkZ - B->ChunkZ));
+    Vector3 ChunkDelta = Vector3((real32)(A->ChunkX - B->ChunkX), (real32)(A->ChunkY - B->ChunkY), (real32)(A->ChunkZ - B->ChunkZ));
 
     return World->ChunkDimInMeters * ChunkDelta + (A->Offset - B->Offset);
 }
@@ -132,7 +130,7 @@ internal world_chunk *GetWorldChunk(world *World, int32 ChunkX, int32 ChunkY, in
 
         if (Arena && Chunk->ChunkX != WORLD_CHUNK_UNINITIALIZED && !Chunk->NextInHash)
         {
-            Chunk->NextInHash         = PushStruct(Arena, world_chunk);
+            Chunk->NextInHash = PushStruct(Arena, world_chunk);
             Chunk->NextInHash->ChunkX = WORLD_CHUNK_UNINITIALIZED;
         }
 
@@ -148,8 +146,8 @@ internal world_chunk *GetWorldChunk(world *World, int32 ChunkX, int32 ChunkY, in
             Chunk->ChunkZ = ChunkZ;
 
             Chunk->FirstBlock.EntityCount = 0;
-            Chunk->FirstBlock.Next        = 0;
-            Chunk->NextInHash             = 0;
+            Chunk->FirstBlock.Next = 0;
+            Chunk->NextInHash = 0;
 
             break;
         }
@@ -169,7 +167,7 @@ internal void WorldRemoveFromChunk(world *World, uint32 StorageIndex, world_posi
     }
 
     world_entity_block *FirstBlock = &Chunk->FirstBlock;
-    bool32              Found      = false;
+    bool32 Found = false;
 
     for (world_entity_block *Block = FirstBlock; Block && !Found; Block = Block->Next)
     {
@@ -261,4 +259,9 @@ internal uint32 WorldChunkEntityCount(world *World, int32 ChunkX, int32 ChunkY, 
     }
 
     return Count;
+}
+
+inline world_position WorldOrigin(void)
+{
+    return WorldPositionFromChunk(0, 0, 0, Vector3(0.0f, 0.0f, 0.0f));
 }

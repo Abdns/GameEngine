@@ -71,14 +71,9 @@ internal void BuildMeshShapes(game_state *GameState, memory_arena *Arena)
     }
 }
 
-inline world_position WorldOrigin(void)
+internal uint32 AddEntityAt(game_state *GameState, entity_type Type, world_position Position, uint32 MeshHandle, uint32 MaterialHandle, bool32 Static, const char *Name)
 {
-    return WorldPositionFromChunk(0, 0, 0, Vector3(0.0f, 0.0f, 0.0f));
-}
-
-internal uint32 AddEntityAt(game_state *GameState, entity_type Type, world_position P, uint32 MeshHandle, uint32 MaterialHandle, bool32 Static, const char *Name)
-{
-    uint32 StorageIndex = AddLowEntity(&GameState->WorldArena, GameState->World, &GameState->Storage, Type, P, Name);
+    uint32 StorageIndex = AddLowEntity(&GameState->WorldArena, GameState->World, &GameState->Storage, Type, Position, Name);
     if (StorageIndex == ENTITY_STORAGE_NONE)
     {
         return ENTITY_STORAGE_NONE;
@@ -130,9 +125,9 @@ internal void ShootBall(game_state *GameState, sim_region *Region, ray Aim)
     }
 
     low_entity *Stored = GetLowEntity(&GameState->Storage, StorageIndex);
-    Stored->SimVariant.dP = Aim.Direction * BALL_SPEED;
+    Stored->SimVariant.dPosition = Aim.Direction * BALL_SPEED;
 
-    Vector3 SimSpaceP = GetSimSpaceP(Region, Stored);
+    Vector3 SimSpaceP = GetSimSpacePosition(Region, Stored);
     AddEntityToRegion(Region, StorageIndex, Stored, SimSpaceP, SimSpaceP);
 }
 
@@ -264,50 +259,43 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
 
     rectangle3  SimBounds = Rect3CenterRadius(Vector3(0.0f, 0.0f, 0.0f), SIM_HALF_DIM);
-    sim_region *Region    = BeginSim(&GameState->FrameArena, GameState->World, &GameState->Storage, Camera->P, SimBounds, SIM_MAX_ENTITIES);
-
-    local_persist uint32 LastSimCount = 0xFFFFFFFF;
-    if (Region->EntityCount != LastSimCount)
+    sim_region *Region    = BeginSim(&GameState->FrameArena, GameState->World, &GameState->Storage, Camera->Position, SimBounds, SIM_MAX_ENTITIES);
     {
-        LastSimCount = Region->EntityCount;
-        DebugLog("Sim region: %u simulated of %u stored, origin chunk (%d %d %d)\n",
-                 Region->EntityCount, GameState->Storage.Count - 1, Region->Origin.ChunkX, Region->Origin.ChunkY, Region->Origin.ChunkZ);
-    }
+        PhysicsAccumulate(&GameState->Physics, Input->dtForFrame);
 
-    PhysicsAccumulate(&GameState->Physics, Input->dtForFrame);
-
-    while (PhysicsNextTick(&GameState->Physics))
-    {
-        SimSavePreviousTransforms(Region);
-
-        if (!GameState->Paused)
+        while (PhysicsNextTick(&GameState->Physics))
         {
-            PhysicsStep(&GameState->Physics, Region);
+            SimSavePreviousTransforms(Region);
+
+            if (!GameState->Paused)
+            {
+                PhysicsStep(&GameState->Physics, Region);
+            }
         }
+
+        real32 RenderAlpha = PhysicsRenderAlpha(&GameState->Physics);
+
+        UpdateCamera(Camera, GameState->World, Input);
+
+        Vector3 CameraSimP = WorldSubtract(GameState->World, &Camera->Position, &Region->Origin);
+
+        bool32 PickedThisFrame = (UI->MousePressed && !UI->Active);
+        if (PickedThisFrame && Input->RenderWidth > 0 && Input->RenderHeight > 0)
+        {
+            ray PickRay = CameraRayFromScreen(Camera, CameraSimP, (real32)Input->MouseX, (real32)Input->MouseY, (real32)Input->RenderWidth, (real32)Input->RenderHeight);
+
+            raycast_hit Hit;
+            GameState->SelectedStorageIndex = RayCastSim(PickRay, Region, Assets, &GameState->FrameArena, RenderAlpha, &Hit) ? Hit.StorageIndex : ENTITY_STORAGE_NONE;
+
+            ShootBall(GameState, Region, PickRay);
+        }
+
+        PushRenderCamera(RenderCommands, CameraView(Camera, CameraSimP), Camera->FovY);
+        PushRenderLight(RenderCommands, Vector3(30.0f, 0.0f, 0.0f));
+        PushRenderSkybox(RenderCommands, GameState->SkyHandle);
+        PushEntitiesToRender(Region, RenderCommands, GameState->SelectedStorageIndex, RenderAlpha);
+
     }
-
-    real32 RenderAlpha = PhysicsRenderAlpha(&GameState->Physics);
-
-    UpdateCamera(Camera, GameState->World, Input);
-
-    Vector3 CameraSimP = WorldSubtract(GameState->World, &Camera->P, &Region->Origin);
-
-    bool32 PickedThisFrame = (UI->MousePressed && !UI->Active);
-    if (PickedThisFrame && Input->RenderWidth > 0 && Input->RenderHeight > 0)
-    {
-        ray PickRay = CameraRayFromScreen(Camera, CameraSimP, (real32)Input->MouseX, (real32)Input->MouseY, (real32)Input->RenderWidth, (real32)Input->RenderHeight);
-
-        raycast_hit Hit;
-        GameState->SelectedStorageIndex = RayCastSim(PickRay, Region, Assets, &GameState->FrameArena, RenderAlpha, &Hit) ? Hit.StorageIndex : ENTITY_STORAGE_NONE;
-
-        ShootBall(GameState, Region, PickRay);
-    }
-
-    PushRenderCamera(RenderCommands, CameraView(Camera, CameraSimP), Camera->FovY);
-    PushRenderLight(RenderCommands, Vector3(30.0f, 0.0f, 0.0f));
-    PushRenderSkybox(RenderCommands, GameState->SkyHandle);
-    PushEntitiesToRender(Region, RenderCommands, GameState->SelectedStorageIndex, RenderAlpha);
-
     EndSim(Region, &GameState->WorldArena);
 
     EndUI(UI);
