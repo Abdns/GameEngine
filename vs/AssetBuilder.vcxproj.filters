@@ -19,6 +19,12 @@
     <Filter Include="assets\models">
       <UniqueIdentifier>{b1000000-0000-0000-0000-000000000011}</UniqueIdentifier>
     </Filter>
+    <Filter Include="assets\models\TestShapes">
+      <UniqueIdentifier>{b1000000-0000-0000-0000-000000000016}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="assets\models\Gizmo">
+      <UniqueIdentifier>{b1000000-0000-0000-0000-000000000017}</UniqueIdentifier>
+    </Filter>
     <Filter Include="assets\images">
       <UniqueIdentifier>{b1000000-0000-0000-0000-000000000012}</UniqueIdentifier>
     </Filter>
@@ -79,14 +85,20 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\assets\models\TestShapes.gltf">
-      <Filter>assets\models</Filter>
+    <None Include="..\assets\models\TestShapes\TestShapes.gltf">
+      <Filter>assets\models\TestShapes</Filter>
     </None>
-    <None Include="..\assets\models\TestShapes.bin">
-      <Filter>assets\models</Filter>
+    <None Include="..\assets\models\TestShapes\TestShapes.bin">
+      <Filter>assets\models\TestShapes</Filter>
     </None>
-    <None Include="..\assets\models\TestTexture.tga">
-      <Filter>assets\models</Filter>
+    <None Include="..\assets\models\TestShapes\TestTexture.tga">
+      <Filter>assets\models\TestShapes</Filter>
+    </None>
+    <None Include="..\assets\models\Gizmo\Gizmo.gltf">
+      <Filter>assets\models\Gizmo</Filter>
+    </None>
+    <None Include="..\assets\models\Gizmo\Gizmo.bin">
+      <Filter>assets\models\Gizmo</Filter>
     </None>
     <None Include="..\assets\images\sky.hdr">
       <Filter>assets\images</Filter>

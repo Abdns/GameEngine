@@ -288,7 +288,8 @@ int main(int ArgCount, char **Args)
 
     enga_asset_table Table = {};
 
-    LoadGLTF(&Table, &Arena, "..\\assets\\models\\TestShapes.gltf");
+    LoadGLTF(&Table, &Arena, "..\\assets\\models\\TestShapes\\TestShapes.gltf");
+    LoadGLTF(&Table, &Arena, "..\\assets\\models\\Gizmo\\Gizmo.gltf");
     LoadSkyCubemap(&Table, &Arena, "..\\assets\\images\\sky.hdr", "sky", 512);
     LoadFont(&Table, &Arena, "..\\assets\\fonts\\DejaVuSansMono.ttf", "DejaVuSansMono24", 24.0f, 256);
     CreateENGA(&Table, OutPath);

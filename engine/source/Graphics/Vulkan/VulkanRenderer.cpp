@@ -215,120 +215,133 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
 
     vkCmdBindIndexBuffer(cmd, res->IndexBuffer.Buffer, 0, VK_INDEX_TYPE_UINT32);
 
-    uint32 offset   = 0;
-    for (command_type *cmdBase = NextRenderCommand(commands, &offset); cmdBase; cmdBase = NextRenderCommand(commands, &offset))
+    for (uint32 queue = 0; queue < Queue_Count; ++queue)
     {
-        switch (*cmdBase)
+        uint32 offset   = 0;
+        for (command_type *cmdBase = NextRenderCommand(commands, &offset); cmdBase; cmdBase = NextRenderCommand(commands, &offset))
         {
-            case Render_Light:
+            if (*cmdBase != Render_Mesh && queue != Queue_Opaque)
             {
-                command_render_light *lightCmd = (command_render_light *)cmdBase;
+                continue;
+            }
 
-                frame_globals *globals = (frame_globals *)res->Globals.Cpu;
-
-                globals->LightDir   = lightCmd->Direction;
-                globals->LightColor = lightCmd->Color;
-
-            } break;
-            case Render_Camera:
+            switch (*cmdBase)
             {
-                command_render_camera *cameraCmd = (command_render_camera *)cmdBase;
-
-                frame_globals *globals = (frame_globals *)res->Globals.Cpu;
-
-                Matrix4 proj = Mat4Perspective(cameraCmd->FovY, FOVaspect, 0.1f, 100.0f);
-                globals->ViewProj  = Mat4Multiply(proj, cameraCmd->View);
-                globals->CameraPos = cameraCmd->Position;
-
-                Matrix4 *view = &cameraCmd->View;
-                real32 rightScale = 1.0f / proj.Elements[0][0];
-                real32 upScale    = 1.0f / proj.Elements[1][1];
-
-                globals->SkyRight   = Vector4(view->Elements[0][0] * rightScale, view->Elements[1][0] * rightScale, view->Elements[2][0] * rightScale, 0.0f);
-                globals->SkyUp      = Vector4(view->Elements[0][1] * upScale,    view->Elements[1][1] * upScale,    view->Elements[2][1] * upScale,    0.0f);
-                globals->SkyForward = Vector4(-view->Elements[0][2], -view->Elements[1][2], -view->Elements[2][2], 0.0f);
-            } break;
-
-            case Render_Skybox:
-            {
-                command_render_skybox *skyCmd = (command_render_skybox *)cmdBase;
-
-                uint32 cubeSlot = skyCmd->CubemapHandle;
-                Assert(cubeSlot < MAX_CUBEMAPS);
-                Assert(res->Cubemaps[cubeSlot].View);
-
-                frame_globals *globals = (frame_globals *)res->Globals.Cpu;
-
-                globals->SkyCubemap  = cubeSlot;
-                globals->SkyMipCount = res->Cubemaps[cubeSlot].MipLevels;
-
-                piplineId = Pipeline_Skybox;
-                pipeline = &pipelines[piplineId];
-
-                BindPipelineState(context, cmd, pipeline, &current, &wanted);
-                ApplyRenderState(context, cmd, &current, &wanted);
-
-                shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(skybox_params), 16);
-
-                skybox_params params = {};
-                params.Tint         = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-                params.CubemapIndex = cubeSlot;
-
-                *(skybox_params *)alloc.Cpu = params;
-
-                BindParams(cmd, res->PipelineLayout, alloc.Gpu);
-
-                vkCmdDraw(cmd, 3, 1, 0, 0);
-            } break;
-
-            case Render_Mesh:
-            {
-                command_render_mesh *meshCmd = (command_render_mesh *)cmdBase;
-                Assert(meshCmd->MeshHandle < MAX_MESHES);
-
-                gpu_mesh *mesh = res->Meshes + meshCmd->MeshHandle;
-                Assert(mesh->IndexCount);
-
-                uint32 materialSlot = meshCmd->MaterialHandle;
-                Assert(materialSlot < res->MaterialCount);
-
-                material_state *material = &res->MaterialStates[materialSlot];
-
-                if ((uint32)material->Pipeline != piplineId)
+                case Render_Light:
                 {
-                    if (pipelines[material->Pipeline].Vert == VK_NULL_HANDLE)
+                    command_render_light *lightCmd = (command_render_light *)cmdBase;
+
+                    frame_globals *globals = (frame_globals *)res->Globals.Cpu;
+
+                    globals->LightDir   = lightCmd->Direction;
+                    globals->LightColor = lightCmd->Color;
+
+                } break;
+                case Render_Camera:
+                {
+                    command_render_camera *cameraCmd = (command_render_camera *)cmdBase;
+
+                    frame_globals *globals = (frame_globals *)res->Globals.Cpu;
+
+                    Matrix4 proj = Mat4Perspective(cameraCmd->FovY, FOVaspect, 0.1f, 100.0f);
+                    globals->ViewProj  = Mat4Multiply(proj, cameraCmd->View);
+                    globals->CameraPos = cameraCmd->Position;
+
+                    Matrix4 *view = &cameraCmd->View;
+                    real32 rightScale = 1.0f / proj.Elements[0][0];
+                    real32 upScale    = 1.0f / proj.Elements[1][1];
+
+                    globals->SkyRight   = Vector4(view->Elements[0][0] * rightScale, view->Elements[1][0] * rightScale, view->Elements[2][0] * rightScale, 0.0f);
+                    globals->SkyUp      = Vector4(view->Elements[0][1] * upScale,    view->Elements[1][1] * upScale,    view->Elements[2][1] * upScale,    0.0f);
+                    globals->SkyForward = Vector4(-view->Elements[0][2], -view->Elements[1][2], -view->Elements[2][2], 0.0f);
+                } break;
+
+                case Render_Skybox:
+                {
+                    command_render_skybox *skyCmd = (command_render_skybox *)cmdBase;
+
+                    uint32 cubeSlot = skyCmd->CubemapHandle;
+                    Assert(cubeSlot < MAX_CUBEMAPS);
+                    Assert(res->Cubemaps[cubeSlot].View);
+
+                    frame_globals *globals = (frame_globals *)res->Globals.Cpu;
+
+                    globals->SkyCubemap  = cubeSlot;
+                    globals->SkyMipCount = res->Cubemaps[cubeSlot].MipLevels;
+
+                    piplineId = Pipeline_Skybox;
+                    pipeline = &pipelines[piplineId];
+
+                    BindPipelineState(context, cmd, pipeline, &current, &wanted);
+                    ApplyRenderState(context, cmd, &current, &wanted);
+
+                    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(skybox_params), 16);
+
+                    skybox_params params = {};
+                    params.Tint         = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+                    params.CubemapIndex = cubeSlot;
+
+                    *(skybox_params *)alloc.Cpu = params;
+
+                    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+
+                    vkCmdDraw(cmd, 3, 1, 0, 0);
+                } break;
+
+                case Render_Mesh:
+                {
+                    command_render_mesh *meshCmd = (command_render_mesh *)cmdBase;
+                    Assert(meshCmd->MeshHandle < MAX_MESHES);
+
+                    gpu_mesh *mesh = res->Meshes + meshCmd->MeshHandle;
+                    Assert(mesh->IndexCount);
+
+                    uint32 materialSlot = meshCmd->MaterialHandle;
+                    Assert(materialSlot < res->MaterialCount);
+
+                    material_state *material = &res->MaterialStates[materialSlot];
+
+                    if ((uint32)material->Queue != queue)
                     {
                         break;
                     }
 
-                    piplineId = (uint32)material->Pipeline;
-                    pipeline = &pipelines[piplineId];
+                    if ((uint32)material->Pipeline != piplineId)
+                    {
+                        if (pipelines[material->Pipeline].Vert == VK_NULL_HANDLE)
+                        {
+                            break;
+                        }
 
-                    BindPipelineState(context, cmd, pipeline, &current, &wanted);
-                }
+                        piplineId = (uint32)material->Pipeline;
+                        pipeline = &pipelines[piplineId];
 
-                wanted.CullMode   = ToVulkanCullMode(material->CullMode);
-                wanted.DepthTest  = material->DepthTest  ? VK_TRUE : VK_FALSE;
-                wanted.DepthWrite = material->DepthWrite ? VK_TRUE : VK_FALSE;
-                wanted.AlphaBlend = (material->BlendMode == Blend_Alpha) ? VK_TRUE : VK_FALSE;
+                        BindPipelineState(context, cmd, pipeline, &current, &wanted);
+                    }
 
-                ApplyRenderState(context, cmd, &current, &wanted);
+                    wanted.CullMode   = ToVulkanCullMode(material->CullMode);
+                    wanted.DepthTest  = material->DepthTest  ? VK_TRUE : VK_FALSE;
+                    wanted.DepthWrite = material->DepthWrite ? VK_TRUE : VK_FALSE;
+                    wanted.AlphaBlend = (material->BlendMode == Blend_Alpha) ? VK_TRUE : VK_FALSE;
 
-                shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(draw_params), 16);
+                    ApplyRenderState(context, cmd, &current, &wanted);
 
-                draw_params params = {};
-                params.Model         = meshCmd->Transform;
-                params.Tint          = meshCmd->Tint;
-                params.Vertices      = res->VertexBuffer.Address;
-                params.Materials     = res->MaterialBuffer.Address;
-                params.MaterialSlot  = materialSlot;
+                    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(draw_params), 16);
 
-                *(draw_params *)alloc.Cpu = params;
+                    draw_params params = {};
+                    params.Model         = meshCmd->Transform;
+                    params.Tint          = meshCmd->Tint;
+                    params.Vertices      = res->VertexBuffer.Address;
+                    params.Materials     = res->MaterialBuffer.Address;
+                    params.MaterialSlot  = materialSlot;
 
-                BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+                    *(draw_params *)alloc.Cpu = params;
 
-                vkCmdDrawIndexed(cmd, mesh->IndexCount, 1, mesh->FirstIndex, (int32)mesh->FirstVertex, 0);
-            } break;
+                    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+
+                    vkCmdDrawIndexed(cmd, mesh->IndexCount, 1, mesh->FirstIndex, (int32)mesh->FirstVertex, 0);
+                } break;
+            }
         }
     }
 }

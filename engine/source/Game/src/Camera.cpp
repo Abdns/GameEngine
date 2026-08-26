@@ -1,5 +1,6 @@
 #include "Types.h"
 #include "EngineMath.h"
+#include "Input.h"
 #include "PlatformAPI.h"
 
 struct camera
@@ -54,34 +55,24 @@ internal ray CameraRayFromScreen(camera *Camera, Vector3 SimSpaceP, real32 Mouse
     return RayFromScreen(MouseX, MouseY, ViewportWidth, ViewportHeight, Camera->FovY, SimSpaceP, Basis.Right, Basis.Up, Basis.Forward);
 }
 
-internal void UpdateCamera(camera *Camera, world *World, game_input *Input)
+internal void UpdateCamera(camera *Camera, world *World, input_state *Controls)
 {
-    real32 dMouseX = (real32)(Input->MouseX - Input->LastMouseX);
-    real32 dMouseY = (real32)(Input->MouseY - Input->LastMouseY);
-
-    if (Input->MouseButtons[2].EndedDown)
+    if (Controls->Mouse.LookDown)
     {
         real32 Sensitivity = 0.003f;
-        Camera->Yaw   -= dMouseX * Sensitivity;
-        Camera->Pitch -= dMouseY * Sensitivity;
+        Camera->Yaw   -= Controls->Mouse.Delta.X * Sensitivity;
+        Camera->Pitch -= Controls->Mouse.Delta.Y * Sensitivity;
         Camera->Pitch = Clamp(-1.55f, Camera->Pitch, 1.55f);
     }
 
     camera_basis Basis = GetCameraBasis(Camera);
-    Vector3 Forward = Basis.Forward;
-    Vector3 Right   = Basis.Right;
     Vector3 WorldUp = Vector3(0.0f, 1.0f, 0.0f);
 
-    game_controller_input *Keyboard = &Input->Controllers[0];
-    Vector3 Move = Vector3(0.0f, 0.0f, 0.0f);
-    if (Keyboard->Up.EndedDown)            Move += Forward;
-    if (Keyboard->Down.EndedDown)          Move -= Forward;
-    if (Keyboard->Right.EndedDown)         Move += Right;
-    if (Keyboard->Left.EndedDown)          Move -= Right;
-    if (Keyboard->RightShoulder.EndedDown) Move += WorldUp;
-    if (Keyboard->LeftShoulder.EndedDown)  Move -= WorldUp;
+    Vector3 Move = Controls->MoveAxis.X * Basis.Right +
+                   Controls->MoveAxis.Y * WorldUp +
+                   Controls->MoveAxis.Z * Basis.Forward;
 
     real32 Speed = 4.0f;
 
-    Camera->Position = MapIntoChunkSpace(World, Camera->Position, (Speed * Input->dtForFrame) * Move);
+    Camera->Position = MapIntoChunkSpace(World, Camera->Position, (Speed * Controls->dtForFrame) * Move);
 }

@@ -118,7 +118,7 @@ internal void ChangeEntityLocation(memory_arena *Arena, world *World, entity_sto
     Entity->Position = NewP;
 }
 
-internal uint32 AddLowEntity(memory_arena *Arena, world *World, entity_storage *Storage, entity_type Type, world_position P, const char *Name)
+internal uint32 AddLowEntity(entity_storage *Storage, entity_type Type, world_position P, const char *Name)
 {
     uint32 StorageIndex;
 
@@ -155,20 +155,16 @@ internal uint32 AddLowEntity(memory_arena *Arena, world *World, entity_storage *
         AppendString(Entity->Name, ENTITY_MAX_NAME, 0, Name);
     }
 
-    ChangeEntityLocation(Arena, World, Storage, StorageIndex, P);
-
     return StorageIndex;
 }
 
-internal void RemoveLowEntity(memory_arena *Arena, world *World, entity_storage *Storage, uint32 StorageIndex)
+internal void RemoveLowEntity(entity_storage *Storage, uint32 StorageIndex)
 {
     low_entity *Entity = GetLowEntity(Storage, StorageIndex);
     if (!Entity || Entity->SimVariant.Type == Entity_Null)
     {
         return;
     }
-
-    ChangeEntityLocation(Arena, World, Storage, StorageIndex, NullWorldPosition());
 
     Entity->SimVariant.Type  = Entity_Null;
     Entity->SimVariant.Flags = 0;

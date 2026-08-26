@@ -11,9 +11,9 @@ struct game_state
     memory_arena WorldArena;
     memory_arena FrameArena;
 
+    world         *World;
     asset_store    Assets;
     materials      Materials;
-    world         *World;
     entity_storage Storage;
     physics_state  Physics;
 
@@ -25,10 +25,11 @@ struct game_state
 
     camera Camera;
 
-    uint32 SelectedStorageIndex;
+    input_state   Controls;
+    ui_context    UI;
+    gizmo_context Gizmo;
 
-    ui_context UI;
-    bool32     Paused;
+    bool32 Paused;
 };
 
 #endif

@@ -38,6 +38,15 @@ enum blend_mode
     Blend_Alpha,
 };
 
+enum render_queue
+{
+    Queue_Opaque = 0,
+    Queue_Transparent,
+    Queue_Overlay,
+
+    Queue_Count,
+};
+
 enum pipeline_type
 {
     Pipeline_Unlit = 0,
@@ -114,6 +123,7 @@ struct command_load_material
     pipeline_type Pipeline;
     cull_mode     CullMode;
     blend_mode    BlendMode;
+    render_queue  Queue;
     bool32        DepthTest;
     bool32        DepthWrite;
 
@@ -285,7 +295,7 @@ inline void PushLoadCubemap(render_commands *Commands, uint32 CubemapHandle, voi
     }
 }
 
-inline void PushLoadMaterial(render_commands *Commands, uint32 MaterialHandle, pipeline_type Pipeline, cull_mode CullMode, blend_mode BlendMode, bool32 DepthTest, bool32 DepthWrite, Vector4 BaseColor, uint32 TextureHandle, real32 Metallic, real32 Roughness)
+inline void PushLoadMaterial(render_commands *Commands, uint32 MaterialHandle, pipeline_type Pipeline, cull_mode CullMode, blend_mode BlendMode, render_queue Queue, bool32 DepthTest, bool32 DepthWrite, Vector4 BaseColor, uint32 TextureHandle, real32 Metallic, real32 Roughness)
 {
     command_load_material *cmd = (command_load_material *)PushRenderCommand(Commands, Load_Material);
     if (cmd)
@@ -294,6 +304,7 @@ inline void PushLoadMaterial(render_commands *Commands, uint32 MaterialHandle, p
         cmd->Pipeline       = Pipeline;
         cmd->CullMode       = CullMode;
         cmd->BlendMode      = BlendMode;
+        cmd->Queue          = Queue;
         cmd->DepthTest      = DepthTest;
         cmd->DepthWrite     = DepthWrite;
         cmd->BaseColor      = BaseColor;

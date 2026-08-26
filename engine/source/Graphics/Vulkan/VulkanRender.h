@@ -94,6 +94,7 @@ struct material_state
     pipeline_type Pipeline;
     cull_mode     CullMode;
     blend_mode    BlendMode;
+    render_queue  Queue;
     bool32        DepthTest;
     bool32        DepthWrite;
 };

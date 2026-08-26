@@ -600,9 +600,14 @@ internal void SimSavePreviousTransforms(sim_region *Region)
     }
 }
 
+internal Vector3 SimEntityRenderPosition(sim_entity *Entity, real32 Alpha)
+{
+    return Entity->PrevPosition + Alpha * (Entity->Position - Entity->PrevPosition);
+}
+
 internal Matrix4 SimEntityRenderTransform(sim_entity *Entity, real32 Alpha)
 {
-    Vector3    P           = Entity->PrevPosition + Alpha * (Entity->Position - Entity->PrevPosition);
+    Vector3    P           = SimEntityRenderPosition(Entity, Alpha);
     Quaternion Orientation = QuatNLerp(Entity->PrevOrientation, Entity->Orientation, Alpha);
 
     return Mat4Rigid(P, Orientation);

@@ -57,10 +57,13 @@
     <ClInclude Include="..\engine\source\Game\src\Entity.cpp" />
     <ClInclude Include="..\engine\source\Game\src\SimRegion.cpp" />
     <ClInclude Include="..\engine\source\Game\src\Material.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\Input.cpp" />
     <ClInclude Include="..\engine\source\Game\src\UI.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\Gizmo.cpp" />
     <ClInclude Include="..\engine\source\Game\src\Text.cpp" />
     <ClInclude Include="..\engine\source\Game\include\Game.h" />
     <ClInclude Include="..\engine\source\Game\include\GameState.h" />
+    <ClInclude Include="..\engine\source\Game\include\Input.h" />
     <ClInclude Include="..\engine\source\PlatformApi\PlatformAPI.h" />
     <ClInclude Include="..\engine\source\PlatformApi\RenderCommands.h" />
     <ClInclude Include="..\shared\EngaFormat.h" />

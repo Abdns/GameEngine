@@ -219,6 +219,7 @@ internal material_state CreateMaterialState(command_load_material *Description)
     result.Pipeline   = Description->Pipeline;
     result.CullMode   = Description->CullMode;
     result.BlendMode  = Description->BlendMode;
+    result.Queue      = Description->Queue;
     result.DepthTest  = Description->DepthTest;
     result.DepthWrite = Description->DepthWrite;
 

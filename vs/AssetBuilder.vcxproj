@@ -49,9 +49,11 @@
     <ClInclude Include="..\shared\Win32FileIO.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\assets\models\TestShapes.gltf" />
-    <None Include="..\assets\models\TestShapes.bin" />
-    <None Include="..\assets\models\TestTexture.tga" />
+    <None Include="..\assets\models\TestShapes\TestShapes.gltf" />
+    <None Include="..\assets\models\TestShapes\TestShapes.bin" />
+    <None Include="..\assets\models\TestShapes\TestTexture.tga" />
+    <None Include="..\assets\models\Gizmo\Gizmo.gltf" />
+    <None Include="..\assets\models\Gizmo\Gizmo.bin" />
     <None Include="..\assets\images\sky.hdr" />
     <None Include="..\assets\fonts\DejaVuSansMono.ttf" />
     <None Include="..\assets\fonts\DejaVuSansMono.LICENSE.txt" />
