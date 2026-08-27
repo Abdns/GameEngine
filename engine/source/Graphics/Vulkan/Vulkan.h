@@ -17,6 +17,7 @@ static_assert(sizeof(vertex) == sizeof(enga_vertex), "vertex must match the pack
 static_assert(sizeof(vertex) == VERTEX_STRIDE, "vertex stride must match the shader stride");
 static_assert(sizeof(gpu_material) == MATERIAL_STRIDE, "material stride must match the shader stride");
 static_assert(sizeof(rect_params) == RECT_PARAMS_STRIDE, "rect params stride must match the shader stride");
+static_assert(sizeof(voxelize_params) == 128, "voxelize params must match the shader layout");
 
 #define MAX_SURFACE_FORMATS   64
 #define MAX_PRESENT_MODES     8

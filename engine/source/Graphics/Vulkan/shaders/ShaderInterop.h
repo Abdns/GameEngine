@@ -14,9 +14,19 @@
 #define MAX_VOLUMES   8
 #define MAX_MATERIALS 64
 
-#define VOLUME_SLOT_DEBUG 0
-#define VOLUME_DEBUG_SIZE 64
+#define VOLUME_SLOT_ALBEDO 0
+
 #define VOLUME_GROUP_SIZE 4
+#define VOXEL_GROUP_SIZE  64
+
+#define VOXEL_GRID_SIZE    128
+#define VOXEL_WORLD_EXTENT 12.0f
+
+#define VOLUME_MODE_SLICE  0
+#define VOLUME_MODE_COLUMN 1
+#define VOLUME_MODE_CAMERA 2
+
+#define VOLUME_MARCH_STEPS 512
 
 #define TEXTURE_NONE 0xFFFFFFFF
 
@@ -130,7 +140,27 @@ struct volume_params
     uint  VolumeSlot;
     uint  VolumeSize;
     float VolumeSlice;
-    uint  VolumePad0;
+    uint  VolumeMode;
+};
+
+struct voxelize_params
+{
+    float4x4 Model;
+
+    gpu_ptr Vertices;
+    gpu_ptr Indices;
+
+    gpu_ptr Materials;
+    uint    FirstIndex;
+    uint    TriangleCount;
+
+    float3 GridCenter;
+    float  GridExtent;
+
+    uint FirstVertex;
+    uint MaterialSlot;
+    uint VolumeSlot;
+    uint GridSize;
 };
 
 #ifndef __cplusplus
@@ -138,6 +168,7 @@ struct volume_params
     typedef vk::BufferPointer<draw_params, 16>       draw_params_ptr;
     typedef vk::BufferPointer<image_params, 16>      image_params_ptr;
     typedef vk::BufferPointer<volume_params, 16>     volume_params_ptr;
+    typedef vk::BufferPointer<voxelize_params, 16>   voxelize_params_ptr;
     typedef vk::BufferPointer<skybox_params, 16>     skybox_params_ptr;
     typedef vk::BufferPointer<rect_params, 16>       rect_params_ptr;
 
@@ -149,6 +180,11 @@ struct volume_params
     gpu_material LoadMaterial(uint64_t base, uint slot)
     {
         return vk::RawBufferLoad<gpu_material>(base + (uint64_t)slot * MATERIAL_STRIDE, 16);
+    }
+
+    uint LoadIndex(uint64_t base, uint index)
+    {
+        return vk::RawBufferLoad<uint>(base + (uint64_t)index * 4, 4);
     }
 
     rect_params LoadRect(uint64_t base, uint index)
@@ -179,6 +215,11 @@ struct volume_params
     volume_params LoadVolumeParams(uint64_t address)
     {
         return volume_params_ptr(address).Get();
+    }
+
+    voxelize_params LoadVoxelizeParams(uint64_t address)
+    {
+        return voxelize_params_ptr(address).Get();
     }
 #endif
 

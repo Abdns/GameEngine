@@ -12,29 +12,138 @@ static const float2 Positions[3] =
     float2(-1.0,  3.0),
 };
 
+static const float3 VolumeBackground = float3(0.02, 0.02, 0.03);
+
 struct vs_output
 {
     float4 Position : SV_Position;
-    [[vk::location(0)]] float2 UV : TEXCOORD0;
+    [[vk::location(0)]] float2 UV        : TEXCOORD0;
+    [[vk::location(1)]] float3 Direction : TEXCOORD1;
+    [[vk::location(2)]] float3 Origin    : TEXCOORD2;
 };
 
 vs_output VSMain(uint vertexID : SV_VertexID)
 {
     float2 NDC = Positions[vertexID];
 
+    frame_globals globals = LoadGlobals(pc.GlobalsPtr);
+
     vs_output output;
-    output.Position = float4(NDC, 0.0, 1.0);
-    output.UV       = NDC * 0.5 + 0.5;
+    output.Position  = float4(NDC, 0.0, 1.0);
+    output.UV        = NDC * 0.5 + 0.5;
+    output.Direction = globals.SkyRight.xyz * NDC.x + globals.SkyUp.xyz * NDC.y + globals.SkyForward.xyz;
+    output.Origin    = globals.CameraPos;
     return output;
+}
+
+float4 SampleSlice(volume_params params, float2 uv)
+{
+    float3 UVW = float3(uv, params.VolumeSlice);
+
+    return Volumes[params.VolumeSlot].SampleLevel(Samp, UVW, 0);
+}
+
+float4 SampleColumn(volume_params params, float2 uv)
+{
+    int size = (int)params.VolumeSize;
+
+    int x = clamp((int)(uv.x * params.VolumeSize), 0, size - 1);
+    int z = clamp((int)(uv.y * params.VolumeSize), 0, size - 1);
+
+    for (int y = size - 1; y >= 0; --y)
+    {
+        float4 voxel = Volumes[params.VolumeSlot].Load(int4(x, y, z, 0));
+
+        if (voxel.a > 0.0)
+        {
+            float shade = 0.35 + 0.65 * ((float)y / (float)size);
+
+            return float4(voxel.rgb * shade, 1.0);
+        }
+    }
+
+    return float4(VolumeBackground, 1.0);
+}
+
+float3 SafeDirection(float3 direction)
+{
+    float3 result = direction;
+
+    result.x = abs(result.x) < 1e-6 ? 1e-6 : result.x;
+    result.y = abs(result.y) < 1e-6 ? 1e-6 : result.y;
+    result.z = abs(result.z) < 1e-6 ? 1e-6 : result.z;
+
+    return result;
+}
+
+float4 SampleCamera(volume_params params, float3 origin, float3 direction)
+{
+    float extent = VOXEL_WORLD_EXTENT;
+
+    float3 ray = SafeDirection(normalize(direction));
+    float3 inv = 1.0 / ray;
+
+    float3 near = (-extent - origin) * inv;
+    float3 far  = ( extent - origin) * inv;
+
+    float3 smaller = min(near, far);
+    float3 bigger  = max(near, far);
+
+    float enter = max(max(smaller.x, smaller.y), smaller.z);
+    float exit  = min(min(bigger.x, bigger.y), bigger.z);
+
+    enter = max(enter, 0.0);
+
+    if (exit <= enter)
+    {
+        return float4(VolumeBackground, 1.0);
+    }
+
+    float voxelSize = (2.0 * extent) / (float)params.VolumeSize;
+    float stepSize  = voxelSize * 0.5;
+
+    int size = (int)params.VolumeSize;
+
+    for (uint i = 0; i < VOLUME_MARCH_STEPS; ++i)
+    {
+        float travel = enter + stepSize * (float)i;
+
+        if (travel > exit)
+        {
+            break;
+        }
+
+        float3 samplePos = origin + ray * travel;
+        float3 local     = (samplePos + extent) / (2.0 * extent);
+
+        int3 coord = clamp(int3(local * params.VolumeSize), 0, size - 1);
+
+        float4 voxel = Volumes[params.VolumeSlot].Load(int4(coord, 0));
+
+        if (voxel.a > 0.0)
+        {
+            float shade = 0.4 + 0.6 * saturate(1.0 - travel / (3.0 * extent));
+
+            return float4(voxel.rgb * shade, 1.0);
+        }
+    }
+
+    return float4(VolumeBackground, 1.0);
 }
 
 float4 PSMain(vs_output input) : SV_Target
 {
     volume_params params = LoadVolumeParams(pc.ParamsPtr);
 
-    float3 UVW = float3(input.UV, params.VolumeSlice);
+    if (params.VolumeMode == VOLUME_MODE_CAMERA)
+    {
+        return SampleCamera(params, input.Origin, input.Direction);
+    }
 
-    float3 Color = Volumes[params.VolumeSlot].SampleLevel(Samp, UVW, 0).rgb;
+    if (params.VolumeMode == VOLUME_MODE_COLUMN)
+    {
+        return SampleColumn(params, input.UV);
+    }
 
-    return float4(Color, 1.0);
+    return SampleSlice(params, input.UV);
 }

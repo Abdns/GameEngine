@@ -161,7 +161,8 @@ struct render_pipeline
 
 enum compute_type
 {
-    Compute_VolumeFill = 0,
+    Compute_VoxelClear = 0,
+    Compute_Voxelize,
 
     Compute_Count,
 };

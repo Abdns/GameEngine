@@ -90,7 +90,8 @@
     <None Include="..\engine\source\Graphics\Vulkan\shaders\UI.hlsl" />
     <None Include="..\engine\source\Graphics\Vulkan\shaders\uirect.hlsl" />
     <None Include="..\engine\source\Graphics\Vulkan\shaders\volumeview.hlsl" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\volumefill.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelclear.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelize.hlsl" />
     <None Include="..\EngaAsset\assets.enga" />
     <None Include="..\build.bat" />
   </ItemGroup>

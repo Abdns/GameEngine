@@ -223,7 +223,10 @@
     <None Include="..\engine\source\Graphics\Vulkan\shaders\volumeview.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
     </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\volumefill.hlsl">
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelclear.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
+    </None>
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelize.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
     <None Include="..\EngaAsset\assets.enga">

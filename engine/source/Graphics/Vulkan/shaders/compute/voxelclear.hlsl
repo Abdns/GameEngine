@@ -1,6 +1,6 @@
 #include "ShaderInterop.h"
 
-[[vk::image_format("rgba16f")]]
+[[vk::image_format("rgba8")]]
 [[vk::binding(BINDING_STORAGE_VOLUMES, SET_GLOBAL)]] RWTexture3D<float4> VolumesRW[MAX_VOLUMES];
 
 [[vk::push_constant]] push_constants pc;
@@ -15,7 +15,5 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         return;
     }
 
-    float3 UVW = (float3(id) + 0.5) / (float)params.VolumeSize;
-
-    VolumesRW[params.VolumeSlot][id] = float4(UVW, 1.0);
+    VolumesRW[params.VolumeSlot][id] = float4(0.0, 0.0, 0.0, 0.0);
 }

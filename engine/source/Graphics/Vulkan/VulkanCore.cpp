@@ -317,7 +317,7 @@ internal VkImage CreateImage(vulkan_context *context, uint32 width, uint32 heigh
 
 internal VkImage CreateVolumeImage(vulkan_context *context, uint32 width, uint32 height, uint32 depth, VkFormat format, VkDeviceMemory *outMemory)
 {
-    VkImageUsageFlags usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    VkImageUsageFlags usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
     VkImageCreateInfo imageInfo = VolumeImageInfo(width, height, depth, format, usage);
 
@@ -425,6 +425,18 @@ internal void CmdCopyBufferToImage(VkCommandBuffer cmd, VkBuffer buffer, VkDevic
     region.imageExtent.depth  = 1;
 
     vkCmdCopyBufferToImage(cmd, buffer, image, VK_IMAGE_LAYOUT_GENERAL, 1, &region);
+}
+
+internal void CmdCopyVolumeToBuffer(VkCommandBuffer cmd, VkImage image, VkBuffer buffer, uint32 width, uint32 height, uint32 depth)
+{
+    VkBufferImageCopy region{};
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.layerCount = 1;
+    region.imageExtent.width  = width;
+    region.imageExtent.height = height;
+    region.imageExtent.depth  = depth;
+
+    vkCmdCopyImageToBuffer(cmd, image, VK_IMAGE_LAYOUT_GENERAL, buffer, 1, &region);
 }
 
 internal void CmdUploadImage(VkCommandBuffer cmd, VkBuffer staging, VkDeviceSize stagingOffset, VkImage image, uint32 width, uint32 height, uint32 layers)
