@@ -76,27 +76,30 @@ float3 SafeDirection(float3 direction)
     return result;
 }
 
-float4 SampleCamera(volume_params params, float3 origin, float3 direction)
+bool MarchVolume(volume_params params, float3 origin, float3 direction, out int3 hitCoord, out float4 hitVoxel, out float hitTravel, out float3 hitPosition)
 {
+    hitCoord    = int3(0, 0, 0);
+    hitVoxel    = float4(0.0, 0.0, 0.0, 0.0);
+    hitTravel   = 0.0;
+    hitPosition = origin;
+
     float extent = VOXEL_WORLD_EXTENT;
 
     float3 ray = SafeDirection(normalize(direction));
     float3 inv = 1.0 / ray;
 
-    float3 near = (-extent - origin) * inv;
-    float3 far  = ( extent - origin) * inv;
+    float3 nearPlane = (-extent - origin) * inv;
+    float3 farPlane  = ( extent - origin) * inv;
 
-    float3 smaller = min(near, far);
-    float3 bigger  = max(near, far);
+    float3 smaller = min(nearPlane, farPlane);
+    float3 bigger  = max(nearPlane, farPlane);
 
-    float enter = max(max(smaller.x, smaller.y), smaller.z);
+    float enter = max(max(smaller.x, smaller.y), max(smaller.z, 0.0));
     float exit  = min(min(bigger.x, bigger.y), bigger.z);
-
-    enter = max(enter, 0.0);
 
     if (exit <= enter)
     {
-        return float4(VolumeBackground, 1.0);
+        return false;
     }
 
     float voxelSize = (2.0 * extent) / (float)params.VolumeSize;
@@ -122,22 +125,97 @@ float4 SampleCamera(volume_params params, float3 origin, float3 direction)
 
         if (voxel.a > 0.0)
         {
-            float shade = 0.4 + 0.6 * saturate(1.0 - travel / (3.0 * extent));
-
-            return float4(voxel.rgb * shade, 1.0);
+            hitCoord    = coord;
+            hitVoxel    = voxel;
+            hitTravel   = travel;
+            hitPosition = samplePos;
+            return true;
         }
     }
 
-    return float4(VolumeBackground, 1.0);
+    return false;
+}
+
+float4 SampleCamera(volume_params params, float3 origin, float3 direction)
+{
+    int3   coord;
+    float4 voxel;
+    float  travel;
+    float3 position;
+
+    if (!MarchVolume(params, origin, direction, coord, voxel, travel, position))
+    {
+        return float4(VolumeBackground, 1.0);
+    }
+
+    float shade = 0.4 + 0.6 * saturate(1.0 - travel / (3.0 * VOXEL_WORLD_EXTENT));
+
+    return float4(voxel.rgb * shade, 1.0);
+}
+
+float4 SampleLight(volume_params params, float3 origin, float3 direction)
+{
+    int3   coord;
+    float4 voxel;
+    float  travel;
+    float3 position;
+
+    if (!MarchVolume(params, origin, direction, coord, voxel, travel, position))
+    {
+        return float4(VolumeBackground, 1.0);
+    }
+
+    float3 normal = float3(0.0, 1.0, 0.0);
+
+    float3 packed  = Volumes[VOLUME_SLOT_NORMAL].Load(int4(coord, 0)).rgb * 2.0 - 1.0;
+    float  length2 = dot(packed, packed);
+
+    if (length2 > 1e-6)
+    {
+        normal = packed * rsqrt(length2);
+    }
+
+    float cellSize = (2.0 * VOXEL_WORLD_EXTENT) / (float)LIGHT_GRID_SIZE;
+
+    float3 samplePos = position + normal * cellSize * 0.5;
+    float3 UVW       = (samplePos + VOXEL_WORLD_EXTENT) / (2.0 * VOXEL_WORLD_EXTENT);
+
+    float3 total       = float3(0.0, 0.0, 0.0);
+    float  totalWeight = 0.0;
+
+    for (uint bucket = 0; bucket < LIGHT_DIRECTIONS; ++bucket)
+    {
+        float weight = max(dot(normal, -LightAxis[bucket]), 0.0) + LIGHT_READ_AMBIENT;
+
+        total       += Volumes[params.VolumeLightSlot + bucket].SampleLevel(Samp, UVW, 0).rgb * weight;
+        totalWeight += weight;
+    }
+
+    total *= LIGHT_GI_STRENGTH / max(totalWeight, 1e-4);
+
+    float skyVisibility = Volumes[VOLUME_SLOT_SKYVIS].SampleLevel(Samp, UVW, 0).r;
+
+    total += skyVisibility * float3(0.35, 0.45, 0.6);
+
+    return float4(total * voxel.rgb, 1.0);
 }
 
 float4 PSMain(vs_output input) : SV_Target
 {
     volume_params params = LoadVolumeParams(pc.ParamsPtr);
 
+    frame_globals globals = LoadGlobals(pc.GlobalsPtr);
+
+    float3 localOrigin = input.Origin - globals.VoxelCenter;
+
+    if (params.VolumeMode == VOLUME_MODE_LIGHT)
+    {
+        return SampleLight(params, localOrigin, input.Direction);
+    }
+
     if (params.VolumeMode == VOLUME_MODE_CAMERA)
     {
-        return SampleCamera(params, input.Origin, input.Direction);
+        return SampleCamera(params, localOrigin, input.Direction);
     }
 
     if (params.VolumeMode == VOLUME_MODE_COLUMN)

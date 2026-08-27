@@ -139,6 +139,7 @@ struct command_render_camera
     command_type Type;
     Matrix4 View;
     Vector3 Position;
+    Vector3 WorldPosition;
     real32  FovY;
 };
 
@@ -222,14 +223,15 @@ inline command_type *NextRenderCommand(render_commands *Commands, uint32 *Offset
     return CmdBase;
 }
 
-inline void PushRenderCamera(render_commands *Commands, Matrix4 View, Vector3 Position, real32 FovY)
+inline void PushRenderCamera(render_commands *Commands, Matrix4 View, Vector3 Position, Vector3 WorldPosition, real32 FovY)
 {
     command_render_camera *cmd = (command_render_camera *)PushRenderCommand(Commands, Render_Camera);
     if (cmd)
     {
-        cmd->View     = View;
-        cmd->Position = Position;
-        cmd->FovY     = FovY;
+        cmd->View          = View;
+        cmd->Position      = Position;
+        cmd->WorldPosition = WorldPosition;
+        cmd->FovY          = FovY;
     }
 }
 

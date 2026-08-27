@@ -1,6 +1,6 @@
 #include "ShaderInterop.h"
 
-[[vk::image_format("rgba8")]]
+[[vk::image_format("rgba16f")]]
 [[vk::binding(BINDING_STORAGE_VOLUMES, SET_GLOBAL)]] RWTexture3D<float4> VolumesRW[MAX_VOLUMES];
 
 [[vk::push_constant]] push_constants pc;

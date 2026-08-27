@@ -1,7 +1,7 @@
 #include "ShaderInterop.h"
 
-[[vk::image_format("rgba8")]]
-[[vk::binding(BINDING_STORAGE_VOLUMES, SET_GLOBAL)]] RWTexture3D<float4> VolumesRW[MAX_VOLUMES];
+[[vk::image_format("r32ui")]]
+[[vk::binding(BINDING_UINT_VOLUMES, SET_GLOBAL)]] RWTexture3D<uint> UintVolumesRW[MAX_UINT_VOLUMES];
 
 [[vk::push_constant]] push_constants pc;
 
@@ -13,6 +13,13 @@ float3 WorldToVoxel(float3 world, float3 center, float extent, uint gridSize)
     float3 local = (world - center) / (2.0 * extent) + 0.5;
 
     return local * (float)gridSize;
+}
+
+uint PackColorKey(float3 color)
+{
+    uint3 quantized = (uint3)(saturate(color) * 255.0 + 0.5);
+
+    return 0x80000000u | (quantized.x << 16) | (quantized.y << 8) | quantized.z;
 }
 
 [numthreads(VOXEL_GROUP_SIZE, 1, 1)]
@@ -51,8 +58,8 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 
     gpu_material material = LoadMaterial(params.Materials, params.MaterialSlot);
 
-    float4 storedAlbedo = float4(material.BaseColor.rgb, 1.0);
-    float4 storedNormal = float4(normal * 0.5 + 0.5, 1.0);
+    uint albedoKey = PackColorKey(material.BaseColor.rgb);
+    uint normalKey = PackColorKey(normal * 0.5 + 0.5);
 
     float3 edge1 = v1 - v0;
     float3 edge2 = v2 - v0;
@@ -69,8 +76,8 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 
             if (all(coord >= 0) && all(coord < (int)params.GridSize))
             {
-                VolumesRW[params.VolumeSlot][uint3(coord)]  = storedAlbedo;
-                VolumesRW[params.NormalSlot][uint3(coord)]  = storedNormal;
+                InterlockedMax(UintVolumesRW[UINT_SLOT_ALBEDO][uint3(coord)], albedoKey);
+                InterlockedMax(UintVolumesRW[UINT_SLOT_NORMAL][uint3(coord)], normalKey);
             }
         }
     }

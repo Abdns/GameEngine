@@ -100,6 +100,7 @@ struct descriptor_heap
     VkDeviceSize CubemapOffset;
     VkDeviceSize VolumeOffset;
     VkDeviceSize StorageVolumeOffset;
+    VkDeviceSize UintVolumeOffset;
 };
 
 struct material_state
@@ -129,6 +130,7 @@ struct vulkan_resources
     gpu_texture    Textures[MAX_TEXTURES];
     gpu_texture    Cubemaps[MAX_CUBEMAPS];
     gpu_volume     Volumes[MAX_VOLUMES];
+    gpu_volume     UintVolumes[MAX_UINT_VOLUMES];
     material_state MaterialStates[MAX_MATERIALS];
     uint32         MaterialCount;
 };
@@ -163,6 +165,14 @@ enum compute_type
 {
     Compute_VoxelClear = 0,
     Compute_Voxelize,
+    Compute_LightDownsample,
+    Compute_LightInject,
+    Compute_LightPropagate,
+    Compute_LightBlend,
+    Compute_UintClear,
+    Compute_VoxelResolve,
+    Compute_SkyVisibility,
+    Compute_SkyBlur,
 
     Compute_Count,
 };

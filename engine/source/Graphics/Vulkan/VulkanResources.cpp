@@ -75,7 +75,7 @@ internal void WriteSamplerDescriptor(vulkan_context *context, descriptor_heap *h
 
 internal void CreateDescriptorHeap(vulkan_context *context, vulkan_resources *res)
 {
-    VkDescriptorSetLayoutBinding bindings[5] = {};
+    VkDescriptorSetLayoutBinding bindings[6] = {};
     bindings[0].binding         = BINDING_TEXTURES;
     bindings[0].descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
     bindings[0].descriptorCount = TEXTURE_HEAP_SIZE;
@@ -101,6 +101,11 @@ internal void CreateDescriptorHeap(vulkan_context *context, vulkan_resources *re
     bindings[4].descriptorCount = MAX_VOLUMES;
     bindings[4].stageFlags      = HEAP_STAGES;
 
+    bindings[5].binding         = BINDING_UINT_VOLUMES;
+    bindings[5].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    bindings[5].descriptorCount = MAX_UINT_VOLUMES;
+    bindings[5].stageFlags      = HEAP_STAGES;
+
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layoutInfo.flags        = VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
@@ -119,6 +124,7 @@ internal void CreateDescriptorHeap(vulkan_context *context, vulkan_resources *re
     context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_CUBEMAPS, &res->Heap.CubemapOffset);
     context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_VOLUMES,  &res->Heap.VolumeOffset);
     context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_STORAGE_VOLUMES, &res->Heap.StorageVolumeOffset);
+    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_UINT_VOLUMES, &res->Heap.UintVolumeOffset);
 
     VkBufferUsageFlags heapUsage = VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT | VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT;
 
@@ -173,6 +179,24 @@ internal gpu_volume *CreateVolume(vulkan_context *context, vulkan_resources *res
     return volume;
 }
 
+internal gpu_volume *CreateUintVolume(vulkan_context *context, vulkan_resources *res, uint32 slot, uint32 size)
+{
+    Assert(slot < MAX_UINT_VOLUMES);
+
+    gpu_volume *volume = &res->UintVolumes[slot];
+    Assert(volume->Image == VK_NULL_HANDLE);
+
+    volume->Width  = size;
+    volume->Height = size;
+    volume->Depth  = size;
+    volume->Image  = CreateVolumeImage(context, size, size, size, VK_FORMAT_R32_UINT, &volume->Memory);
+    volume->View   = CreateVolumeImageView(context->device, volume->Image, VK_FORMAT_R32_UINT);
+
+    WriteImageDescriptor(context, &res->Heap, res->Heap.UintVolumeOffset, slot, volume->View, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+
+    return volume;
+}
+
 internal void CreateResources(vulkan_context *context, vulkan_resources *res, VkCommandBuffer cmd)
 {
     res->FrameArena    = CreateDeviceBuffer(context, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, FRAME_BUFFER_SIZE);
@@ -184,11 +208,46 @@ internal void CreateResources(vulkan_context *context, vulkan_resources *res, Vk
 
     WriteSamplerDescriptor(context, &res->Heap, res->Heap.SamplerOffset, res->Sampler);
 
-    gpu_volume *albedo = CreateVolume(context, res, VOLUME_SLOT_ALBEDO, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VK_FORMAT_R8G8B8A8_UNORM);
-    gpu_volume *normal = CreateVolume(context, res, VOLUME_SLOT_NORMAL, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VK_FORMAT_R8G8B8A8_UNORM);
+    uint32 voxelSlots[] = { VOLUME_SLOT_ALBEDO, VOLUME_SLOT_NORMAL };
+    uint32 lightSlots[2 + LIGHT_DIRECTIONS * 4] = { VOLUME_SLOT_LIGHT_SOLID, VOLUME_SLOT_LIGHT_NORMAL };
 
-    CmdImageToGeneral(cmd, albedo->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
-    CmdImageToGeneral(cmd, normal->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+    for (uint32 i = 0; i < LIGHT_DIRECTIONS; ++i)
+    {
+        lightSlots[2 + i]                        = VOLUME_SLOT_LIGHT_A + i;
+        lightSlots[2 + LIGHT_DIRECTIONS + i]     = VOLUME_SLOT_LIGHT_B + i;
+        lightSlots[2 + LIGHT_DIRECTIONS * 2 + i] = VOLUME_SLOT_LIGHT_SUM + i;
+        lightSlots[2 + LIGHT_DIRECTIONS * 3 + i] = VOLUME_SLOT_LIGHT_HISTORY + i;
+    }
+
+    for (uint32 i = 0; i < ArrayCount(voxelSlots); ++i)
+    {
+        gpu_volume *volume = CreateVolume(context, res, voxelSlots[i], VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VK_FORMAT_R16G16B16A16_SFLOAT);
+
+        CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+    }
+
+    for (uint32 i = 0; i < ArrayCount(lightSlots); ++i)
+    {
+        gpu_volume *volume = CreateVolume(context, res, lightSlots[i], LIGHT_GRID_SIZE, LIGHT_GRID_SIZE, LIGHT_GRID_SIZE, VK_FORMAT_R16G16B16A16_SFLOAT);
+
+        CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+    }
+
+    uint32 skySlots[] = { VOLUME_SLOT_SKYVIS, VOLUME_SLOT_SKYVIS_SCRATCH };
+
+    for (uint32 i = 0; i < ArrayCount(skySlots); ++i)
+    {
+        gpu_volume *volume = CreateVolume(context, res, skySlots[i], VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VK_FORMAT_R16G16B16A16_SFLOAT);
+
+        CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+    }
+
+    for (uint32 i = 0; i < MAX_UINT_VOLUMES; ++i)
+    {
+        gpu_volume *volume = CreateUintVolume(context, res, i, VOXEL_GRID_SIZE);
+
+        CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+    }
 }
 
 internal void BindDescriptorHeap(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, VkPipelineLayout layout)

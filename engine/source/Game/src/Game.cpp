@@ -382,7 +382,9 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         PickAndShoot(GameState, Region, PickRay, RenderAlpha);
 
-        PushRenderCamera(RenderCommands, CameraView(Camera, CameraSimP), CameraSimP, Camera->FovY);
+        Vector3 CameraWorldP = WorldPositionToMeters(GameState->World, Region->Origin) + CameraSimP;
+
+        PushRenderCamera(RenderCommands, CameraView(Camera, CameraSimP), CameraSimP, CameraWorldP, Camera->FovY);
         PushRenderLight(RenderCommands, Vector3(0.4f, 1.0f, 0.3f), Vector3(3.0f, 2.85f, 2.6f));
         PushRenderSkybox(RenderCommands, GameState->SkyHandle);
         PushEntitiesToRender(Region, RenderCommands, RenderAlpha, Gizmo->Selected, Gizmo->Style.Selected);

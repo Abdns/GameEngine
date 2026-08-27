@@ -107,6 +107,11 @@ inline world_position WorldPositionFromChunk(int32 ChunkX, int32 ChunkY, int32 C
     return Result;
 }
 
+inline Vector3 WorldPositionToMeters(world *World, world_position P)
+{
+    return Vector3((real32)P.ChunkX, (real32)P.ChunkY, (real32)P.ChunkZ) * World->ChunkDimInMeters + P.Offset;
+}
+
 inline Vector3 WorldSubtract(world *World, world_position *A, world_position *B)
 {
     Vector3 ChunkDelta = Vector3((real32)(A->ChunkX - B->ChunkX), (real32)(A->ChunkY - B->ChunkY), (real32)(A->ChunkZ - B->ChunkZ));
