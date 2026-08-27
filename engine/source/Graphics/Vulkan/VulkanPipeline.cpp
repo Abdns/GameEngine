@@ -33,6 +33,53 @@ internal void FreeShader(vulkan_shader *shader)
     *shader = {};
 }
 
+internal file_data LoadComputeShader(const char *name)
+{
+    char path[256];
+
+    uint32 n = AppendString(path, ArrayCount(path), 0, "CompiledShaders/");
+    n = AppendString(path, ArrayCount(path), n, name);
+    AppendString(path, ArrayCount(path), n, ".comp.spv");
+
+    file_data code = Win32ReadEntireFile(path);
+
+    Assert(code.Data);
+
+    DebugLog("Compute shader '%s' loaded (%u bytes)\n", name, code.Size);
+
+    return code;
+}
+
+internal void CreateComputePipeline(vulkan_context *context, vulkan_resources *res, compute_pipeline *pipeline, const char *name)
+{
+    VkDescriptorSetLayout heapLayout = res->Heap.Layout;
+
+    file_data code = LoadComputeShader(name);
+
+    VkPushConstantRange pushRange = ParamsPushRange();
+
+    VkShaderCreateInfoEXT createInfo{};
+    createInfo.sType                  = VK_STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT;
+    createInfo.stage                  = VK_SHADER_STAGE_COMPUTE_BIT;
+    createInfo.codeType               = VK_SHADER_CODE_TYPE_SPIRV_EXT;
+    createInfo.codeSize               = code.Size;
+    createInfo.pCode                  = code.Data;
+    createInfo.pName                  = "CSMain";
+    createInfo.setLayoutCount         = 1;
+    createInfo.pSetLayouts            = &heapLayout;
+    createInfo.pushConstantRangeCount = 1;
+    createInfo.pPushConstantRanges    = &pushRange;
+
+    VkShaderEXT shader = VK_NULL_HANDLE;
+
+    VkResult result = context->CreateShadersEXT(context->device, 1, &createInfo, nullptr, &shader);
+    Assert(result == VK_SUCCESS);
+
+    pipeline->Compute = shader;
+
+    Win32FreeFileMemory(code.Data);
+}
+
 internal void CreateRenderPipeline(vulkan_context *context, vulkan_resources *res, render_pipeline *pipeline, pipeline_desc *desc)
 {
     pipeline->DefaultState.CullMode   = VK_CULL_MODE_NONE;

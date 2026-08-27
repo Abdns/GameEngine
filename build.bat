@@ -14,6 +14,10 @@ for %%f in (..\engine\source\Graphics\Vulkan\shaders\*.hlsl) do (
     "%VULKAN_SDK%\Bin\dxc.exe" -spirv -fvk-use-dx-layout -fspv-target-env=vulkan1.3 -T ps_6_0 -E PSMain "%%f" -Fo "CompiledShaders\%%~nf.frag.spv" || goto :failed
 )
 
+for %%f in (..\engine\source\Graphics\Vulkan\shaders\compute\*.hlsl) do (
+    "%VULKAN_SDK%\Bin\dxc.exe" -spirv -fvk-use-dx-layout -fspv-target-env=vulkan1.3 -I ..\engine\source\Graphics\Vulkan\shaders -T cs_6_0 -E CSMain "%%f" -Fo "CompiledShaders\%%~nf.comp.spv" || goto :failed
+)
+
 set CommonCompilerFlags=-MTd^
  -nologo^
  -Gm-^

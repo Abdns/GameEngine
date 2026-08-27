@@ -261,13 +261,31 @@ internal VkImageCreateInfo ImageInfo(uint32 width, uint32 height, VkFormat forma
     return imageInfo;
 }
 
-internal VkImage CreateImage(vulkan_context *context, uint32 width, uint32 height, VkFormat format, uint32 layers, uint32 mipLevels, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags memoryProperties, VkDeviceMemory *outMemory)
+internal VkImageCreateInfo VolumeImageInfo(uint32 width, uint32 height, uint32 depth, VkFormat format, VkImageUsageFlags usage)
 {
-    VkImageCreateInfo imageInfo = ImageInfo(width, height, format, layers, mipLevels, tiling, usage);
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_3D;
+    imageInfo.extent.width  = width;
+    imageInfo.extent.height = height;
+    imageInfo.extent.depth  = depth;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = format;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = usage;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
+    return imageInfo;
+}
+
+internal VkImage CreateImageFromInfo(vulkan_context *context, VkImageCreateInfo *imageInfo, VkMemoryPropertyFlags memoryProperties, VkDeviceMemory *outMemory)
+{
     VkImage image = VK_NULL_HANDLE;
 
-    VkResult created = vkCreateImage(context->device, &imageInfo, nullptr, &image);
+    VkResult created = vkCreateImage(context->device, imageInfo, nullptr, &image);
     Assert(created == VK_SUCCESS);
 
     VkMemoryRequirements memReq;
@@ -288,6 +306,22 @@ internal VkImage CreateImage(vulkan_context *context, uint32 width, uint32 heigh
     Assert(bound == VK_SUCCESS);
 
     return image;
+}
+
+internal VkImage CreateImage(vulkan_context *context, uint32 width, uint32 height, VkFormat format, uint32 layers, uint32 mipLevels, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags memoryProperties, VkDeviceMemory *outMemory)
+{
+    VkImageCreateInfo imageInfo = ImageInfo(width, height, format, layers, mipLevels, tiling, usage);
+
+    return CreateImageFromInfo(context, &imageInfo, memoryProperties, outMemory);
+}
+
+internal VkImage CreateVolumeImage(vulkan_context *context, uint32 width, uint32 height, uint32 depth, VkFormat format, VkDeviceMemory *outMemory)
+{
+    VkImageUsageFlags usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+    VkImageCreateInfo imageInfo = VolumeImageInfo(width, height, depth, format, usage);
+
+    return CreateImageFromInfo(context, &imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, outMemory);
 }
 
 internal VkImage CreateTextureImage(vulkan_context *context, uint32 width, uint32 height, VkFormat format, uint32 layers, uint32 mipLevels, VkDeviceMemory *outMemory)
@@ -330,6 +364,11 @@ internal VkImageView CreateColorImageView(VkDevice device, VkImage image, VkForm
 internal VkImageView CreateCubeImageView(VkDevice device, VkImage image, VkFormat format, uint32 mipLevels)
 {
     return CreateImageView(device, image, format, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_CUBE, 6, mipLevels);
+}
+
+internal VkImageView CreateVolumeImageView(VkDevice device, VkImage image, VkFormat format)
+{
+    return CreateImageView(device, image, format, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_3D, 1, 1);
 }
 
 internal VkImageView CreateDepthImageView(VkDevice device, VkImage image, VkFormat format)

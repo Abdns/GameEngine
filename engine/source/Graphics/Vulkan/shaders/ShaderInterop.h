@@ -3,13 +3,20 @@
 
 #define SET_GLOBAL 0
 
-#define BINDING_TEXTURES 0
-#define BINDING_SAMPLER  1
-#define BINDING_CUBEMAPS 2
+#define BINDING_TEXTURES        0
+#define BINDING_SAMPLER         1
+#define BINDING_CUBEMAPS        2
+#define BINDING_VOLUMES         3
+#define BINDING_STORAGE_VOLUMES 4
 
 #define MAX_TEXTURES  32
 #define MAX_CUBEMAPS  4
+#define MAX_VOLUMES   8
 #define MAX_MATERIALS 64
+
+#define VOLUME_SLOT_DEBUG 0
+#define VOLUME_DEBUG_SIZE 64
+#define VOLUME_GROUP_SIZE 4
 
 #define TEXTURE_NONE 0xFFFFFFFF
 
@@ -118,10 +125,19 @@ struct image_params
     uint ImagePad2;
 };
 
+struct volume_params
+{
+    uint  VolumeSlot;
+    uint  VolumeSize;
+    float VolumeSlice;
+    uint  VolumePad0;
+};
+
 #ifndef __cplusplus
     typedef vk::BufferPointer<frame_globals, 16>     frame_globals_ptr;
     typedef vk::BufferPointer<draw_params, 16>       draw_params_ptr;
     typedef vk::BufferPointer<image_params, 16>      image_params_ptr;
+    typedef vk::BufferPointer<volume_params, 16>     volume_params_ptr;
     typedef vk::BufferPointer<skybox_params, 16>     skybox_params_ptr;
     typedef vk::BufferPointer<rect_params, 16>       rect_params_ptr;
 
@@ -158,6 +174,11 @@ struct image_params
     image_params LoadImageParams(uint64_t address)
     {
         return image_params_ptr(address).Get();
+    }
+
+    volume_params LoadVolumeParams(uint64_t address)
+    {
+        return volume_params_ptr(address).Get();
     }
 #endif
 

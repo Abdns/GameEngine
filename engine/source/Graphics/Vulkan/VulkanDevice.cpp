@@ -400,7 +400,8 @@ internal bool32 CheckDeviceFeatures(VkPhysicalDevice device)
     bool32 supported = shaderObject.shaderObject && descriptorBuffer.descriptorBuffer && unifiedLayouts.unifiedImageLayouts &&
                        vulkan12.bufferDeviceAddress && vulkan12.scalarBlockLayout && vulkan12.timelineSemaphore &&
                        vulkan13.dynamicRendering && vulkan13.synchronization2 &&
-                       available.features.shaderInt64 && available.features.shaderSampledImageArrayDynamicIndexing;
+                       available.features.shaderInt64 && available.features.shaderSampledImageArrayDynamicIndexing &&
+                       available.features.shaderStorageImageArrayDynamicIndexing;
 
     if (!supported)
     {
@@ -409,6 +410,7 @@ internal bool32 CheckDeviceFeatures(VkPhysicalDevice device)
                  (int)vulkan12.bufferDeviceAddress, (int)vulkan12.scalarBlockLayout, (int)vulkan12.timelineSemaphore,
                  (int)vulkan13.dynamicRendering, (int)vulkan13.synchronization2,
                  (int)available.features.shaderInt64, (int)available.features.shaderSampledImageArrayDynamicIndexing);
+        DebugLog("Device features: storageImageArrayDynamicIndexing %d\n", (int)available.features.shaderStorageImageArrayDynamicIndexing);
     }
 
     return supported;
@@ -526,6 +528,7 @@ internal void CreateLogicalDevice(vulkan_context *context)
     VkPhysicalDeviceFeatures2 features{};
     features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     features.features.shaderSampledImageArrayDynamicIndexing = VK_TRUE;
+    features.features.shaderStorageImageArrayDynamicIndexing = VK_TRUE;
     features.features.shaderInt64                            = VK_TRUE;
     features.pNext = &vulkan12;
 

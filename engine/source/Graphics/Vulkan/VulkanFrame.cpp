@@ -103,6 +103,19 @@ internal void BindPipelineState(vulkan_context *context, VkCommandBuffer cmd, re
     ApplyRenderState(context, cmd, current, wanted);
 }
 
+internal void BindComputePipeline(vulkan_context *context, VkCommandBuffer cmd, compute_pipeline *pipeline)
+{
+    VkShaderStageFlagBits stage  = VK_SHADER_STAGE_COMPUTE_BIT;
+    VkShaderEXT           shader = pipeline->Compute;
+
+    context->CmdBindShadersEXT(cmd, 1, &stage, &shader);
+}
+
+internal void DispatchCompute(VkCommandBuffer cmd, uint32 countX, uint32 countY, uint32 countZ)
+{
+    vkCmdDispatch(cmd, countX, countY, countZ);
+}
+
 internal void DrawFullscreen(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, render_pipeline *pipeline, uint32 textureSlot)
 {
     if (pipeline->Vert == VK_NULL_HANDLE)

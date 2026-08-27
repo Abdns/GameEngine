@@ -7,21 +7,29 @@
 #include "VulkanPipeline.cpp"
 #include "VulkanFrame.cpp"
 
-global_variable gpu_texture     SceneTarget;
-global_variable gpu_texture     PostTarget;
-global_variable render_pipeline Pipelines[Pipeline_Count];
+global_variable gpu_texture      SceneTarget;
+global_variable gpu_texture      PostTarget;
+global_variable render_pipeline  Pipelines[Pipeline_Count];
+global_variable compute_pipeline ComputePipelines[Compute_Count];
 
 global_variable pipeline_desc PipelineDescs[] =
 {
-    { "unlit",  VK_TRUE,  VK_TRUE,  VK_FALSE },
-    { "lit",    VK_TRUE,  VK_TRUE,  VK_FALSE },
-    { "skybox", VK_FALSE, VK_FALSE, VK_FALSE },
-    { "post",   VK_FALSE, VK_FALSE, VK_FALSE },
-    { "UI",     VK_FALSE, VK_FALSE, VK_FALSE },
-    { "uirect", VK_FALSE, VK_FALSE, VK_TRUE  },
+    { "unlit",      VK_TRUE,  VK_TRUE,  VK_FALSE },
+    { "lit",        VK_TRUE,  VK_TRUE,  VK_FALSE },
+    { "skybox",     VK_FALSE, VK_FALSE, VK_FALSE },
+    { "post",       VK_FALSE, VK_FALSE, VK_FALSE },
+    { "UI",         VK_FALSE, VK_FALSE, VK_FALSE },
+    { "uirect",     VK_FALSE, VK_FALSE, VK_TRUE  },
+    { "volumeview", VK_FALSE, VK_FALSE, VK_FALSE },
+};
+
+global_variable const char *ComputeDescs[] =
+{
+    "volumefill",
 };
 
 static_assert(ArrayCount(PipelineDescs) == Pipeline_Count, "PipelineDescs must describe every pipeline_type");
+static_assert(ArrayCount(ComputeDescs) == Compute_Count, "ComputeDescs must describe every compute_type");
 
 internal void ResizeRenderer(vulkan_context *context)
 {
@@ -105,9 +113,16 @@ internal const char *InitVulkan(HINSTANCE hinstance, HWND hwnd)
     SceneTarget = CreateRenderTarget(context, &GlobalResources, TEXTURE_SLOT_SCENE, VK_FORMAT_R16G16B16A16_SFLOAT);
     PostTarget  = CreateRenderTarget(context, &GlobalResources, TEXTURE_SLOT_POST,  VK_FORMAT_R16G16B16A16_SFLOAT);
 
+    CreateVolume(context, &GlobalResources, VOLUME_SLOT_DEBUG, VOLUME_DEBUG_SIZE, VOLUME_DEBUG_SIZE, VOLUME_DEBUG_SIZE, VK_FORMAT_R16G16B16A16_SFLOAT);
+
     for (uint32 i = 0; i < Pipeline_Count; ++i)
     {
         CreateRenderPipeline(context, &GlobalResources, &Pipelines[i], &PipelineDescs[i]);
+    }
+
+    for (uint32 i = 0; i < Compute_Count; ++i)
+    {
+        CreateComputePipeline(context, &GlobalResources, &ComputePipelines[i], ComputeDescs[i]);
     }
 
     DebugLog("Vulkan ready\n");
@@ -396,6 +411,69 @@ internal void ExecuteUICommands(vulkan_context *context, VkCommandBuffer cmd, vu
     vkCmdDraw(cmd, 6, rectCount, 0, 0);
 }
 
+internal void FillDebugVolume(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
+{
+    if (pipeline->Compute == VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    BindComputePipeline(context, cmd, pipeline);
+
+    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(volume_params), 16);
+
+    volume_params params = {};
+    params.VolumeSlot = VOLUME_SLOT_DEBUG;
+    params.VolumeSize = VOLUME_DEBUG_SIZE;
+
+    *(volume_params *)alloc.Cpu = params;
+
+    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+
+    uint32 groupCount = VOLUME_DEBUG_SIZE / VOLUME_GROUP_SIZE;
+
+    DispatchCompute(cmd, groupCount, groupCount, groupCount);
+}
+
+internal void DrawVolumeSlice(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, render_pipeline *pipeline, uint32 volumeSlot, real32 slice)
+{
+    if (pipeline->Vert == VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    render_state current = {};
+    render_state wanted  = {};
+    BindPipelineState(context, cmd, pipeline, &current, &wanted);
+
+    VkViewport inset{};
+    inset.x        = 16.0f;
+    inset.y        = 16.0f;
+    inset.width    = 256.0f;
+    inset.height   = 256.0f;
+    inset.maxDepth = 1.0f;
+    vkCmdSetViewportWithCount(cmd, 1, &inset);
+
+    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(volume_params), 16);
+
+    volume_params params = {};
+    params.VolumeSlot  = volumeSlot;
+    params.VolumeSize  = VOLUME_DEBUG_SIZE;
+    params.VolumeSlice = slice;
+
+    *(volume_params *)alloc.Cpu = params;
+
+    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+
+    vkCmdDraw(cmd, 3, 1, 0, 0);
+
+    VkViewport full{};
+    full.width    = (real32)context->swapchainExtent.width;
+    full.height   = (real32)context->swapchainExtent.height;
+    full.maxDepth = 1.0f;
+    vkCmdSetViewportWithCount(cmd, 1, &full);
+}
+
 internal void RenderVulkanFrame(render_commands *Commands)
 {
     vulkan_context *context = &GlobalVulkan;
@@ -423,6 +501,10 @@ internal void RenderVulkanFrame(render_commands *Commands)
 
     BindDescriptorHeap(context, Frame.Cmd, &GlobalResources, GlobalResources.PipelineLayout);
 
+    FillDebugVolume(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_VolumeFill]);
+
+    GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+
     BeginPass(context, Frame.Cmd, SceneTarget.View, VK_ATTACHMENT_LOAD_OP_CLEAR, Vector4(0.05f, 0.05f, 0.08f, 1.0f), true);
     ExecuteRenderCommands(context, Frame.Cmd, &GlobalResources, Pipelines, Commands);
     EndPass(Frame.Cmd);
@@ -439,6 +521,7 @@ internal void RenderVulkanFrame(render_commands *Commands)
     BeginPass(context, Frame.Cmd, context->swapchainImageViews[Frame.ImageIndex], VK_ATTACHMENT_LOAD_OP_DONT_CARE, Vector4(0.0f, 0.0f, 0.0f, 0.0f), false);
     DrawFullscreen(context, Frame.Cmd, &GlobalResources, &Pipelines[Pipeline_UI], TEXTURE_SLOT_POST);
     ExecuteUICommands(context, Frame.Cmd, &GlobalResources, Pipelines, Commands);
+    DrawVolumeSlice(context, Frame.Cmd, &GlobalResources, &Pipelines[Pipeline_VolumeView], VOLUME_SLOT_DEBUG, 0.5f);
     EndPass(Frame.Cmd);
 
     CmdImageToPresent(Frame.Cmd, swapchainImage);

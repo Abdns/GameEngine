@@ -34,6 +34,9 @@
     <Filter Include="engine\source\Graphics\Vulkan\shaders">
       <UniqueIdentifier>{a1000000-0000-0000-0000-000000000005}</UniqueIdentifier>
     </Filter>
+    <Filter Include="engine\source\Graphics\Vulkan\shaders\compute">
+      <UniqueIdentifier>{a1000000-0000-0000-0000-000000000015}</UniqueIdentifier>
+    </Filter>
     <Filter Include="shared">
       <UniqueIdentifier>{a1000000-0000-0000-0000-000000000006}</UniqueIdentifier>
     </Filter>
@@ -216,6 +219,12 @@
     </None>
     <None Include="..\engine\source\Graphics\Vulkan\shaders\uirect.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
+    </None>
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\volumeview.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
+    </None>
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\volumefill.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
     <None Include="..\EngaAsset\assets.enga">
       <Filter>EngaAsset</Filter>

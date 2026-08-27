@@ -17,7 +17,8 @@
 
 #define PIPELINE_TOPOLOGY     VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
 #define PIPELINE_FRONT_FACE   VK_FRONT_FACE_CLOCKWISE
-#define PIPELINE_PUSH_STAGES  (VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
+#define PIPELINE_PUSH_STAGES  (VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT)
+#define HEAP_STAGES           (VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT)
 
 struct vulkan_shader
 {
@@ -78,6 +79,16 @@ struct gpu_texture
     VkDeviceMemory Memory;
 };
 
+struct gpu_volume
+{
+    VkImage        Image;
+    VkImageView    View;
+    VkDeviceMemory Memory;
+    uint32         Width;
+    uint32         Height;
+    uint32         Depth;
+};
+
 
 struct descriptor_heap
 {
@@ -87,6 +98,8 @@ struct descriptor_heap
     VkDeviceSize TextureOffset;
     VkDeviceSize SamplerOffset;
     VkDeviceSize CubemapOffset;
+    VkDeviceSize VolumeOffset;
+    VkDeviceSize StorageVolumeOffset;
 };
 
 struct material_state
@@ -115,6 +128,7 @@ struct vulkan_resources
     gpu_mesh       Meshes[MAX_MESHES];
     gpu_texture    Textures[MAX_TEXTURES];
     gpu_texture    Cubemaps[MAX_CUBEMAPS];
+    gpu_volume     Volumes[MAX_VOLUMES];
     material_state MaterialStates[MAX_MATERIALS];
     uint32         MaterialCount;
 };
@@ -143,6 +157,18 @@ struct render_pipeline
 
     VkShaderEXT Vert;
     VkShaderEXT Frag;
+};
+
+enum compute_type
+{
+    Compute_VolumeFill = 0,
+
+    Compute_Count,
+};
+
+struct compute_pipeline
+{
+    VkShaderEXT Compute;
 };
 
 struct vulkan_frame

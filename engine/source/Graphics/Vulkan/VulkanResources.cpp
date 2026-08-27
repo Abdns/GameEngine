@@ -47,6 +47,23 @@ internal void WriteImageDescriptor(vulkan_context *context, descriptor_heap *hea
     context->GetDescriptorEXT(context->device, &getInfo, descriptorSize, destination);
 }
 
+internal void WriteStorageImageDescriptor(vulkan_context *context, descriptor_heap *heap, VkDeviceSize bindingOffset, uint32 arrayElement, VkImageView view)
+{
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    imageInfo.imageView   = view;
+
+    VkDescriptorGetInfoEXT getInfo{};
+    getInfo.sType                = VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT;
+    getInfo.type                 = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    getInfo.data.pStorageImage   = &imageInfo;
+
+    memory_size descriptorSize = context->DescriptorProps.storageImageDescriptorSize;
+    uint8      *destination    = (uint8 *)heap->Buffer.Mapped + bindingOffset + arrayElement * descriptorSize;
+
+    context->GetDescriptorEXT(context->device, &getInfo, descriptorSize, destination);
+}
+
 internal void WriteSamplerDescriptor(vulkan_context *context, descriptor_heap *heap, VkDeviceSize bindingOffset, VkSampler sampler)
 {
     VkDescriptorGetInfoEXT getInfo{};
@@ -62,21 +79,31 @@ internal void WriteSamplerDescriptor(vulkan_context *context, descriptor_heap *h
 
 internal void CreateDescriptorHeap(vulkan_context *context, vulkan_resources *res)
 {
-    VkDescriptorSetLayoutBinding bindings[3] = {};
+    VkDescriptorSetLayoutBinding bindings[5] = {};
     bindings[0].binding         = BINDING_TEXTURES;
     bindings[0].descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
     bindings[0].descriptorCount = TEXTURE_HEAP_SIZE;
-    bindings[0].stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings[0].stageFlags      = HEAP_STAGES;
 
     bindings[1].binding         = BINDING_SAMPLER;
     bindings[1].descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLER;
     bindings[1].descriptorCount = 1;
-    bindings[1].stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings[1].stageFlags      = HEAP_STAGES;
 
     bindings[2].binding         = BINDING_CUBEMAPS;
     bindings[2].descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
     bindings[2].descriptorCount = MAX_CUBEMAPS;
-    bindings[2].stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings[2].stageFlags      = HEAP_STAGES;
+
+    bindings[3].binding         = BINDING_VOLUMES;
+    bindings[3].descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    bindings[3].descriptorCount = MAX_VOLUMES;
+    bindings[3].stageFlags      = HEAP_STAGES;
+
+    bindings[4].binding         = BINDING_STORAGE_VOLUMES;
+    bindings[4].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    bindings[4].descriptorCount = MAX_VOLUMES;
+    bindings[4].stageFlags      = HEAP_STAGES;
 
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -94,6 +121,8 @@ internal void CreateDescriptorHeap(vulkan_context *context, vulkan_resources *re
     context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_TEXTURES, &res->Heap.TextureOffset);
     context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_SAMPLER,  &res->Heap.SamplerOffset);
     context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_CUBEMAPS, &res->Heap.CubemapOffset);
+    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_VOLUMES,  &res->Heap.VolumeOffset);
+    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_STORAGE_VOLUMES, &res->Heap.StorageVolumeOffset);
 
     VkBufferUsageFlags heapUsage = VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT | VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT;
 
@@ -154,6 +183,7 @@ internal void BindDescriptorHeap(vulkan_context *context, VkCommandBuffer cmd, v
     VkDeviceSize setOffset   = 0;
 
     context->CmdSetDescriptorBufferOffsetsEXT(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &bufferIndex, &setOffset);
+    context->CmdSetDescriptorBufferOffsetsEXT(cmd, VK_PIPELINE_BIND_POINT_COMPUTE,  layout, 0, 1, &bufferIndex, &setOffset);
 }
 
 internal gpu_mesh CreateMesh(VkDeviceSize vertexOffset, uint32 VertexCount, VkDeviceSize indexOffset, uint32 IndexCount)
@@ -209,6 +239,29 @@ internal gpu_texture *CreateCubemap(vulkan_context *context, vulkan_resources *r
     cube->View      = CreateCubeImageView(context->device, cube->Image, format, mipLevels);
 
     return cube;
+}
+
+internal gpu_volume *CreateVolume(vulkan_context *context, vulkan_resources *res, uint32 VolumeSlot, uint32 Width, uint32 Height, uint32 Depth, VkFormat Format)
+{
+    Assert(VolumeSlot < MAX_VOLUMES);
+
+    gpu_volume *volume = &res->Volumes[VolumeSlot];
+    Assert(volume->Image == VK_NULL_HANDLE);
+
+    volume->Width  = Width;
+    volume->Height = Height;
+    volume->Depth  = Depth;
+    volume->Image  = CreateVolumeImage(context, Width, Height, Depth, Format, &volume->Memory);
+    volume->View   = CreateVolumeImageView(context->device, volume->Image, Format);
+
+    VkCommandBuffer cmd = BeginSingleTimeCommands(context);
+    CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+    EndSingleTimeCommands(context, cmd);
+
+    WriteImageDescriptor(context, &res->Heap, res->Heap.VolumeOffset, VolumeSlot, volume->View);
+    WriteStorageImageDescriptor(context, &res->Heap, res->Heap.StorageVolumeOffset, VolumeSlot, volume->View);
+
+    return volume;
 }
 
 internal material_state CreateMaterialState(command_load_material *Description)
