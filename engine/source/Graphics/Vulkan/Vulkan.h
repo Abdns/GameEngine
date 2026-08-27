@@ -19,8 +19,8 @@ static_assert(sizeof(gpu_material) == MATERIAL_STRIDE, "material stride must mat
 static_assert(sizeof(rect_params) == RECT_PARAMS_STRIDE, "rect params stride must match the shader stride");
 static_assert(sizeof(voxelize_params) == 144, "voxelize params must match the shader layout");
 static_assert(sizeof(downsample_params) == 32, "downsample params must match the shader layout");
-static_assert(sizeof(inject_params) == 32, "inject params must match the shader layout");
-static_assert(sizeof(propagate_params) == 32, "propagate params must match the shader layout");
+static_assert(sizeof(flood_params) == 16, "flood params must match the shader layout");
+static_assert(sizeof(trace_params) == 16, "trace params must match the shader layout");
 static_assert(sizeof(volume_params) == 32, "volume params must match the shader layout");
 
 #define MAX_SURFACE_FORMATS   64

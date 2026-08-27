@@ -165,14 +165,14 @@ enum compute_type
 {
     Compute_VoxelClear = 0,
     Compute_Voxelize,
-    Compute_LightDownsample,
-    Compute_LightInject,
-    Compute_LightPropagate,
-    Compute_LightBlend,
     Compute_UintClear,
     Compute_VoxelResolve,
     Compute_SkyVisibility,
     Compute_SkyBlur,
+    Compute_SdfSeed,
+    Compute_SdfFlood,
+    Compute_SdfResolve,
+    Compute_ProbeTrace,
 
     Compute_Count,
 };

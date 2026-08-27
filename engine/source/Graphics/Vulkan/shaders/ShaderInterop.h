@@ -19,24 +19,25 @@
 #define UINT_SLOT_NORMAL 1
 #define MAX_MATERIALS 64
 
-#define VOLUME_SLOT_ALBEDO 0
-#define VOLUME_SLOT_NORMAL 1
-#define VOLUME_SLOT_LIGHT_SOLID  2
-#define VOLUME_SLOT_LIGHT_NORMAL 3
-#define VOLUME_SLOT_LIGHT_A      4
-#define VOLUME_SLOT_LIGHT_B      10
-#define VOLUME_SLOT_LIGHT_SUM     16
-#define VOLUME_SLOT_LIGHT_HISTORY 22
-#define VOLUME_SLOT_SKYVIS        28
-#define VOLUME_SLOT_SKYVIS_SCRATCH 29
+#define VOLUME_SLOT_ALBEDO        0
+#define VOLUME_SLOT_NORMAL        1
+#define VOLUME_SLOT_LIGHT_HISTORY 2
+#define VOLUME_SLOT_SKYVIS        8
+#define VOLUME_SLOT_SKYVIS_SCRATCH 9
+#define VOLUME_SLOT_SEED_A        10
+#define VOLUME_SLOT_SEED_B        11
+#define VOLUME_SLOT_SDF           12
 
 #define LIGHT_DIRECTIONS 6
-#define LIGHT_ITERATIONS 48
 #define LIGHT_BLEND      0.1
-#define LIGHT_GI_STRENGTH  5.0
+#define LIGHT_GI_STRENGTH  1.0
 #define LIGHT_SKY_STRENGTH 1.0
-#define LIGHT_READ_AMBIENT 0.35
+#define LIGHT_READ_AMBIENT 0.1
 #define LIGHT_BOUNCE_STRENGTH 1.0
+
+#define PROBE_RAYS_PER_FRAME 8
+#define PROBE_RAY_SET        64
+#define PROBE_MARCH_STEPS    48
 
 #define VOLUME_GROUP_SIZE 4
 #define VOXEL_GROUP_SIZE  64
@@ -106,7 +107,7 @@ struct frame_globals
 
     uint SkyCubemap;
     uint SkyMipCount;
-    uint GlobalsPad3;
+    uint FrameIndex;
     uint GlobalsPad4;
 
     float3 VoxelCenter;
@@ -175,30 +176,20 @@ struct volume_params
     uint  VolumePad2;
 };
 
-struct inject_params
-{
-    uint SolidSlot;
-    uint NormalSlot;
-    uint LightSlot;
-    uint LightSize;
-
-    uint SumSlot;
-    uint InjectPad0;
-    uint InjectPad1;
-    uint InjectPad2;
-};
-
-struct propagate_params
+struct flood_params
 {
     uint SourceSlot;
     uint TargetSlot;
-    uint SumSlot;
-    uint SolidSlot;
+    uint GridSize;
+    uint StepSize;
+};
 
+struct trace_params
+{
+    uint LightSlot;
     uint LightSize;
-    uint PropagatePad0;
-    uint PropagatePad1;
-    uint PropagatePad2;
+    uint SdfSlot;
+    uint TracePad0;
 };
 
 struct downsample_params
@@ -246,8 +237,8 @@ struct voxelize_params
     typedef vk::BufferPointer<volume_params, 16>     volume_params_ptr;
     typedef vk::BufferPointer<voxelize_params, 16>   voxelize_params_ptr;
     typedef vk::BufferPointer<downsample_params, 16> downsample_params_ptr;
-    typedef vk::BufferPointer<inject_params, 16>     inject_params_ptr;
-    typedef vk::BufferPointer<propagate_params, 16>  propagate_params_ptr;
+    typedef vk::BufferPointer<flood_params, 16>      flood_params_ptr;
+    typedef vk::BufferPointer<trace_params, 16>      trace_params_ptr;
 
     static const float3 LightAxis[LIGHT_DIRECTIONS] =
     {
@@ -316,14 +307,14 @@ struct voxelize_params
         return downsample_params_ptr(address).Get();
     }
 
-    inject_params LoadInjectParams(uint64_t address)
+    flood_params LoadFloodParams(uint64_t address)
     {
-        return inject_params_ptr(address).Get();
+        return flood_params_ptr(address).Get();
     }
 
-    propagate_params LoadPropagateParams(uint64_t address)
+    trace_params LoadTraceParams(uint64_t address)
     {
-        return propagate_params_ptr(address).Get();
+        return trace_params_ptr(address).Get();
     }
 #endif
 

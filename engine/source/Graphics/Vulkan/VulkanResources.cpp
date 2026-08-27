@@ -208,36 +208,18 @@ internal void CreateResources(vulkan_context *context, vulkan_resources *res, Vk
 
     WriteSamplerDescriptor(context, &res->Heap, res->Heap.SamplerOffset, res->Sampler);
 
-    uint32 voxelSlots[] = { VOLUME_SLOT_ALBEDO, VOLUME_SLOT_NORMAL };
-    uint32 lightSlots[2 + LIGHT_DIRECTIONS * 4] = { VOLUME_SLOT_LIGHT_SOLID, VOLUME_SLOT_LIGHT_NORMAL };
+    uint32 fineSlots[] = { VOLUME_SLOT_ALBEDO, VOLUME_SLOT_NORMAL, VOLUME_SLOT_SKYVIS, VOLUME_SLOT_SKYVIS_SCRATCH, VOLUME_SLOT_SEED_A, VOLUME_SLOT_SEED_B, VOLUME_SLOT_SDF };
+
+    for (uint32 i = 0; i < ArrayCount(fineSlots); ++i)
+    {
+        gpu_volume *volume = CreateVolume(context, res, fineSlots[i], VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VK_FORMAT_R16G16B16A16_SFLOAT);
+
+        CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+    }
 
     for (uint32 i = 0; i < LIGHT_DIRECTIONS; ++i)
     {
-        lightSlots[2 + i]                        = VOLUME_SLOT_LIGHT_A + i;
-        lightSlots[2 + LIGHT_DIRECTIONS + i]     = VOLUME_SLOT_LIGHT_B + i;
-        lightSlots[2 + LIGHT_DIRECTIONS * 2 + i] = VOLUME_SLOT_LIGHT_SUM + i;
-        lightSlots[2 + LIGHT_DIRECTIONS * 3 + i] = VOLUME_SLOT_LIGHT_HISTORY + i;
-    }
-
-    for (uint32 i = 0; i < ArrayCount(voxelSlots); ++i)
-    {
-        gpu_volume *volume = CreateVolume(context, res, voxelSlots[i], VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VK_FORMAT_R16G16B16A16_SFLOAT);
-
-        CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
-    }
-
-    for (uint32 i = 0; i < ArrayCount(lightSlots); ++i)
-    {
-        gpu_volume *volume = CreateVolume(context, res, lightSlots[i], LIGHT_GRID_SIZE, LIGHT_GRID_SIZE, LIGHT_GRID_SIZE, VK_FORMAT_R16G16B16A16_SFLOAT);
-
-        CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
-    }
-
-    uint32 skySlots[] = { VOLUME_SLOT_SKYVIS, VOLUME_SLOT_SKYVIS_SCRATCH };
-
-    for (uint32 i = 0; i < ArrayCount(skySlots); ++i)
-    {
-        gpu_volume *volume = CreateVolume(context, res, skySlots[i], VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VK_FORMAT_R16G16B16A16_SFLOAT);
+        gpu_volume *volume = CreateVolume(context, res, VOLUME_SLOT_LIGHT_HISTORY + i, LIGHT_GRID_SIZE, LIGHT_GRID_SIZE, LIGHT_GRID_SIZE, VK_FORMAT_R16G16B16A16_SFLOAT);
 
         CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
     }

@@ -229,18 +229,6 @@
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelize.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\lightdownsample.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\lightinject.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\lightpropagate.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\lightblend.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\uintclear.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
@@ -251,6 +239,18 @@
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\skyvisblur.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
+    </None>
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\sdfseed.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
+    </None>
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\sdfflood.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
+    </None>
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\sdfresolve.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
+    </None>
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\lightprobetrace.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
     <None Include="..\EngaAsset\assets.enga">

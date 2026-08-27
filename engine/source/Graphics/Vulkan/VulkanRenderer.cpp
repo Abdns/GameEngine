@@ -26,14 +26,14 @@ global_variable const char *ComputeDescs[] =
 {
     "voxelclear",
     "voxelize",
-    "lightdownsample",
-    "lightinject",
-    "lightpropagate",
-    "lightblend",
     "uintclear",
     "voxelresolve",
     "skyvisibility",
     "skyvisblur",
+    "sdfseed",
+    "sdfflood",
+    "sdfresolve",
+    "lightprobetrace",
 };
 
 static_assert(ArrayCount(PipelineDescs) == Pipeline_Count, "PipelineDescs must describe every pipeline_type");
@@ -262,6 +262,7 @@ internal void FillFrameGlobals(vulkan_context *context, vulkan_resources *res, r
                 Vector3 origin = cameraCmd->WorldPosition - cameraCmd->Position;
 
                 globals->VoxelCenter = Vector3(0.0f, 0.0f, 0.0f) - origin;
+                globals->FrameIndex  = (uint32)context->frameIndex;
 
                 Matrix4 proj = Mat4Perspective(cameraCmd->FovY, FOVaspect, 0.1f, 100.0f);
 
@@ -520,101 +521,61 @@ internal void BlurSkyVisibility(vulkan_context *context, VkCommandBuffer cmd, vu
     DispatchCompute(cmd, groupCount, groupCount, groupCount);
 }
 
-internal void DownsampleLightGrid(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
+internal void DispatchFlood(VkCommandBuffer cmd, vulkan_resources *res, uint32 sourceSlot, uint32 targetSlot, uint32 stepSize)
 {
-    if (pipeline->Compute == VK_NULL_HANDLE)
-    {
-        return;
-    }
+    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(flood_params), 16);
 
-    BindComputePipeline(context, cmd, pipeline);
+    flood_params params = {};
+    params.SourceSlot = sourceSlot;
+    params.TargetSlot = targetSlot;
+    params.GridSize   = VOXEL_GRID_SIZE;
+    params.StepSize   = stepSize;
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(downsample_params), 16);
-
-    downsample_params params = {};
-    params.AlbedoSlot      = VOLUME_SLOT_ALBEDO;
-    params.NormalSlot      = VOLUME_SLOT_NORMAL;
-    params.SolidSlot       = VOLUME_SLOT_LIGHT_SOLID;
-    params.LightNormalSlot = VOLUME_SLOT_LIGHT_NORMAL;
-    params.VoxelSize       = VOXEL_GRID_SIZE;
-    params.LightSize       = LIGHT_GRID_SIZE;
-
-    *(downsample_params *)alloc.Cpu = params;
+    *(flood_params *)alloc.Cpu = params;
 
     BindParams(cmd, res->PipelineLayout, alloc.Gpu);
 
-    uint32 groupCount = LIGHT_GRID_SIZE / VOLUME_GROUP_SIZE;
+    uint32 groupCount = VOXEL_GRID_SIZE / VOLUME_GROUP_SIZE;
 
     DispatchCompute(cmd, groupCount, groupCount, groupCount);
 }
 
-internal void InjectDirectLight(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
+internal void BuildDistanceField(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipelines)
 {
-    if (pipeline->Compute == VK_NULL_HANDLE)
+    compute_pipeline *seed    = &pipelines[Compute_SdfSeed];
+    compute_pipeline *flood   = &pipelines[Compute_SdfFlood];
+    compute_pipeline *resolve = &pipelines[Compute_SdfResolve];
+
+    if (seed->Compute == VK_NULL_HANDLE || flood->Compute == VK_NULL_HANDLE || resolve->Compute == VK_NULL_HANDLE)
     {
         return;
     }
 
-    BindComputePipeline(context, cmd, pipeline);
+    BindComputePipeline(context, cmd, seed);
+    DispatchFlood(cmd, res, VOLUME_SLOT_ALBEDO, VOLUME_SLOT_SEED_A, 0);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(inject_params), 16);
+    BindComputePipeline(context, cmd, flood);
 
-    inject_params params = {};
-    params.SolidSlot  = VOLUME_SLOT_LIGHT_SOLID;
-    params.NormalSlot = VOLUME_SLOT_LIGHT_NORMAL;
-    params.LightSlot  = VOLUME_SLOT_LIGHT_A;
-    params.LightSize  = LIGHT_GRID_SIZE;
-    params.SumSlot    = VOLUME_SLOT_LIGHT_SUM;
+    uint32 source = VOLUME_SLOT_SEED_A;
+    uint32 target = VOLUME_SLOT_SEED_B;
 
-    *(inject_params *)alloc.Cpu = params;
-
-    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
-
-    uint32 groupCount = LIGHT_GRID_SIZE / VOLUME_GROUP_SIZE;
-
-    DispatchCompute(cmd, groupCount, groupCount, groupCount);
-}
-
-internal void PropagateLight(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
-{
-    if (pipeline->Compute == VK_NULL_HANDLE)
-    {
-        return;
-    }
-
-    BindComputePipeline(context, cmd, pipeline);
-
-    uint32 groupCount = LIGHT_GRID_SIZE / VOLUME_GROUP_SIZE;
-
-    uint32 source = VOLUME_SLOT_LIGHT_A;
-    uint32 target = VOLUME_SLOT_LIGHT_B;
-
-    for (uint32 iteration = 0; iteration < LIGHT_ITERATIONS; ++iteration)
+    for (uint32 step = VOXEL_GRID_SIZE / 2; step >= 1; step /= 2)
     {
         StorageBarrier(cmd);
-
-        shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(propagate_params), 16);
-
-        propagate_params params = {};
-        params.SourceSlot = source;
-        params.TargetSlot = target;
-        params.SumSlot    = VOLUME_SLOT_LIGHT_SUM;
-        params.SolidSlot  = VOLUME_SLOT_LIGHT_SOLID;
-        params.LightSize  = LIGHT_GRID_SIZE;
-
-        *(propagate_params *)alloc.Cpu = params;
-
-        BindParams(cmd, res->PipelineLayout, alloc.Gpu);
-
-        DispatchCompute(cmd, groupCount, groupCount, groupCount);
+        DispatchFlood(cmd, res, source, target, step);
 
         uint32 swap = source;
         source      = target;
         target      = swap;
     }
+
+    StorageBarrier(cmd);
+
+    BindComputePipeline(context, cmd, resolve);
+    DispatchFlood(cmd, res, source, VOLUME_SLOT_SDF, 0);
 }
 
-internal void BlendLightHistory(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
+internal void TraceProbes(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
 {
     if (pipeline->Compute == VK_NULL_HANDLE)
     {
@@ -623,16 +584,14 @@ internal void BlendLightHistory(vulkan_context *context, VkCommandBuffer cmd, vu
 
     BindComputePipeline(context, cmd, pipeline);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(propagate_params), 16);
+    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(trace_params), 16);
 
-    propagate_params params = {};
-    params.SourceSlot = VOLUME_SLOT_LIGHT_SUM;
-    params.TargetSlot = VOLUME_SLOT_LIGHT_HISTORY;
-    params.SumSlot    = VOLUME_SLOT_LIGHT_SUM;
-    params.SolidSlot  = VOLUME_SLOT_LIGHT_SOLID;
-    params.LightSize  = LIGHT_GRID_SIZE;
+    trace_params params = {};
+    params.LightSlot = VOLUME_SLOT_LIGHT_HISTORY;
+    params.LightSize = LIGHT_GRID_SIZE;
+    params.SdfSlot   = VOLUME_SLOT_SDF;
 
-    *(propagate_params *)alloc.Cpu = params;
+    *(trace_params *)alloc.Cpu = params;
 
     BindParams(cmd, res->PipelineLayout, alloc.Gpu);
 
@@ -822,6 +781,10 @@ internal void RenderVulkanFrame(render_commands *Commands)
 
     StorageBarrier(Frame.Cmd);
 
+    BuildDistanceField(context, Frame.Cmd, &GlobalResources, ComputePipelines);
+
+    StorageBarrier(Frame.Cmd);
+
     ComputeSkyVisibility(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_SkyVisibility]);
 
     StorageBarrier(Frame.Cmd);
@@ -834,17 +797,7 @@ internal void RenderVulkanFrame(render_commands *Commands)
 
     StorageBarrier(Frame.Cmd);
 
-    DownsampleLightGrid(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_LightDownsample]);
-
-    StorageBarrier(Frame.Cmd);
-
-    InjectDirectLight(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_LightInject]);
-
-    PropagateLight(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_LightPropagate]);
-
-    StorageBarrier(Frame.Cmd);
-
-    BlendLightHistory(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_LightBlend]);
+    TraceProbes(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_ProbeTrace]);
 
     GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 
