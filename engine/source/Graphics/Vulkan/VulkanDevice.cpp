@@ -724,27 +724,8 @@ internal void CreateSwapchainImageViews(vulkan_context *context)
     DebugLog("Image views created (%u)\n", context->swapchainImageCount);
 }
 
-internal void CreateDepthResources(vulkan_context *context)
-{
-    VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
-
-    context->depth.Image = CreateImage(context, context->swapchainExtent.width, context->swapchainExtent.height,
-                                       depthFormat, 1, 1, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &context->depth.Memory);
-
-    context->depth.View = CreateDepthImageView(context->device, context->depth.Image, depthFormat);
-
-    VkCommandBuffer cmd = BeginSingleTimeCommands(context);
-    CmdImageToGeneral(cmd, context->depth.Image, VK_IMAGE_ASPECT_DEPTH_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
-    EndSingleTimeCommands(context, cmd);
-
-    DebugLog("Depth resources created\n");
-}
-
 internal void DestroySwapchainResources(vulkan_context *context)
 {
-    DestroyTexture(context, &context->depth);
-
     for (uint32 i = 0; i < context->swapchainImageCount; ++i)
     {
         vkDestroyImageView(context->device, context->swapchainImageViews[i], nullptr);
@@ -772,7 +753,6 @@ internal bool32 RecreateSwapchain(vulkan_context *context)
     vkDestroySwapchainKHR(context->device, old, nullptr);
 
     CreateSwapchainImageViews(context);
-    CreateDepthResources(context);
 
     return true;
 }

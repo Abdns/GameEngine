@@ -30,36 +30,32 @@ internal VkSampler CreateTextureSampler(vulkan_context *context, VkFilter filter
     return sampler;
 }
 
-internal void WriteImageDescriptor(vulkan_context *context, descriptor_heap *heap, VkDeviceSize bindingOffset, uint32 arrayElement, VkImageView view)
+internal void WriteImageDescriptor(vulkan_context *context, descriptor_heap *heap, VkDeviceSize bindingOffset, uint32 arrayElement, VkImageView view, VkDescriptorType type)
 {
+    Assert(type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE || type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+
+    bool32 storage = (type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
     imageInfo.imageView   = view;
 
     VkDescriptorGetInfoEXT getInfo{};
-    getInfo.sType                = VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT;
-    getInfo.type                 = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    getInfo.data.pSampledImage   = &imageInfo;
+    getInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT;
+    getInfo.type  = type;
 
-    memory_size descriptorSize = context->DescriptorProps.sampledImageDescriptorSize;
-    uint8      *destination    = (uint8 *)heap->Buffer.Mapped + bindingOffset + arrayElement * descriptorSize;
+    if (storage)
+    {
+        getInfo.data.pStorageImage = &imageInfo;
+    }
+    else
+    {
+        getInfo.data.pSampledImage = &imageInfo;
+    }
 
-    context->GetDescriptorEXT(context->device, &getInfo, descriptorSize, destination);
-}
+    memory_size descriptorSize = storage ? context->DescriptorProps.storageImageDescriptorSize : context->DescriptorProps.sampledImageDescriptorSize;
 
-internal void WriteStorageImageDescriptor(vulkan_context *context, descriptor_heap *heap, VkDeviceSize bindingOffset, uint32 arrayElement, VkImageView view)
-{
-    VkDescriptorImageInfo imageInfo{};
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-    imageInfo.imageView   = view;
-
-    VkDescriptorGetInfoEXT getInfo{};
-    getInfo.sType                = VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT;
-    getInfo.type                 = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    getInfo.data.pStorageImage   = &imageInfo;
-
-    memory_size descriptorSize = context->DescriptorProps.storageImageDescriptorSize;
-    uint8      *destination    = (uint8 *)heap->Buffer.Mapped + bindingOffset + arrayElement * descriptorSize;
+    uint8 *destination = (uint8 *)heap->Buffer.Mapped + bindingOffset + arrayElement * descriptorSize;
 
     context->GetDescriptorEXT(context->device, &getInfo, descriptorSize, destination);
 }
@@ -158,7 +154,26 @@ internal VkPipelineLayout CreatePipelineLayout(vulkan_context *context, VkDescri
     return layout;
 }
 
-internal void CreateResources(vulkan_context *context, vulkan_resources *res)
+internal gpu_volume *CreateVolume(vulkan_context *context, vulkan_resources *res, uint32 VolumeSlot, uint32 Width, uint32 Height, uint32 Depth, VkFormat Format)
+{
+    Assert(VolumeSlot < MAX_VOLUMES);
+
+    gpu_volume *volume = &res->Volumes[VolumeSlot];
+    Assert(volume->Image == VK_NULL_HANDLE);
+
+    volume->Width  = Width;
+    volume->Height = Height;
+    volume->Depth  = Depth;
+    volume->Image  = CreateVolumeImage(context, Width, Height, Depth, Format, &volume->Memory);
+    volume->View   = CreateVolumeImageView(context->device, volume->Image, Format);
+
+    WriteImageDescriptor(context, &res->Heap, res->Heap.VolumeOffset, VolumeSlot, volume->View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+    WriteImageDescriptor(context, &res->Heap, res->Heap.StorageVolumeOffset, VolumeSlot, volume->View, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+
+    return volume;
+}
+
+internal void CreateResources(vulkan_context *context, vulkan_resources *res, VkCommandBuffer cmd)
 {
     res->FrameArena    = CreateDeviceBuffer(context, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, FRAME_BUFFER_SIZE);
     res->GlobalsBuffer = CreateDeviceBuffer(context, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(frame_globals) * MAX_FRAMES_IN_FLIGHT);
@@ -168,6 +183,12 @@ internal void CreateResources(vulkan_context *context, vulkan_resources *res)
     res->PipelineLayout = CreatePipelineLayout(context, res->Heap.Layout);
 
     WriteSamplerDescriptor(context, &res->Heap, res->Heap.SamplerOffset, res->Sampler);
+
+    gpu_volume *albedo = CreateVolume(context, res, VOLUME_SLOT_ALBEDO, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VK_FORMAT_R8G8B8A8_UNORM);
+    gpu_volume *normal = CreateVolume(context, res, VOLUME_SLOT_NORMAL, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VK_FORMAT_R8G8B8A8_UNORM);
+
+    CmdImageToGeneral(cmd, albedo->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+    CmdImageToGeneral(cmd, normal->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
 }
 
 internal void BindDescriptorHeap(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, VkPipelineLayout layout)
@@ -239,29 +260,6 @@ internal gpu_texture *CreateCubemap(vulkan_context *context, vulkan_resources *r
     cube->View      = CreateCubeImageView(context->device, cube->Image, format, mipLevels);
 
     return cube;
-}
-
-internal gpu_volume *CreateVolume(vulkan_context *context, vulkan_resources *res, uint32 VolumeSlot, uint32 Width, uint32 Height, uint32 Depth, VkFormat Format)
-{
-    Assert(VolumeSlot < MAX_VOLUMES);
-
-    gpu_volume *volume = &res->Volumes[VolumeSlot];
-    Assert(volume->Image == VK_NULL_HANDLE);
-
-    volume->Width  = Width;
-    volume->Height = Height;
-    volume->Depth  = Depth;
-    volume->Image  = CreateVolumeImage(context, Width, Height, Depth, Format, &volume->Memory);
-    volume->View   = CreateVolumeImageView(context->device, volume->Image, Format);
-
-    VkCommandBuffer cmd = BeginSingleTimeCommands(context);
-    CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
-    EndSingleTimeCommands(context, cmd);
-
-    WriteImageDescriptor(context, &res->Heap, res->Heap.VolumeOffset, VolumeSlot, volume->View);
-    WriteStorageImageDescriptor(context, &res->Heap, res->Heap.StorageVolumeOffset, VolumeSlot, volume->View);
-
-    return volume;
 }
 
 internal material_state CreateMaterialState(command_load_material *Description)

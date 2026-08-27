@@ -1,6 +1,20 @@
 #include "Vulkan.h"
 
-internal gpu_texture CreateRenderTarget(vulkan_context *context, vulkan_resources *res, uint32 textureSlot, VkFormat format)
+global_variable gpu_texture DepthTarget;
+global_variable gpu_texture SceneTarget;
+global_variable gpu_texture PostTarget;
+
+internal void CreateDepthResources(vulkan_context *context, VkCommandBuffer cmd)
+{
+    VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
+
+    DepthTarget.Image = CreateImage(context, context->swapchainExtent.width, context->swapchainExtent.height, depthFormat, 1, 1, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &DepthTarget.Memory);
+    DepthTarget.View = CreateDepthImageView(context->device, DepthTarget.Image, depthFormat);
+
+    CmdImageToGeneral(cmd, DepthTarget.Image, VK_IMAGE_ASPECT_DEPTH_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+}
+
+internal gpu_texture CreateRenderTarget(vulkan_context *context, vulkan_resources *res, uint32 textureSlot, VkFormat format, VkCommandBuffer cmd)
 {
     gpu_texture target = {};
 
@@ -16,11 +30,9 @@ internal gpu_texture CreateRenderTarget(vulkan_context *context, vulkan_resource
 
     target.View = CreateColorImageView(context->device, target.Image, format);
 
-    VkCommandBuffer cmd = BeginSingleTimeCommands(context);
     CmdImageToGeneral(cmd, target.Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
-    EndSingleTimeCommands(context, cmd);
 
-    WriteImageDescriptor(context, &res->Heap, res->Heap.TextureOffset, textureSlot, target.View);
+    WriteImageDescriptor(context, &res->Heap, res->Heap.TextureOffset, textureSlot, target.View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
 
     return target;
 }
@@ -41,7 +53,7 @@ internal void BeginPass(vulkan_context *context, VkCommandBuffer cmd, VkImageVie
 
     VkRenderingAttachmentInfo depth{};
     depth.sType                        = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-    depth.imageView                    = context->depth.View;
+    depth.imageView                    = DepthTarget.View;
     depth.imageLayout                  = VK_IMAGE_LAYOUT_GENERAL;
     depth.loadOp                       = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depth.storeOp                      = VK_ATTACHMENT_STORE_OP_DONT_CARE;

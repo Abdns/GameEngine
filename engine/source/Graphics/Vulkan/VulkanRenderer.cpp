@@ -7,12 +7,8 @@
 #include "VulkanPipeline.cpp"
 #include "VulkanFrame.cpp"
 
-global_variable gpu_texture      SceneTarget;
-global_variable gpu_texture      PostTarget;
 global_variable render_pipeline  Pipelines[Pipeline_Count];
 global_variable compute_pipeline ComputePipelines[Compute_Count];
-global_variable shared_buffer    VoxelReadback;
-global_variable uint32           VoxelReadbackState;
 
 global_variable pipeline_desc PipelineDescs[] =
 {
@@ -41,11 +37,18 @@ internal void ResizeRenderer(vulkan_context *context)
         return;
     }
 
+    DestroyTexture(context, &DepthTarget);
     DestroyTexture(context, &SceneTarget);
     DestroyTexture(context, &PostTarget);
 
-    SceneTarget = CreateRenderTarget(context, &GlobalResources, TEXTURE_SLOT_SCENE, VK_FORMAT_R16G16B16A16_SFLOAT);
-    PostTarget  = CreateRenderTarget(context, &GlobalResources, TEXTURE_SLOT_POST,  VK_FORMAT_R16G16B16A16_SFLOAT);
+    VkCommandBuffer setup = BeginSingleTimeCommands(context);
+
+    CreateDepthResources(context, setup);
+
+    SceneTarget = CreateRenderTarget(context, &GlobalResources, TEXTURE_SLOT_SCENE, VK_FORMAT_R16G16B16A16_SFLOAT, setup);
+    PostTarget  = CreateRenderTarget(context, &GlobalResources, TEXTURE_SLOT_POST,  VK_FORMAT_R16G16B16A16_SFLOAT, setup);
+
+    EndSingleTimeCommands(context, setup);
 }
 
 internal const char *InitVulkan(HINSTANCE hinstance, HWND hwnd)
@@ -109,16 +112,17 @@ internal const char *InitVulkan(HINSTANCE hinstance, HWND hwnd)
 
     CreateSwapchain(context, hwnd);
     CreateSwapchainImageViews(context);
-    CreateDepthResources(context);
 
-    CreateResources(context, &GlobalResources);
+    VkCommandBuffer setup = BeginSingleTimeCommands(context);
+    {
+        CreateResources(context, &GlobalResources, setup);
+        CreateDepthResources(context, setup);
 
-    SceneTarget = CreateRenderTarget(context, &GlobalResources, TEXTURE_SLOT_SCENE, VK_FORMAT_R16G16B16A16_SFLOAT);
-    PostTarget  = CreateRenderTarget(context, &GlobalResources, TEXTURE_SLOT_POST,  VK_FORMAT_R16G16B16A16_SFLOAT);
+        SceneTarget = CreateRenderTarget(context, &GlobalResources, TEXTURE_SLOT_SCENE, VK_FORMAT_R16G16B16A16_SFLOAT, setup);
+        PostTarget  = CreateRenderTarget(context, &GlobalResources, TEXTURE_SLOT_POST,  VK_FORMAT_R16G16B16A16_SFLOAT, setup);
+    }
+    EndSingleTimeCommands(context, setup);
 
-    CreateVolume(context, &GlobalResources, VOLUME_SLOT_ALBEDO, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VK_FORMAT_R8G8B8A8_UNORM);
-
-    VoxelReadback = CreateUploadBuffer(context, VK_BUFFER_USAGE_TRANSFER_DST_BIT, (VkDeviceSize)VOXEL_GRID_SIZE * VOXEL_GRID_SIZE * VOXEL_GRID_SIZE * 4);
 
     for (uint32 i = 0; i < Pipeline_Count; ++i)
     {
@@ -181,7 +185,7 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
             gpu_texture *texture = CreateTexture(context, res, entry->TextureHandle, entry->Width, entry->Height, entry->SRGB, entry->Format);
 
             CmdUploadImage(cmd, staging.Buffer, upload.Offset, texture->Image, entry->Width, entry->Height, 1);
-            WriteImageDescriptor(context, &res->Heap, res->Heap.TextureOffset, entry->TextureHandle, texture->View);
+            WriteImageDescriptor(context, &res->Heap, res->Heap.TextureOffset, entry->TextureHandle, texture->View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
         }
         else if (*header == Load_Cubemap)
         {
@@ -194,7 +198,7 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
 
             CmdUploadImage(cmd, staging.Buffer, upload.Offset, cube->Image, entry->FaceSize, entry->FaceSize, 6);
             CmdGenerateMips(cmd, cube->Image, entry->FaceSize, entry->FaceSize, 6, cube->MipLevels);
-            WriteImageDescriptor(context, &res->Heap, res->Heap.CubemapOffset, entry->CubemapHandle, cube->View);
+            WriteImageDescriptor(context, &res->Heap, res->Heap.CubemapOffset, entry->CubemapHandle, cube->View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
         }
     }
 
@@ -416,14 +420,12 @@ internal void ExecuteUICommands(vulkan_context *context, VkCommandBuffer cmd, vu
     vkCmdDraw(cmd, 6, rectCount, 0, 0);
 }
 
-internal void ClearVoxelVolume(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
+internal void ClearVoxelVolume(VkCommandBuffer cmd, vulkan_resources *res, uint32 volumeSlot)
 {
-    BindComputePipeline(context, cmd, pipeline);
-
     shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(volume_params), 16);
 
     volume_params params = {};
-    params.VolumeSlot = VOLUME_SLOT_ALBEDO;
+    params.VolumeSlot = volumeSlot;
     params.VolumeSize = VOXEL_GRID_SIZE;
 
     *(volume_params *)alloc.Cpu = params;
@@ -445,7 +447,10 @@ internal void VoxelizeScene(vulkan_context *context, VkCommandBuffer cmd, vulkan
         return;
     }
 
-    ClearVoxelVolume(context, cmd, res, clear);
+    BindComputePipeline(context, cmd, clear);
+
+    ClearVoxelVolume(cmd, res, VOLUME_SLOT_ALBEDO);
+    ClearVoxelVolume(cmd, res, VOLUME_SLOT_NORMAL);
 
     GpuBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
 
@@ -492,6 +497,7 @@ internal void VoxelizeScene(vulkan_context *context, VkCommandBuffer cmd, vulkan
         params.MaterialSlot  = materialSlot;
         params.VolumeSlot    = VOLUME_SLOT_ALBEDO;
         params.GridSize      = VOXEL_GRID_SIZE;
+        params.NormalSlot    = VOLUME_SLOT_NORMAL;
 
         *(voxelize_params *)alloc.Cpu = params;
 
@@ -545,68 +551,6 @@ internal void DrawVolumeDebug(vulkan_context *context, VkCommandBuffer cmd, vulk
     vkCmdSetViewportWithCount(cmd, 1, &full);
 }
 
-internal void ReportVoxelStats(vulkan_resources *res)
-{
-    uint32 *texels = (uint32 *)VoxelReadback.Mapped;
-
-    uint32 filled = 0;
-    uint32 minX = VOXEL_GRID_SIZE, minY = VOXEL_GRID_SIZE, minZ = VOXEL_GRID_SIZE;
-    uint32 maxX = 0, maxY = 0, maxZ = 0;
-
-    for (uint32 z = 0; z < VOXEL_GRID_SIZE; ++z)
-    {
-        for (uint32 y = 0; y < VOXEL_GRID_SIZE; ++y)
-        {
-            for (uint32 x = 0; x < VOXEL_GRID_SIZE; ++x)
-            {
-                uint32 texel = texels[(z * VOXEL_GRID_SIZE + y) * VOXEL_GRID_SIZE + x];
-
-                if (texel & 0xFF000000)
-                {
-                    ++filled;
-
-                    if (x < minX) minX = x;
-                    if (y < minY) minY = y;
-                    if (z < minZ) minZ = z;
-                    if (x > maxX) maxX = x;
-                    if (y > maxY) maxY = y;
-                    if (z > maxZ) maxZ = z;
-                }
-            }
-        }
-    }
-
-    uint32 bestLayer = 0;
-    uint32 bestCount = 0;
-
-    for (uint32 y = 0; y < VOXEL_GRID_SIZE; ++y)
-    {
-        uint32 count = 0;
-
-        for (uint32 z = 0; z < VOXEL_GRID_SIZE; ++z)
-        {
-            for (uint32 x = 0; x < VOXEL_GRID_SIZE; ++x)
-            {
-                if (texels[(z * VOXEL_GRID_SIZE + y) * VOXEL_GRID_SIZE + x] & 0xFF000000)
-                {
-                    ++count;
-                }
-            }
-        }
-
-        if (count > bestCount)
-        {
-            bestCount = count;
-            bestLayer = y;
-        }
-    }
-
-    uint32 total = VOXEL_GRID_SIZE * VOXEL_GRID_SIZE * VOXEL_GRID_SIZE;
-
-    DebugLog("Voxels: %u filled of %u, x %u..%u, y %u..%u, z %u..%u\n", filled, total, minX, maxX, minY, maxY, minZ, maxZ);
-    DebugLog("Voxels: densest layer y=%u holds %u\n", bestLayer, bestCount);
-}
-
 internal void RenderVulkanFrame(render_commands *Commands)
 {
     vulkan_context *context = &GlobalVulkan;
@@ -636,16 +580,7 @@ internal void RenderVulkanFrame(render_commands *Commands)
 
     VoxelizeScene(context, Frame.Cmd, &GlobalResources, ComputePipelines, Commands);
 
-    GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT | VK_ACCESS_2_TRANSFER_READ_BIT);
-
-    if (VoxelReadbackState == 0 && context->frameIndex >= MAX_FRAMES_IN_FLIGHT)
-    {
-        gpu_volume *albedo = &GlobalResources.Volumes[VOLUME_SLOT_ALBEDO];
-
-        CmdCopyVolumeToBuffer(Frame.Cmd, albedo->Image, VoxelReadback.Buffer, albedo->Width, albedo->Height, albedo->Depth);
-
-        VoxelReadbackState = 1;
-    }
+    GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 
     BeginPass(context, Frame.Cmd, SceneTarget.View, VK_ATTACHMENT_LOAD_OP_CLEAR, Vector4(0.05f, 0.05f, 0.08f, 1.0f), true);
     ExecuteRenderCommands(context, Frame.Cmd, &GlobalResources, Pipelines, Commands);
@@ -669,15 +604,6 @@ internal void RenderVulkanFrame(render_commands *Commands)
     CmdImageToPresent(Frame.Cmd, swapchainImage);
 
     EndFrame(context, &Frame);
-
-    if (VoxelReadbackState == 1)
-    {
-        vkQueueWaitIdle(context->graphicsQueue);
-
-        ReportVoxelStats(&GlobalResources);
-
-        VoxelReadbackState = 2;
-    }
 
     if (Frame.NeedsResize)
     {

@@ -31,9 +31,15 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     uint i1 = LoadIndex(params.Indices, base + 1) + params.FirstVertex;
     uint i2 = LoadIndex(params.Indices, base + 2) + params.FirstVertex;
 
-    float3 w0 = mul(params.Model, float4(LoadVertex(params.Vertices, i0).Position, 1.0)).xyz;
-    float3 w1 = mul(params.Model, float4(LoadVertex(params.Vertices, i1).Position, 1.0)).xyz;
-    float3 w2 = mul(params.Model, float4(LoadVertex(params.Vertices, i2).Position, 1.0)).xyz;
+    vertex a = LoadVertex(params.Vertices, i0);
+    vertex b = LoadVertex(params.Vertices, i1);
+    vertex c = LoadVertex(params.Vertices, i2);
+
+    float3 w0 = mul(params.Model, float4(a.Position, 1.0)).xyz;
+    float3 w1 = mul(params.Model, float4(b.Position, 1.0)).xyz;
+    float3 w2 = mul(params.Model, float4(c.Position, 1.0)).xyz;
+
+    float3 normal = normalize(mul((float3x3)params.Model, a.Normal + b.Normal + c.Normal));
 
     float3 v0 = WorldToVoxel(w0, params.GridCenter, params.GridExtent, params.GridSize);
     float3 v1 = WorldToVoxel(w1, params.GridCenter, params.GridExtent, params.GridSize);
@@ -45,24 +51,26 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 
     gpu_material material = LoadMaterial(params.Materials, params.MaterialSlot);
 
-    float4 stored = float4(material.BaseColor.rgb, 1.0);
+    float4 storedAlbedo = float4(material.BaseColor.rgb, 1.0);
+    float4 storedNormal = float4(normal * 0.5 + 0.5, 1.0);
 
     float3 edge1 = v1 - v0;
     float3 edge2 = v2 - v0;
 
     for (uint i = 0; i <= steps; ++i)
     {
-        float a = (float)i / (float)steps;
+        float alpha = (float)i / (float)steps;
 
         for (uint j = 0; j <= steps - i; ++j)
         {
-            float b = (float)j / (float)steps;
+            float beta = (float)j / (float)steps;
 
-            int3 coord = int3(floor(v0 + edge1 * a + edge2 * b));
+            int3 coord = int3(floor(v0 + edge1 * alpha + edge2 * beta));
 
             if (all(coord >= 0) && all(coord < (int)params.GridSize))
             {
-                VolumesRW[params.VolumeSlot][uint3(coord)] = stored;
+                VolumesRW[params.VolumeSlot][uint3(coord)]  = storedAlbedo;
+                VolumesRW[params.NormalSlot][uint3(coord)]  = storedNormal;
             }
         }
     }

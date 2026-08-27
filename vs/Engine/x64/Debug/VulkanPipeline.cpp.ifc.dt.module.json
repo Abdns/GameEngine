@@ -1,0 +1,15 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Engine\\x64\\Debug\\VulkanPipeline.obj",
+            "outputs": [
+                "Engine\\x64\\Debug\\VulkanPipeline.cpp.ifc.dt.module.json",
+                "Engine\\x64\\Debug\\VulkanPipeline.cpp.ifc.dt.d.json",
+                "Engine\\x64\\Debug\\Engine.pch"
+            ],
+            "requires": []
+        }
+    ]
+}

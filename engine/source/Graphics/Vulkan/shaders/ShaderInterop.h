@@ -15,6 +15,7 @@
 #define MAX_MATERIALS 64
 
 #define VOLUME_SLOT_ALBEDO 0
+#define VOLUME_SLOT_NORMAL 1
 
 #define VOLUME_GROUP_SIZE 4
 #define VOXEL_GROUP_SIZE  64
@@ -161,6 +162,11 @@ struct voxelize_params
     uint MaterialSlot;
     uint VolumeSlot;
     uint GridSize;
+
+    uint NormalSlot;
+    uint VoxelizePad0;
+    uint VoxelizePad1;
+    uint VoxelizePad2;
 };
 
 #ifndef __cplusplus
