@@ -83,7 +83,7 @@ struct frame_globals
 
     uint SkyCubemap;
     uint SkyMipCount;
-    uint FrameIndex;
+    uint GlobalsPad3;
     uint GlobalsPad4;
 
     float3 VolumeCenter;

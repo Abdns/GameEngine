@@ -10,8 +10,6 @@
 global_variable render_pipeline  Pipelines[Pipeline_Count];
 global_variable compute_pipeline ComputePipelines[Compute_Count];
 
-global_variable bool32           LightHistoryReady;
-
 global_variable pipeline_desc PipelineDescs[] =
 {
     { "unlit",      VK_TRUE,  VK_TRUE,  VK_FALSE },
@@ -256,7 +254,6 @@ internal void FillFrameGlobals(vulkan_context *context, vulkan_resources *res, r
                 Vector3 origin = cameraCmd->WorldPosition - cameraCmd->Position;
 
                 globals->VolumeCenter = Vector3(0.0f, 0.0f, 0.0f) - origin;
-                globals->FrameIndex  = (uint32)context->frameIndex;
 
                 Matrix4 proj = Mat4Perspective(cameraCmd->FovY, FOVaspect, 0.1f, 100.0f);
 
