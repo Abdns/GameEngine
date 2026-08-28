@@ -8,12 +8,11 @@
 [numthreads(VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
-    volume_params params = LoadVolumeParams(pc.ParamsPtr);
-
-    if (any(id >= params.VolumeSize))
+    if (any(id >= VOLUME_GRID_SIZE))
     {
         return;
     }
 
-    UintVolumesRW[params.VolumeSlot][id] = 0;
+    UintVolumesRW[UINT_SLOT_ALBEDO][id] = 0;
+    UintVolumesRW[UINT_SLOT_NORMAL][id] = 0;
 }

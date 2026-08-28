@@ -16,16 +16,42 @@
 #define MAX_VOLUMES      32
 #define MAX_UINT_VOLUMES 2
 
+#define UINT_SLOT_ALBEDO 0
+#define UINT_SLOT_NORMAL 1
+
 #define MAX_MATERIALS 64
 
+#define VOLUME_SLOT_ALBEDO 0
+#define VOLUME_SLOT_NORMAL 1
+#define VOLUME_SLOT_LIGHT_SOLID  2
+#define VOLUME_SLOT_LIGHT_NORMAL 3
+#define VOLUME_SLOT_LIGHT_A      4
+#define VOLUME_SLOT_LIGHT_B      10
+#define VOLUME_SLOT_LIGHT_SUM     16
+#define VOLUME_SLOT_LIGHT_HISTORY 22
+#define VOLUME_SLOT_SKY_OCCLUSION         28
+#define VOLUME_SLOT_SKY_OCCLUSION_SCRATCH 29
+
+#define LIGHT_DIRECTIONS 6
+#define LIGHT_ITERATIONS 12
+#define LIGHT_BLEND      0.1
+#define LIGHT_GI_STRENGTH  7.5
+#define LIGHT_READ_AMBIENT 0.10
+#define LIGHT_SKY_STRENGTH 1.0
+#define LIGHT_BLOCK_STRENGTH 3.0
+#define LIGHT_BOUNCE_STRENGTH 1.0
+
 #define VOLUME_GROUP_SIZE 4
+#define VOXEL_GROUP_SIZE  64
 
 #define VOLUME_GRID_SIZE    128
+#define LIGHT_GRID_SIZE     64
 #define VOLUME_WORLD_EXTENT 6.0f
 
 #define VOLUME_MODE_SLICE  0
 #define VOLUME_MODE_COLUMN 1
 #define VOLUME_MODE_CAMERA 2
+#define VOLUME_MODE_LIGHT  3
 
 #define VOLUME_MARCH_STEPS 512
 
@@ -146,17 +172,96 @@ struct volume_params
     float VolumeSlice;
     uint  VolumeMode;
 
-    uint  VolumePad3;
+    uint  VolumeLightSlot;
     uint  VolumePad0;
     uint  VolumePad1;
     uint  VolumePad2;
 };
+
+struct inject_params
+{
+    uint SolidSlot;
+    uint NormalSlot;
+    uint LightSlot;
+    uint LightSize;
+
+    uint SumSlot;
+    uint InjectPad0;
+    uint InjectPad1;
+    uint InjectPad2;
+};
+
+struct propagate_params
+{
+    uint SourceSlot;
+    uint TargetSlot;
+    uint SumSlot;
+    uint SolidSlot;
+
+    uint LightSize;
+    uint PropagatePad0;
+    uint PropagatePad1;
+    uint PropagatePad2;
+};
+
+struct downsample_params
+{
+    uint AlbedoSlot;
+    uint NormalSlot;
+    uint SolidSlot;
+    uint LightNormalSlot;
+
+    uint VoxelSize;
+    uint LightSize;
+    uint DownsamplePad0;
+    uint DownsamplePad1;
+};
+
+struct voxelize_params
+{
+    float4x4 Model;
+
+    gpu_ptr Vertices;
+    gpu_ptr Indices;
+
+    gpu_ptr Materials;
+    uint    FirstIndex;
+    uint    TriangleCount;
+
+    float3 GridCenter;
+    float  GridExtent;
+
+    uint FirstVertex;
+    uint MaterialSlot;
+    uint VolumeSlot;
+    uint GridSize;
+
+    uint NormalSlot;
+    uint VoxelizePad0;
+    uint VoxelizePad1;
+    uint VoxelizePad2;
+};
+
 
 #ifndef __cplusplus
     typedef vk::BufferPointer<frame_globals, 16>     frame_globals_ptr;
     typedef vk::BufferPointer<draw_params, 16>       draw_params_ptr;
     typedef vk::BufferPointer<image_params, 16>      image_params_ptr;
     typedef vk::BufferPointer<volume_params, 16>     volume_params_ptr;
+    typedef vk::BufferPointer<voxelize_params, 16>   voxelize_params_ptr;
+    typedef vk::BufferPointer<downsample_params, 16> downsample_params_ptr;
+    typedef vk::BufferPointer<inject_params, 16>     inject_params_ptr;
+    typedef vk::BufferPointer<propagate_params, 16>  propagate_params_ptr;
+
+    static const float3 LightAxis[LIGHT_DIRECTIONS] =
+    {
+        float3( 1.0,  0.0,  0.0),
+        float3(-1.0,  0.0,  0.0),
+        float3( 0.0,  1.0,  0.0),
+        float3( 0.0, -1.0,  0.0),
+        float3( 0.0,  0.0,  1.0),
+        float3( 0.0,  0.0, -1.0),
+    };
 
     float3 LocalToUVW(float3 local)
     {
@@ -209,6 +314,26 @@ struct volume_params
     volume_params LoadVolumeParams(uint64_t address)
     {
         return volume_params_ptr(address).Get();
+    }
+
+    voxelize_params LoadVoxelizeParams(uint64_t address)
+    {
+        return voxelize_params_ptr(address).Get();
+    }
+
+    downsample_params LoadDownsampleParams(uint64_t address)
+    {
+        return downsample_params_ptr(address).Get();
+    }
+
+    inject_params LoadInjectParams(uint64_t address)
+    {
+        return inject_params_ptr(address).Get();
+    }
+
+    propagate_params LoadPropagateParams(uint64_t address)
+    {
+        return propagate_params_ptr(address).Get();
     }
 
 #endif

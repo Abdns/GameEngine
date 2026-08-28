@@ -171,7 +171,15 @@ struct compute_pipeline
 enum compute_type
 {
     Compute_VolumeClear = 0,
+    Compute_Voxelize,
+    Compute_LightDownsample,
+    Compute_LightInject,
+    Compute_LightPropagate,
+    Compute_LightBlend,
     Compute_UintClear,
+    Compute_VoxelResolve,
+    Compute_SkyOcclusion,
+    Compute_SkyOcclusionBlur,
 
     Compute_Count,
 };

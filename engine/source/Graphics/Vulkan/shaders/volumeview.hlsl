@@ -154,6 +154,51 @@ float4 SampleCamera(volume_params params, float3 origin, float3 direction)
     return float4(voxel.rgb * shade, 1.0);
 }
 
+float4 SampleLight(volume_params params, float3 origin, float3 direction)
+{
+    int3   coord;
+    float4 voxel;
+    float  travel;
+    float3 position;
+
+    if (!MarchVolume(params, origin, direction, coord, voxel, travel, position))
+    {
+        return float4(VolumeBackground, 1.0);
+    }
+
+    float3 normal = float3(0.0, 1.0, 0.0);
+
+    float3 packed  = Volumes[VOLUME_SLOT_NORMAL].Load(int4(coord, 0)).rgb * 2.0 - 1.0;
+    float  length2 = dot(packed, packed);
+
+    if (length2 > 1e-6)
+    {
+        normal = packed * rsqrt(length2);
+    }
+
+    float cellSize = (2.0 * VOLUME_WORLD_EXTENT) / (float)LIGHT_GRID_SIZE;
+
+    float3 samplePos = position + normal * cellSize * 0.5;
+    float3 UVW       = (samplePos + VOLUME_WORLD_EXTENT) / (2.0 * VOLUME_WORLD_EXTENT);
+
+    float3 total       = float3(0.0, 0.0, 0.0);
+    float  totalWeight = 0.0;
+
+    for (uint bucket = 0; bucket < LIGHT_DIRECTIONS; ++bucket)
+    {
+        float aligned = max(dot(normal, -LightAxis[bucket]), 0.0);
+
+        float weight = aligned * aligned + LIGHT_READ_AMBIENT;
+
+        total       += Volumes[params.VolumeLightSlot + bucket].SampleLevel(VolumeSamp, UVW, 0).rgb * weight;
+        totalWeight += weight;
+    }
+
+    total *= LIGHT_GI_STRENGTH / max(totalWeight, 1e-4);
+
+    return float4(total * voxel.rgb, 1.0);
+}
+
 float4 PSMain(vs_output input) : SV_Target
 {
     volume_params params = LoadVolumeParams(pc.ParamsPtr);
@@ -161,6 +206,11 @@ float4 PSMain(vs_output input) : SV_Target
     frame_globals globals = LoadGlobals(pc.GlobalsPtr);
 
     float3 localOrigin = input.Origin - globals.VolumeCenter;
+
+    if (params.VolumeMode == VOLUME_MODE_LIGHT)
+    {
+        return SampleLight(params, localOrigin, input.Direction);
+    }
 
     if (params.VolumeMode == VOLUME_MODE_CAMERA)
     {

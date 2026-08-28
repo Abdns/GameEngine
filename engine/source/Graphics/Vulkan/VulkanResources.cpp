@@ -216,8 +216,36 @@ internal void CreateResources(vulkan_context *context, vulkan_resources *res, Vk
     WriteSamplerDescriptor(context, &res->Heap, res->Heap.SamplerOffset, res->Sampler);
     WriteSamplerDescriptor(context, &res->Heap, res->Heap.VolumeSamplerOffset, res->VolumeSampler);
 
+    uint32 voxelSlots[] = { VOLUME_SLOT_ALBEDO, VOLUME_SLOT_NORMAL };
+    uint32 lightSlots[2 + LIGHT_DIRECTIONS * 4] = { VOLUME_SLOT_LIGHT_SOLID, VOLUME_SLOT_LIGHT_NORMAL };
+
+    for (uint32 i = 0; i < LIGHT_DIRECTIONS; ++i)
     {
-        gpu_volume *volume = CreateVolume(context, res, 0, VOLUME_GRID_SIZE, VOLUME_GRID_SIZE, VOLUME_GRID_SIZE, VK_FORMAT_R16G16B16A16_SFLOAT);
+        lightSlots[2 + i]                        = VOLUME_SLOT_LIGHT_A + i;
+        lightSlots[2 + LIGHT_DIRECTIONS + i]     = VOLUME_SLOT_LIGHT_B + i;
+        lightSlots[2 + LIGHT_DIRECTIONS * 2 + i] = VOLUME_SLOT_LIGHT_SUM + i;
+        lightSlots[2 + LIGHT_DIRECTIONS * 3 + i] = VOLUME_SLOT_LIGHT_HISTORY + i;
+    }
+
+    for (uint32 i = 0; i < ArrayCount(voxelSlots); ++i)
+    {
+        gpu_volume *volume = CreateVolume(context, res, voxelSlots[i], VOLUME_GRID_SIZE, VOLUME_GRID_SIZE, VOLUME_GRID_SIZE, VK_FORMAT_R16G16B16A16_SFLOAT);
+
+        CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+    }
+
+    for (uint32 i = 0; i < ArrayCount(lightSlots); ++i)
+    {
+        gpu_volume *volume = CreateVolume(context, res, lightSlots[i], LIGHT_GRID_SIZE, LIGHT_GRID_SIZE, LIGHT_GRID_SIZE, VK_FORMAT_R16G16B16A16_SFLOAT);
+
+        CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+    }
+
+    uint32 skySlots[] = { VOLUME_SLOT_SKY_OCCLUSION, VOLUME_SLOT_SKY_OCCLUSION_SCRATCH };
+
+    for (uint32 i = 0; i < ArrayCount(skySlots); ++i)
+    {
+        gpu_volume *volume = CreateVolume(context, res, skySlots[i], VOLUME_GRID_SIZE, VOLUME_GRID_SIZE, VOLUME_GRID_SIZE, VK_FORMAT_R16G16B16A16_SFLOAT);
 
         CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
     }

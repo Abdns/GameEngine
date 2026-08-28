@@ -92,6 +92,14 @@
     <None Include="..\engine\source\Graphics\Vulkan\shaders\volumeview.hlsl" />
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelclear.hlsl" />
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\uintclear.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelize.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelresolve.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\skyocclusion.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\skyocclusionblur.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\lightdownsample.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\lightinject.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\lightpropagate.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\lightblend.hlsl" />
     <None Include="..\EngaAsset\assets.enga" />
     <None Include="..\build.bat" />
   </ItemGroup>
