@@ -9,6 +9,7 @@
 
 global_variable render_pipeline  Pipelines[Pipeline_Count];
 global_variable compute_pipeline ComputePipelines[Compute_Count];
+
 global_variable bool32           LightHistoryReady;
 
 global_variable pipeline_desc PipelineDescs[] =
@@ -25,15 +26,7 @@ global_variable pipeline_desc PipelineDescs[] =
 global_variable const char *ComputeDescs[] =
 {
     "voxelclear",
-    "voxelize",
     "uintclear",
-    "voxelresolve",
-    "skyvisibility",
-    "skyvisblur",
-    "sdfseed",
-    "sdfflood",
-    "sdfresolve",
-    "lightprobetrace",
 };
 
 static_assert(ArrayCount(PipelineDescs) == Pipeline_Count, "PipelineDescs must describe every pipeline_type");
@@ -51,12 +44,12 @@ internal void ResizeRenderer(vulkan_context *context)
     DestroyTexture(context, &PostTarget);
 
     VkCommandBuffer setup = BeginSingleTimeCommands(context);
+    {
+        CreateDepthResources(context, setup);
 
-    CreateDepthResources(context, setup);
-
-    SceneTarget = CreateRenderTarget(context, &GlobalResources, TEXTURE_SLOT_SCENE, VK_FORMAT_R16G16B16A16_SFLOAT, setup);
-    PostTarget  = CreateRenderTarget(context, &GlobalResources, TEXTURE_SLOT_POST,  VK_FORMAT_R16G16B16A16_SFLOAT, setup);
-
+        SceneTarget = CreateRenderTarget(context, &GlobalResources, TEXTURE_SLOT_SCENE, VK_FORMAT_R16G16B16A16_SFLOAT, setup);
+        PostTarget  = CreateRenderTarget(context, &GlobalResources, TEXTURE_SLOT_POST,  VK_FORMAT_R16G16B16A16_SFLOAT, setup);
+    }
     EndSingleTimeCommands(context, setup);
 }
 
@@ -76,7 +69,7 @@ internal const char *InitVulkan(HINSTANCE hinstance, HWND hwnd)
     }
 
     const char *instanceExtensions[8];
-    uint32      instanceExtensionCount = GatherInstanceExtensions(instanceExtensions, ArrayCount(instanceExtensions));
+    uint32 instanceExtensionCount = GatherInstanceExtensions(instanceExtensions, ArrayCount(instanceExtensions));
 
     VkApplicationInfo appInfo = AppInfo();
     VkInstanceCreateInfo instanceInfo = InstanceInfo(&appInfo, instanceExtensions, instanceExtensionCount);
@@ -144,6 +137,7 @@ internal const char *InitVulkan(HINSTANCE hinstance, HWND hwnd)
     }
 
     DebugLog("Vulkan ready\n");
+
     return nullptr;
 }
 
@@ -164,71 +158,71 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
     res->MaterialCount  = commands->MaterialCount;
 
     shared_buffer staging = CreateUploadBuffer(context, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, STAGING_MEMORY_SIZE);
-    VkCommandBuffer cmd = BeginSingleTimeCommands(context);
 
-    uint32 offset = 0;
-
-    for (command_type *header = NextRenderCommand(commands, &offset); header; header = NextRenderCommand(commands, &offset))
+    VkCommandBuffer cmd = BeginSingleTimeCommands(context); 
     {
-        if (*header == Load_Mesh)
+        uint32 offset = 0;
+        for (command_type *header = NextRenderCommand(commands, &offset); header; header = NextRenderCommand(commands, &offset))
         {
-            command_load_mesh *entry = (command_load_mesh *)header;
+            if (*header == Load_Mesh)
+            {
+                command_load_mesh *entry = (command_load_mesh *)header;
 
-            shared_alloc vertices = SharedBufferWrite(&res->VertexBuffer, entry->Vertices, entry->VertexCount * sizeof(vertex), 4);
-            shared_alloc indices  = SharedBufferWrite(&res->IndexBuffer,  entry->Indices,  entry->IndexCount  * sizeof(uint32), sizeof(uint32));
+                shared_alloc vertices = SharedBufferWrite(&res->VertexBuffer, entry->Vertices, entry->VertexCount * sizeof(vertex), 4);
+                shared_alloc indices  = SharedBufferWrite(&res->IndexBuffer,  entry->Indices,  entry->IndexCount  * sizeof(uint32), sizeof(uint32));
 
-            Assert(entry->MeshHandle < MAX_MESHES);
+                Assert(entry->MeshHandle < MAX_MESHES);
 
-            gpu_mesh *mesh = res->Meshes + entry->MeshHandle;
-            Assert(!mesh->IndexCount);
+                gpu_mesh *mesh = res->Meshes + entry->MeshHandle;
+                Assert(!mesh->IndexCount);
 
-            *mesh = CreateMesh(vertices.Offset, entry->VertexCount, indices.Offset, entry->IndexCount);
+                *mesh = CreateMesh(vertices.Offset, entry->VertexCount, indices.Offset, entry->IndexCount);
+            }
+            else if (*header == Load_Texture)
+            {
+                command_load_texture *entry = (command_load_texture *)header;
+
+                VkDeviceSize imageSize = (VkDeviceSize)entry->Width * entry->Height * TextureFormatBytes(entry->Format);
+
+                shared_alloc upload  = SharedBufferWrite(&staging, entry->Pixels, imageSize, 16);
+                gpu_texture *texture = CreateTexture(context, res, entry->TextureHandle, entry->Width, entry->Height, entry->SRGB, entry->Format);
+
+                CmdUploadImage(cmd, staging.Buffer, upload.Offset, texture->Image, entry->Width, entry->Height, 1);
+                WriteImageDescriptor(context, &res->Heap, res->Heap.TextureOffset, entry->TextureHandle, texture->View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+            }
+            else if (*header == Load_Cubemap)
+            {
+                command_load_cubemap *entry = (command_load_cubemap *)header;
+
+                VkDeviceSize imageSize = (VkDeviceSize)entry->FaceSize * entry->FaceSize * 6 * TextureFormatBytes(entry->Format);
+
+                shared_alloc upload = SharedBufferWrite(&staging, entry->Pixels, imageSize, 16);
+                gpu_texture *cube = CreateCubemap(context, res, entry->CubemapHandle, entry->FaceSize, entry->Format);
+
+                CmdUploadImage(cmd, staging.Buffer, upload.Offset, cube->Image, entry->FaceSize, entry->FaceSize, 6);
+                CmdGenerateMips(cmd, cube->Image, entry->FaceSize, entry->FaceSize, 6, cube->MipLevels);
+                WriteImageDescriptor(context, &res->Heap, res->Heap.CubemapOffset, entry->CubemapHandle, cube->View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+            }
         }
-        else if (*header == Load_Texture)
+
+        offset = 0;
+        for (command_type *header = NextRenderCommand(commands, &offset); header; header = NextRenderCommand(commands, &offset))
         {
-            command_load_texture *entry = (command_load_texture *)header;
+            if (*header == Load_Material)
+            {
+                command_load_material *entry = (command_load_material *)header;
 
-            VkDeviceSize imageSize = (VkDeviceSize)entry->Width * entry->Height * TextureFormatBytes(entry->Format);
+                Assert(entry->TextureHandle < MAX_TEXTURES && res->Textures[entry->TextureHandle].View);
+                Assert(entry->MaterialHandle < res->MaterialCount);
 
-            shared_alloc upload  = SharedBufferWrite(&staging, entry->Pixels, imageSize, 16);
-            gpu_texture *texture = CreateTexture(context, res, entry->TextureHandle, entry->Width, entry->Height, entry->SRGB, entry->Format);
+                material_state *state    = res->MaterialStates + entry->MaterialHandle;
+                shared_alloc material = GetSharedBufferSlot(&res->MaterialBuffer, entry->MaterialHandle, sizeof(gpu_material));
 
-            CmdUploadImage(cmd, staging.Buffer, upload.Offset, texture->Image, entry->Width, entry->Height, 1);
-            WriteImageDescriptor(context, &res->Heap, res->Heap.TextureOffset, entry->TextureHandle, texture->View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
-        }
-        else if (*header == Load_Cubemap)
-        {
-            command_load_cubemap *entry = (command_load_cubemap *)header;
-
-            VkDeviceSize imageSize = (VkDeviceSize)entry->FaceSize * entry->FaceSize * 6 * TextureFormatBytes(entry->Format);
-
-            shared_alloc upload = SharedBufferWrite(&staging, entry->Pixels, imageSize, 16);
-            gpu_texture *cube = CreateCubemap(context, res, entry->CubemapHandle, entry->FaceSize, entry->Format);
-
-            CmdUploadImage(cmd, staging.Buffer, upload.Offset, cube->Image, entry->FaceSize, entry->FaceSize, 6);
-            CmdGenerateMips(cmd, cube->Image, entry->FaceSize, entry->FaceSize, 6, cube->MipLevels);
-            WriteImageDescriptor(context, &res->Heap, res->Heap.CubemapOffset, entry->CubemapHandle, cube->View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+                *state = CreateMaterialState(entry);
+                *(gpu_material *)material.Cpu = CreateMaterial(entry);
+            }
         }
     }
-
-    offset = 0;
-    for (command_type *header = NextRenderCommand(commands, &offset); header; header = NextRenderCommand(commands, &offset))
-    {
-        if (*header == Load_Material)
-        {
-            command_load_material *entry = (command_load_material *)header;
-
-            Assert(entry->TextureHandle < MAX_TEXTURES && res->Textures[entry->TextureHandle].View);
-            Assert(entry->MaterialHandle < res->MaterialCount);
-
-            material_state *state    = res->MaterialStates + entry->MaterialHandle;
-            shared_alloc    material = GetSharedBufferSlot(&res->MaterialBuffer, entry->MaterialHandle, sizeof(gpu_material));
-
-            *state                        = CreateMaterialState(entry);
-            *(gpu_material *)material.Cpu = CreateMaterial(entry);
-        }
-    }
-
     EndSingleTimeCommands(context, cmd);
 
     DestroySharedBuffer(context, &staging);
@@ -261,7 +255,7 @@ internal void FillFrameGlobals(vulkan_context *context, vulkan_resources *res, r
 
                 Vector3 origin = cameraCmd->WorldPosition - cameraCmd->Position;
 
-                globals->VoxelCenter = Vector3(0.0f, 0.0f, 0.0f) - origin;
+                globals->VolumeCenter = Vector3(0.0f, 0.0f, 0.0f) - origin;
                 globals->FrameIndex  = (uint32)context->frameIndex;
 
                 Matrix4 proj = Mat4Perspective(cameraCmd->FovY, FOVaspect, 0.1f, 100.0f);
@@ -449,7 +443,7 @@ internal void ExecuteUICommands(vulkan_context *context, VkCommandBuffer cmd, vu
     vkCmdDraw(cmd, 6, rectCount, 0, 0);
 }
 
-internal void ClearVoxelVolume(VkCommandBuffer cmd, vulkan_resources *res, uint32 volumeSlot, uint32 volumeSize)
+internal void ClearVolume(VkCommandBuffer cmd, vulkan_resources *res, uint32 volumeSlot, uint32 volumeSize)
 {
     shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(volume_params), 16);
 
@@ -468,241 +462,7 @@ internal void ClearVoxelVolume(VkCommandBuffer cmd, vulkan_resources *res, uint3
 
 internal void StorageBarrier(VkCommandBuffer cmd)
 {
-    GpuBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
-}
-
-internal void ComputeSkyVisibility(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
-{
-    if (pipeline->Compute == VK_NULL_HANDLE)
-    {
-        return;
-    }
-
-    BindComputePipeline(context, cmd, pipeline);
-
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(downsample_params), 16);
-
-    downsample_params params = {};
-    params.AlbedoSlot = VOLUME_SLOT_ALBEDO;
-    params.NormalSlot = VOLUME_SLOT_SKYVIS;
-    params.VoxelSize  = VOXEL_GRID_SIZE;
-
-    *(downsample_params *)alloc.Cpu = params;
-
-    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
-
-    uint32 groupCount = VOXEL_GRID_SIZE / 8;
-
-    DispatchCompute(cmd, groupCount, 1, groupCount);
-}
-
-internal void BlurSkyVisibility(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline, uint32 sourceSlot, uint32 targetSlot)
-{
-    if (pipeline->Compute == VK_NULL_HANDLE)
-    {
-        return;
-    }
-
-    BindComputePipeline(context, cmd, pipeline);
-
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(downsample_params), 16);
-
-    downsample_params params = {};
-    params.AlbedoSlot = sourceSlot;
-    params.NormalSlot = targetSlot;
-    params.VoxelSize  = VOXEL_GRID_SIZE;
-
-    *(downsample_params *)alloc.Cpu = params;
-
-    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
-
-    uint32 groupCount = VOXEL_GRID_SIZE / VOLUME_GROUP_SIZE;
-
-    DispatchCompute(cmd, groupCount, groupCount, groupCount);
-}
-
-internal void DispatchFlood(VkCommandBuffer cmd, vulkan_resources *res, uint32 sourceSlot, uint32 targetSlot, uint32 stepSize)
-{
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(flood_params), 16);
-
-    flood_params params = {};
-    params.SourceSlot = sourceSlot;
-    params.TargetSlot = targetSlot;
-    params.GridSize   = VOXEL_GRID_SIZE;
-    params.StepSize   = stepSize;
-
-    *(flood_params *)alloc.Cpu = params;
-
-    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
-
-    uint32 groupCount = VOXEL_GRID_SIZE / VOLUME_GROUP_SIZE;
-
-    DispatchCompute(cmd, groupCount, groupCount, groupCount);
-}
-
-internal void BuildDistanceField(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipelines)
-{
-    compute_pipeline *seed    = &pipelines[Compute_SdfSeed];
-    compute_pipeline *flood   = &pipelines[Compute_SdfFlood];
-    compute_pipeline *resolve = &pipelines[Compute_SdfResolve];
-
-    if (seed->Compute == VK_NULL_HANDLE || flood->Compute == VK_NULL_HANDLE || resolve->Compute == VK_NULL_HANDLE)
-    {
-        return;
-    }
-
-    BindComputePipeline(context, cmd, seed);
-    DispatchFlood(cmd, res, VOLUME_SLOT_ALBEDO, VOLUME_SLOT_SEED_A, 0);
-
-    BindComputePipeline(context, cmd, flood);
-
-    uint32 source = VOLUME_SLOT_SEED_A;
-    uint32 target = VOLUME_SLOT_SEED_B;
-
-    for (uint32 step = VOXEL_GRID_SIZE / 2; step >= 1; step /= 2)
-    {
-        StorageBarrier(cmd);
-        DispatchFlood(cmd, res, source, target, step);
-
-        uint32 swap = source;
-        source      = target;
-        target      = swap;
-    }
-
-    StorageBarrier(cmd);
-
-    BindComputePipeline(context, cmd, resolve);
-    DispatchFlood(cmd, res, source, VOLUME_SLOT_SDF, 0);
-}
-
-internal void TraceProbes(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
-{
-    if (pipeline->Compute == VK_NULL_HANDLE)
-    {
-        return;
-    }
-
-    BindComputePipeline(context, cmd, pipeline);
-
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(trace_params), 16);
-
-    trace_params params = {};
-    params.LightSlot = VOLUME_SLOT_LIGHT_HISTORY;
-    params.LightSize = LIGHT_GRID_SIZE;
-    params.SdfSlot   = VOLUME_SLOT_SDF;
-
-    *(trace_params *)alloc.Cpu = params;
-
-    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
-
-    uint32 groupCount = LIGHT_GRID_SIZE / VOLUME_GROUP_SIZE;
-
-    DispatchCompute(cmd, groupCount, groupCount, groupCount);
-}
-
-internal void VoxelizeScene(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipelines, render_commands *commands)
-{
-    compute_pipeline *clear     = &pipelines[Compute_VoxelClear];
-    compute_pipeline *uintClear = &pipelines[Compute_UintClear];
-    compute_pipeline *voxelize  = &pipelines[Compute_Voxelize];
-    compute_pipeline *resolve   = &pipelines[Compute_VoxelResolve];
-
-    if (clear->Compute == VK_NULL_HANDLE || uintClear->Compute == VK_NULL_HANDLE || voxelize->Compute == VK_NULL_HANDLE || resolve->Compute == VK_NULL_HANDLE)
-    {
-        return;
-    }
-
-    uint32 voxelGroups = VOXEL_GRID_SIZE / VOLUME_GROUP_SIZE;
-
-    BindComputePipeline(context, cmd, uintClear);
-    DispatchCompute(cmd, voxelGroups, voxelGroups, voxelGroups);
-
-    if (!LightHistoryReady)
-    {
-        BindComputePipeline(context, cmd, clear);
-
-        for (uint32 i = 0; i < LIGHT_DIRECTIONS; ++i)
-        {
-            ClearVoxelVolume(cmd, res, VOLUME_SLOT_LIGHT_HISTORY + i, LIGHT_GRID_SIZE);
-        }
-
-        LightHistoryReady = true;
-    }
-
-    GpuBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
-
-    frame_globals *globals = (frame_globals *)res->Globals.Cpu;
-
-    BindComputePipeline(context, cmd, voxelize);
-
-    uint32 offset = 0;
-    for (command_type *cmdBase = NextRenderCommand(commands, &offset); cmdBase; cmdBase = NextRenderCommand(commands, &offset))
-    {
-        if (*cmdBase != Render_Mesh)
-        {
-            continue;
-        }
-
-        command_render_mesh *meshCmd = (command_render_mesh *)cmdBase;
-        Assert(meshCmd->MeshHandle < MAX_MESHES);
-
-        gpu_mesh *mesh = res->Meshes + meshCmd->MeshHandle;
-        if (!mesh->IndexCount)
-        {
-            continue;
-        }
-
-        uint32 materialSlot = meshCmd->MaterialHandle;
-        Assert(materialSlot < res->MaterialCount);
-
-        material_state *material = &res->MaterialStates[materialSlot];
-        if (material->Queue != Queue_Opaque || material->Pipeline != Pipeline_Lit)
-        {
-            continue;
-        }
-
-        shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(voxelize_params), 16);
-
-        voxelize_params params = {};
-        params.Model         = meshCmd->Transform;
-        params.Vertices      = res->VertexBuffer.Address;
-        params.Indices       = res->IndexBuffer.Address;
-        params.Materials     = res->MaterialBuffer.Address;
-        params.FirstIndex    = mesh->FirstIndex;
-        params.TriangleCount = mesh->IndexCount / 3;
-        params.GridCenter    = globals->VoxelCenter;
-        params.GridExtent    = VOXEL_WORLD_EXTENT;
-        params.FirstVertex   = mesh->FirstVertex;
-        params.MaterialSlot  = materialSlot;
-        params.VolumeSlot    = VOLUME_SLOT_ALBEDO;
-        params.GridSize      = VOXEL_GRID_SIZE;
-        params.NormalSlot    = VOLUME_SLOT_NORMAL;
-
-        *(voxelize_params *)alloc.Cpu = params;
-
-        BindParams(cmd, res->PipelineLayout, alloc.Gpu);
-
-        uint32 groupCount = (params.TriangleCount + VOXEL_GROUP_SIZE - 1) / VOXEL_GROUP_SIZE;
-
-        DispatchCompute(cmd, groupCount, 1, 1);
-    }
-
-    StorageBarrier(cmd);
-
-    BindComputePipeline(context, cmd, resolve);
-
-    shared_alloc resolveAlloc = SharedBufferAlloc(&res->FrameArena, sizeof(downsample_params), 16);
-
-    downsample_params resolveParams = {};
-    resolveParams.AlbedoSlot = VOLUME_SLOT_ALBEDO;
-    resolveParams.NormalSlot = VOLUME_SLOT_NORMAL;
-    resolveParams.VoxelSize  = VOXEL_GRID_SIZE;
-
-    *(downsample_params *)resolveAlloc.Cpu = resolveParams;
-
-    BindParams(cmd, res->PipelineLayout, resolveAlloc.Gpu);
-
-    DispatchCompute(cmd, voxelGroups, voxelGroups, voxelGroups);
+    GpuBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 }
 
 internal void DrawVolumeDebug(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, render_pipeline *pipeline, uint32 volumeSlot, uint32 volumeSize, uint32 mode, real32 slice)
@@ -733,7 +493,6 @@ internal void DrawVolumeDebug(vulkan_context *context, VkCommandBuffer cmd, vulk
     params.VolumeSize       = volumeSize;
     params.VolumeSlice      = slice;
     params.VolumeMode       = mode;
-    params.VolumeLightSlot  = VOLUME_SLOT_LIGHT_HISTORY;
 
     *(volume_params *)alloc.Cpu = params;
 
@@ -777,27 +536,9 @@ internal void RenderVulkanFrame(render_commands *Commands)
 
     BindDescriptorHeap(context, Frame.Cmd, &GlobalResources, GlobalResources.PipelineLayout);
 
-    VoxelizeScene(context, Frame.Cmd, &GlobalResources, ComputePipelines, Commands);
-
+    BindComputePipeline(context, Frame.Cmd, &ComputePipelines[Compute_VolumeClear]);
+    ClearVolume(Frame.Cmd, &GlobalResources, 0, VOLUME_GRID_SIZE);
     StorageBarrier(Frame.Cmd);
-
-    BuildDistanceField(context, Frame.Cmd, &GlobalResources, ComputePipelines);
-
-    StorageBarrier(Frame.Cmd);
-
-    ComputeSkyVisibility(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_SkyVisibility]);
-
-    StorageBarrier(Frame.Cmd);
-
-    BlurSkyVisibility(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_SkyBlur], VOLUME_SLOT_SKYVIS, VOLUME_SLOT_SKYVIS_SCRATCH);
-
-    StorageBarrier(Frame.Cmd);
-
-    BlurSkyVisibility(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_SkyBlur], VOLUME_SLOT_SKYVIS_SCRATCH, VOLUME_SLOT_SKYVIS);
-
-    StorageBarrier(Frame.Cmd);
-
-    TraceProbes(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_ProbeTrace]);
 
     GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 
@@ -817,7 +558,7 @@ internal void RenderVulkanFrame(render_commands *Commands)
     BeginPass(context, Frame.Cmd, context->swapchainImageViews[Frame.ImageIndex], VK_ATTACHMENT_LOAD_OP_DONT_CARE, Vector4(0.0f, 0.0f, 0.0f, 0.0f), false);
     DrawFullscreen(context, Frame.Cmd, &GlobalResources, &Pipelines[Pipeline_UI], TEXTURE_SLOT_POST);
     ExecuteUICommands(context, Frame.Cmd, &GlobalResources, Pipelines, Commands);
-    DrawVolumeDebug(context, Frame.Cmd, &GlobalResources, &Pipelines[Pipeline_VolumeView], VOLUME_SLOT_ALBEDO, VOXEL_GRID_SIZE, VOLUME_MODE_LIGHT, 0.5f);
+    DrawVolumeDebug(context, Frame.Cmd, &GlobalResources, &Pipelines[Pipeline_VolumeView], 0, VOLUME_GRID_SIZE, VOLUME_MODE_CAMERA, 0.5f);
     EndPass(Frame.Cmd);
 
     CmdImageToPresent(Frame.Cmd, swapchainImage);

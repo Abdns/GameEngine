@@ -75,7 +75,7 @@ internal void WriteSamplerDescriptor(vulkan_context *context, descriptor_heap *h
 
 internal void CreateDescriptorHeap(vulkan_context *context, vulkan_resources *res)
 {
-    VkDescriptorSetLayoutBinding bindings[6] = {};
+    VkDescriptorSetLayoutBinding bindings[7] = {};
     bindings[0].binding         = BINDING_TEXTURES;
     bindings[0].descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
     bindings[0].descriptorCount = TEXTURE_HEAP_SIZE;
@@ -106,6 +106,11 @@ internal void CreateDescriptorHeap(vulkan_context *context, vulkan_resources *re
     bindings[5].descriptorCount = MAX_UINT_VOLUMES;
     bindings[5].stageFlags      = HEAP_STAGES;
 
+    bindings[6].binding         = BINDING_VOLUME_SAMPLER;
+    bindings[6].descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLER;
+    bindings[6].descriptorCount = 1;
+    bindings[6].stageFlags      = HEAP_STAGES;
+
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layoutInfo.flags        = VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
@@ -125,6 +130,7 @@ internal void CreateDescriptorHeap(vulkan_context *context, vulkan_resources *re
     context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_VOLUMES,  &res->Heap.VolumeOffset);
     context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_STORAGE_VOLUMES, &res->Heap.StorageVolumeOffset);
     context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_UINT_VOLUMES, &res->Heap.UintVolumeOffset);
+    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_VOLUME_SAMPLER, &res->Heap.VolumeSamplerOffset);
 
     VkBufferUsageFlags heapUsage = VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT | VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT;
 
@@ -201,32 +207,24 @@ internal void CreateResources(vulkan_context *context, vulkan_resources *res, Vk
 {
     res->FrameArena    = CreateDeviceBuffer(context, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, FRAME_BUFFER_SIZE);
     res->GlobalsBuffer = CreateDeviceBuffer(context, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(frame_globals) * MAX_FRAMES_IN_FLIGHT);
-    res->Sampler    = CreateTextureSampler(context, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT);
+    res->Sampler       = CreateTextureSampler(context, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT);
+    res->VolumeSampler = CreateTextureSampler(context, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
 
     CreateDescriptorHeap(context, res);
     res->PipelineLayout = CreatePipelineLayout(context, res->Heap.Layout);
 
     WriteSamplerDescriptor(context, &res->Heap, res->Heap.SamplerOffset, res->Sampler);
+    WriteSamplerDescriptor(context, &res->Heap, res->Heap.VolumeSamplerOffset, res->VolumeSampler);
 
-    uint32 fineSlots[] = { VOLUME_SLOT_ALBEDO, VOLUME_SLOT_NORMAL, VOLUME_SLOT_SKYVIS, VOLUME_SLOT_SKYVIS_SCRATCH, VOLUME_SLOT_SEED_A, VOLUME_SLOT_SEED_B, VOLUME_SLOT_SDF };
-
-    for (uint32 i = 0; i < ArrayCount(fineSlots); ++i)
     {
-        gpu_volume *volume = CreateVolume(context, res, fineSlots[i], VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VOXEL_GRID_SIZE, VK_FORMAT_R16G16B16A16_SFLOAT);
-
-        CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
-    }
-
-    for (uint32 i = 0; i < LIGHT_DIRECTIONS; ++i)
-    {
-        gpu_volume *volume = CreateVolume(context, res, VOLUME_SLOT_LIGHT_HISTORY + i, LIGHT_GRID_SIZE, LIGHT_GRID_SIZE, LIGHT_GRID_SIZE, VK_FORMAT_R16G16B16A16_SFLOAT);
+        gpu_volume *volume = CreateVolume(context, res, 0, VOLUME_GRID_SIZE, VOLUME_GRID_SIZE, VOLUME_GRID_SIZE, VK_FORMAT_R16G16B16A16_SFLOAT);
 
         CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
     }
 
     for (uint32 i = 0; i < MAX_UINT_VOLUMES; ++i)
     {
-        gpu_volume *volume = CreateUintVolume(context, res, i, VOXEL_GRID_SIZE);
+        gpu_volume *volume = CreateUintVolume(context, res, i, VOLUME_GRID_SIZE);
 
         CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
     }

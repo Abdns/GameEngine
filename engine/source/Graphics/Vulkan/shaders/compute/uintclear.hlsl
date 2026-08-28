@@ -8,11 +8,12 @@
 [numthreads(VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
-    if (any(id >= VOXEL_GRID_SIZE))
+    volume_params params = LoadVolumeParams(pc.ParamsPtr);
+
+    if (any(id >= params.VolumeSize))
     {
         return;
     }
 
-    UintVolumesRW[UINT_SLOT_ALBEDO][id] = 0;
-    UintVolumesRW[UINT_SLOT_NORMAL][id] = 0;
+    UintVolumesRW[params.VolumeSlot][id] = 0;
 }

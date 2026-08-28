@@ -226,31 +226,7 @@
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelclear.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelize.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\uintclear.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelresolve.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\skyvisibility.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\skyvisblur.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\sdfseed.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\sdfflood.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\sdfresolve.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\lightprobetrace.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
     <None Include="..\EngaAsset\assets.enga">

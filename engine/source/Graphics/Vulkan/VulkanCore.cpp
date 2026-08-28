@@ -323,6 +323,11 @@ internal VkImage CreateVolumeImage(vulkan_context *context, uint32 width, uint32
     return CreateImageFromInfo(context, &imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, outMemory);
 }
 
+internal VkImage CreateStorageImage(vulkan_context *context, uint32 width, uint32 height, VkFormat format, VkDeviceMemory *outMemory)
+{
+    return CreateImage(context, width, height, format, 1, 1, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, outMemory);
+}
+
 internal VkImage CreateTextureImage(vulkan_context *context, uint32 width, uint32 height, VkFormat format, uint32 layers, uint32 mipLevels, VkDeviceMemory *outMemory)
 {
     return CreateImage(context, width, height, format, layers, mipLevels, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, outMemory);

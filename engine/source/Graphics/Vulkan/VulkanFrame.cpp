@@ -106,7 +106,7 @@ internal void BindPipelineState(vulkan_context *context, VkCommandBuffer cmd, re
 internal void BindComputePipeline(vulkan_context *context, VkCommandBuffer cmd, compute_pipeline *pipeline)
 {
     VkShaderStageFlagBits stage  = VK_SHADER_STAGE_COMPUTE_BIT;
-    VkShaderEXT           shader = pipeline->Compute;
+    VkShaderEXT shader = pipeline->Compute;
 
     context->CmdBindShadersEXT(cmd, 1, &stage, &shader);
 }

@@ -101,6 +101,7 @@ struct descriptor_heap
     VkDeviceSize VolumeOffset;
     VkDeviceSize StorageVolumeOffset;
     VkDeviceSize UintVolumeOffset;
+    VkDeviceSize VolumeSamplerOffset;
 };
 
 struct material_state
@@ -118,6 +119,7 @@ struct vulkan_resources
     descriptor_heap  Heap;
     VkPipelineLayout PipelineLayout;
     VkSampler        Sampler;
+    VkSampler        VolumeSampler;
 
     shared_buffer VertexBuffer;
     shared_buffer IndexBuffer;
@@ -161,26 +163,19 @@ struct render_pipeline
     VkShaderEXT Frag;
 };
 
-enum compute_type
-{
-    Compute_VoxelClear = 0,
-    Compute_Voxelize,
-    Compute_UintClear,
-    Compute_VoxelResolve,
-    Compute_SkyVisibility,
-    Compute_SkyBlur,
-    Compute_SdfSeed,
-    Compute_SdfFlood,
-    Compute_SdfResolve,
-    Compute_ProbeTrace,
-
-    Compute_Count,
-};
-
 struct compute_pipeline
 {
     VkShaderEXT Compute;
 };
+
+enum compute_type
+{
+    Compute_VolumeClear = 0,
+    Compute_UintClear,
+
+    Compute_Count,
+};
+
 
 struct vulkan_frame
 {

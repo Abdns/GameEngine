@@ -1,8 +1,7 @@
 #include "ShaderInterop.h"
 
 [[vk::binding(BINDING_CUBEMAPS, SET_GLOBAL)]] TextureCube  Sky[MAX_CUBEMAPS];
-[[vk::binding(BINDING_VOLUMES,  SET_GLOBAL)]] Texture3D    Volumes[MAX_VOLUMES];
-[[vk::binding(BINDING_SAMPLER,  SET_GLOBAL)]] SamplerState Samp;
+[[vk::binding(BINDING_SAMPLER,        SET_GLOBAL)]] SamplerState Samp;
 
 [[vk::push_constant]] push_constants pc;
 
@@ -95,70 +94,6 @@ float3 EnvironmentBRDF(float3 F0, float Roughness, float NdotV)
     return (F0 * ab.x + ab.y) * Compensation;
 }
 
-float3 SampleLightGrid(float3 worldPos, float3 normal, float3 center, float3 skyIrradiance)
-{
-    float cellSize = (2.0 * VOXEL_WORLD_EXTENT) / (float)LIGHT_GRID_SIZE;
-
-    float3 samplePos = worldPos + normal * cellSize * 0.5 - center;
-    float3 UVW       = (samplePos + VOXEL_WORLD_EXTENT) / (2.0 * VOXEL_WORLD_EXTENT);
-
-    if (any(UVW < 0.0) || any(UVW > 1.0))
-    {
-        return skyIrradiance;
-    }
-
-    float3 total       = float3(0.0, 0.0, 0.0);
-    float  totalWeight = 0.0;
-
-    for (uint direction = 0; direction < LIGHT_DIRECTIONS; ++direction)
-    {
-        float weight = max(dot(normal, -LightAxis[direction]), 0.0) + LIGHT_READ_AMBIENT;
-
-        total       += Volumes[VOLUME_SLOT_LIGHT_HISTORY + direction].SampleLevel(Samp, UVW, 0).rgb * weight;
-        totalWeight += weight;
-    }
-
-    float3 bounce = total * (LIGHT_GI_STRENGTH / max(totalWeight, 1e-4));
-
-    float skyVisibility = Volumes[VOLUME_SLOT_SKYVIS].SampleLevel(Samp, UVW, 0).r;
-
-    return bounce + skyIrradiance * skyVisibility;
-}
-
-float3 SampleLightGridRay(float3 worldPos, float3 direction, float3 center)
-{
-    float cellSize = (2.0 * VOXEL_WORLD_EXTENT) / (float)LIGHT_GRID_SIZE;
-
-    float3 samplePos = worldPos + direction * cellSize - center;
-    float3 UVW       = (samplePos + VOXEL_WORLD_EXTENT) / (2.0 * VOXEL_WORLD_EXTENT);
-
-    if (any(UVW < 0.0) || any(UVW > 1.0))
-    {
-        return float3(0.0, 0.0, 0.0);
-    }
-
-    float3 posFar = worldPos + direction * cellSize * 2.5 - center;
-    float3 UVWFar = clamp((posFar + VOXEL_WORLD_EXTENT) / (2.0 * VOXEL_WORLD_EXTENT), 0.0, 1.0);
-
-    float3 total       = float3(0.0, 0.0, 0.0);
-    float  totalWeight = 0.0;
-
-    for (uint bucket = 0; bucket < LIGHT_DIRECTIONS; ++bucket)
-    {
-        float weight = max(dot(direction, -LightAxis[bucket]), 0.0);
-
-        weight *= weight;
-
-        float3 closeTap  = Volumes[VOLUME_SLOT_LIGHT_HISTORY + bucket].SampleLevel(Samp, UVW, 0).rgb;
-        float3 distantTap = Volumes[VOLUME_SLOT_LIGHT_HISTORY + bucket].SampleLevel(Samp, UVWFar, 0).rgb;
-
-        total       += (closeTap + distantTap) * 0.5 * weight;
-        totalWeight += weight;
-    }
-
-    return total * (LIGHT_GI_STRENGTH / max(totalWeight, 1e-4));
-}
-
 float4 PSMain(vs_output input) : SV_Target
 {
     draw_params params = LoadDrawParams(pc.ParamsPtr);
@@ -176,7 +111,7 @@ float4 PSMain(vs_output input) : SV_Target
     float3 Ngeom = normalize(input.Normal);
     float3 V     = normalize(globals.CameraPos - input.WorldPos);
 
-    float3 N = dot(Ngeom, V) < 0.0 ? -Ngeom : Ngeom;
+    float3 N = Ngeom;
 
     float3 L = normalize(globals.LightDir);
     float3 H = normalize(V + L);
@@ -195,15 +130,13 @@ float4 PSMain(vs_output input) : SV_Target
 
     float3 Direct = (Albedo / PI + Fresnel * Normalized * Visibility) * globals.LightColor * NdotL;
 
-    uint   SkyIndex   = min(globals.SkyCubemap, (uint)(MAX_CUBEMAPS - 1));
-    float  LastMip    = max((float)globals.SkyMipCount - 1.0, 0.0);
-    float3 SkyIrradiance = Sky[SkyIndex].SampleLevel(Samp, N, LastMip).rgb;
-    float3 Irradiance    = SampleLightGrid(input.WorldPos, Ngeom, globals.VoxelCenter, SkyIrradiance);
+    uint  SkyIndex = min(globals.SkyCubemap, (uint)(MAX_CUBEMAPS - 1));
+    float LastMip  = max((float)globals.SkyMipCount - 1.0, 0.0);
+
+    float3 Irradiance = Sky[SkyIndex].SampleLevel(Samp, N, LastMip).rgb;
 
     float3 Reflection = OffSpecularPeakDirection(N, reflect(-V, N), Roughness);
     float3 Radiance   = Sky[SkyIndex].SampleLevel(Samp, Reflection, RoughnessToMip(Roughness, LastMip)).rgb;
-
-    Radiance += SampleLightGridRay(input.WorldPos, Reflection, globals.VoxelCenter);
 
     float3 Ambient = Albedo * Irradiance + Radiance * EnvironmentBRDF(F0, Roughness, NdotV);
 
