@@ -176,7 +176,7 @@ float4 SampleLight(volume_params params, float3 origin, float3 direction)
         normal = packed * rsqrt(length2);
     }
 
-    float cellSize = (2.0 * VOLUME_WORLD_EXTENT) / (float)LIGHT_GRID_SIZE;
+    float cellSize = (2.0 * VOLUME_WORLD_EXTENT) / (float)RC_PROBE_SIZE;
 
     float3 samplePos = position + normal * cellSize * 0.5;
     float3 UVW       = (samplePos + VOLUME_WORLD_EXTENT) / (2.0 * VOLUME_WORLD_EXTENT);
@@ -186,9 +186,7 @@ float4 SampleLight(volume_params params, float3 origin, float3 direction)
 
     for (uint bucket = 0; bucket < LIGHT_DIRECTIONS; ++bucket)
     {
-        float aligned = max(dot(normal, -LightAxis[bucket]), 0.0);
-
-        float weight = aligned * aligned + LIGHT_READ_AMBIENT;
+        float weight = max(dot(normal, LightAxis[bucket]), 0.0);
 
         total       += Volumes[params.VolumeLightSlot + bucket].SampleLevel(VolumeSamp, UVW, 0).rgb * weight;
         totalWeight += weight;

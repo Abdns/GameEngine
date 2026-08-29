@@ -216,16 +216,8 @@ internal void CreateResources(vulkan_context *context, vulkan_resources *res, Vk
     WriteSamplerDescriptor(context, &res->Heap, res->Heap.SamplerOffset, res->Sampler);
     WriteSamplerDescriptor(context, &res->Heap, res->Heap.VolumeSamplerOffset, res->VolumeSampler);
 
-    uint32 voxelSlots[] = { VOLUME_SLOT_ALBEDO, VOLUME_SLOT_NORMAL };
-    uint32 lightSlots[2 + LIGHT_DIRECTIONS * 4] = { VOLUME_SLOT_LIGHT_SOLID, VOLUME_SLOT_LIGHT_NORMAL };
-
-    for (uint32 i = 0; i < LIGHT_DIRECTIONS; ++i)
-    {
-        lightSlots[2 + i]                        = VOLUME_SLOT_LIGHT_A + i;
-        lightSlots[2 + LIGHT_DIRECTIONS + i]     = VOLUME_SLOT_LIGHT_B + i;
-        lightSlots[2 + LIGHT_DIRECTIONS * 2 + i] = VOLUME_SLOT_LIGHT_SUM + i;
-        lightSlots[2 + LIGHT_DIRECTIONS * 3 + i] = VOLUME_SLOT_LIGHT_HISTORY + i;
-    }
+    uint32 voxelSlots[] = { VOLUME_SLOT_ALBEDO, VOLUME_SLOT_NORMAL, VOLUME_SLOT_SKY_OCCLUSION, VOLUME_SLOT_SKY_OCCLUSION_SCRATCH };
+    uint32 lightSlots[] = { VOLUME_SLOT_RADIANCE, VOLUME_SLOT_RADIANCE_SMOOTH };
 
     for (uint32 i = 0; i < ArrayCount(voxelSlots); ++i)
     {
@@ -241,11 +233,32 @@ internal void CreateResources(vulkan_context *context, vulkan_resources *res, Vk
         CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
     }
 
-    uint32 skySlots[] = { VOLUME_SLOT_SKY_OCCLUSION, VOLUME_SLOT_SKY_OCCLUSION_SCRATCH };
-
-    for (uint32 i = 0; i < ArrayCount(skySlots); ++i)
+    for (uint32 i = RC_SCREEN_HANDOFF; i < RC_CASCADE_COUNT; ++i)
     {
-        gpu_volume *volume = CreateVolume(context, res, skySlots[i], VOLUME_GRID_SIZE, VOLUME_GRID_SIZE, VOLUME_GRID_SIZE, VK_FORMAT_R16G16B16A16_SFLOAT);
+        gpu_volume *volume = CreateVolume(context, res, VOLUME_SLOT_CASCADE + i, RC_TILE_SIZE, RC_TILE_SIZE, RC_PROBE_SIZE >> i, VK_FORMAT_R16G16B16A16_SFLOAT);
+
+        CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+    }
+
+    for (uint32 i = 0; i < LIGHT_DIRECTIONS; ++i)
+    {
+        gpu_volume *volume = CreateVolume(context, res, VOLUME_SLOT_IRRADIANCE + i, RC_IRRADIANCE_SIZE, RC_IRRADIANCE_SIZE, RC_IRRADIANCE_SIZE, VK_FORMAT_R16G16B16A16_SFLOAT);
+
+        CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+    }
+
+    for (uint32 i = 0; i < LIGHT_DIRECTIONS; ++i)
+    {
+        gpu_volume *volume = CreateVolume(context, res, VOLUME_SLOT_SCREEN_GI + i, RC_SCREEN_MAX_X, RC_SCREEN_MAX_Y, 1, VK_FORMAT_R16G16B16A16_SFLOAT);
+
+        CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+    }
+
+    {
+        uint32 handoffProbes = RC_PROBE_SIZE >> (RC_SCREEN_HANDOFF + 1);
+        uint32 handoffTile   = handoffProbes * RC_SCREEN_DIR_RES;
+
+        gpu_volume *volume = CreateVolume(context, res, VOLUME_SLOT_HANDOFF, handoffTile, handoffTile, handoffProbes, VK_FORMAT_R16G16B16A16_SFLOAT);
 
         CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
     }

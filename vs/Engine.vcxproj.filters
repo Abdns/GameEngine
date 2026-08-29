@@ -223,6 +223,9 @@
     <None Include="..\engine\source\Graphics\Vulkan\shaders\volumeview.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
     </None>
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\depth.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
+    </None>
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelclear.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
@@ -241,16 +244,25 @@
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\skyocclusionblur.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\lightdownsample.hlsl">
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rcinject.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\lightinject.hlsl">
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rctrace.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\lightpropagate.hlsl">
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rcmerge.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\lightblend.hlsl">
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rcresolve.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
+    </None>
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rcscreen.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
+    </None>
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rcsmooth.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
+    </None>
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rcprefilter.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
     <None Include="..\EngaAsset\assets.enga">

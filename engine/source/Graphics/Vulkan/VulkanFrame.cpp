@@ -50,7 +50,7 @@ internal void ApplyFixedState(vulkan_context *context, VkCommandBuffer cmd)
     vkCmdSetPrimitiveRestartEnable(cmd, VK_FALSE);
     vkCmdSetFrontFace(cmd, PIPELINE_FRONT_FACE);
     vkCmdSetRasterizerDiscardEnable(cmd, VK_FALSE);
-    vkCmdSetDepthCompareOp(cmd, VK_COMPARE_OP_LESS);
+    vkCmdSetDepthCompareOp(cmd, VK_COMPARE_OP_LESS_OR_EQUAL);
     vkCmdSetDepthBiasEnable(cmd, VK_FALSE);
     vkCmdSetDepthBoundsTestEnable(cmd, VK_FALSE);
     vkCmdSetStencilTestEnable(cmd, VK_FALSE);

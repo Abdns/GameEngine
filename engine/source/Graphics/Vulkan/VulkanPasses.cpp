@@ -4,14 +4,16 @@ global_variable gpu_texture DepthTarget;
 global_variable gpu_texture SceneTarget;
 global_variable gpu_texture PostTarget;
 
-internal void CreateDepthResources(vulkan_context *context, VkCommandBuffer cmd)
+internal void CreateDepthResources(vulkan_context *context, vulkan_resources *res, VkCommandBuffer cmd)
 {
     VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
 
-    DepthTarget.Image = CreateImage(context, context->swapchainExtent.width, context->swapchainExtent.height, depthFormat, 1, 1, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &DepthTarget.Memory);
+    DepthTarget.Image = CreateImage(context, context->swapchainExtent.width, context->swapchainExtent.height, depthFormat, 1, 1, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &DepthTarget.Memory);
     DepthTarget.View = CreateDepthImageView(context->device, DepthTarget.Image, depthFormat);
 
     CmdImageToGeneral(cmd, DepthTarget.Image, VK_IMAGE_ASPECT_DEPTH_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+
+    WriteImageDescriptor(context, &res->Heap, res->Heap.TextureOffset, TEXTURE_SLOT_DEPTH, DepthTarget.View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
 }
 
 internal gpu_texture CreateRenderTarget(vulkan_context *context, vulkan_resources *res, uint32 textureSlot, VkFormat format, VkCommandBuffer cmd)
@@ -37,7 +39,7 @@ internal gpu_texture CreateRenderTarget(vulkan_context *context, vulkan_resource
     return target;
 }
 
-internal void BeginPass(vulkan_context *context, VkCommandBuffer cmd, VkImageView target, VkAttachmentLoadOp colorLoad, Vector4 clearColor, bool32 useDepth)
+internal void BeginPass(vulkan_context *context, VkCommandBuffer cmd, VkImageView target, VkAttachmentLoadOp colorLoad, Vector4 clearColor, uint32 depthMode)
 {
     VkRenderingAttachmentInfo color{};
     color.sType       = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -55,8 +57,8 @@ internal void BeginPass(vulkan_context *context, VkCommandBuffer cmd, VkImageVie
     depth.sType                        = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     depth.imageView                    = DepthTarget.View;
     depth.imageLayout                  = VK_IMAGE_LAYOUT_GENERAL;
-    depth.loadOp                       = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depth.storeOp                      = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depth.loadOp                       = (depthMode == Depth_Clear) ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+    depth.storeOp                      = VK_ATTACHMENT_STORE_OP_STORE;
     depth.clearValue.depthStencil.depth = 1.0f;
 
     VkRenderingInfo rendering{};
@@ -65,7 +67,7 @@ internal void BeginPass(vulkan_context *context, VkCommandBuffer cmd, VkImageVie
     rendering.layerCount           = 1;
     rendering.colorAttachmentCount = 1;
     rendering.pColorAttachments    = &color;
-    rendering.pDepthAttachment     = useDepth ? &depth : nullptr;
+    rendering.pDepthAttachment     = (depthMode != Depth_None) ? &depth : nullptr;
 
     vkCmdBeginRendering(cmd, &rendering);
 }

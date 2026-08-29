@@ -10,7 +10,7 @@
 global_variable render_pipeline  Pipelines[Pipeline_Count];
 global_variable compute_pipeline ComputePipelines[Compute_Count];
 
-global_variable bool32           LightHistoryReady;
+global_variable bool32           IrradianceReady;
 
 global_variable pipeline_desc PipelineDescs[] =
 {
@@ -21,20 +21,24 @@ global_variable pipeline_desc PipelineDescs[] =
     { "UI",         VK_FALSE, VK_FALSE, VK_FALSE },
     { "uirect",     VK_FALSE, VK_FALSE, VK_TRUE  },
     { "volumeview", VK_FALSE, VK_FALSE, VK_FALSE },
+    { "depth",      VK_TRUE,  VK_TRUE,  VK_FALSE },
 };
 
 global_variable const char *ComputeDescs[] =
 {
     "voxelclear",
     "voxelize",
-    "lightdownsample",
-    "lightinject",
-    "lightpropagate",
-    "lightblend",
     "uintclear",
     "voxelresolve",
     "skyocclusion",
     "skyocclusionblur",
+    "rcinject",
+    "rctrace",
+    "rcmerge",
+    "rcresolve",
+    "rcscreen",
+    "rcsmooth",
+    "rcprefilter",
 };
 
 static_assert(ArrayCount(PipelineDescs) == Pipeline_Count, "PipelineDescs must describe every pipeline_type");
@@ -53,7 +57,7 @@ internal void ResizeRenderer(vulkan_context *context)
 
     VkCommandBuffer setup = BeginSingleTimeCommands(context);
     {
-        CreateDepthResources(context, setup);
+        CreateDepthResources(context, &GlobalResources, setup);
 
         SceneTarget = CreateRenderTarget(context, &GlobalResources, TEXTURE_SLOT_SCENE, VK_FORMAT_R16G16B16A16_SFLOAT, setup);
         PostTarget  = CreateRenderTarget(context, &GlobalResources, TEXTURE_SLOT_POST,  VK_FORMAT_R16G16B16A16_SFLOAT, setup);
@@ -126,7 +130,7 @@ internal const char *InitVulkan(HINSTANCE hinstance, HWND hwnd)
     VkCommandBuffer setup = BeginSingleTimeCommands(context);
     {
         CreateResources(context, &GlobalResources, setup);
-        CreateDepthResources(context, setup);
+        CreateDepthResources(context, &GlobalResources, setup);
 
         SceneTarget = CreateRenderTarget(context, &GlobalResources, TEXTURE_SLOT_SCENE, VK_FORMAT_R16G16B16A16_SFLOAT, setup);
         PostTarget  = CreateRenderTarget(context, &GlobalResources, TEXTURE_SLOT_POST,  VK_FORMAT_R16G16B16A16_SFLOAT, setup);
@@ -244,6 +248,9 @@ internal void FillFrameGlobals(vulkan_context *context, vulkan_resources *res, r
 
     real32 FOVaspect = (real32)context->swapchainExtent.width / (real32)context->swapchainExtent.height;
 
+    globals->ScreenWidth  = context->swapchainExtent.width;
+    globals->ScreenHeight = context->swapchainExtent.height;
+
     uint32 offset = 0;
     for (command_type *cmdBase = NextRenderCommand(commands, &offset); cmdBase; cmdBase = NextRenderCommand(commands, &offset))
     {
@@ -265,7 +272,13 @@ internal void FillFrameGlobals(vulkan_context *context, vulkan_resources *res, r
 
                 globals->VolumeCenter = Vector3(0.0f, 0.0f, 0.0f) - origin;
 
-                Matrix4 proj = Mat4Perspective(cameraCmd->FovY, FOVaspect, 0.1f, 100.0f);
+                real32 nearPlane = 0.1f;
+                real32 farPlane  = 100.0f;
+
+                Matrix4 proj = Mat4Perspective(cameraCmd->FovY, FOVaspect, nearPlane, farPlane);
+
+                globals->CameraNear = nearPlane;
+                globals->CameraFar  = farPlane;
 
                 globals->ViewProj  = Mat4Multiply(proj, cameraCmd->View);
                 globals->CameraPos = cameraCmd->Position;
@@ -522,7 +535,52 @@ internal void BlurSkyOcclusion(vulkan_context *context, VkCommandBuffer cmd, vul
     DispatchCompute(cmd, groupCount, groupCount, groupCount);
 }
 
-internal void DownsampleLightGrid(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
+internal void RcCascadeInterval(uint32 cascade, real32 *start, real32 *length)
+{
+    real32 base = (2.0f * VOLUME_WORLD_EXTENT) / (real32)RC_PROBE_SIZE;
+
+    real32 scale = 1.0f;
+    real32 begin = 0.0f;
+
+    for (uint32 i = 0; i < cascade; ++i)
+    {
+        begin += base * scale;
+        scale *= RC_INTERVAL_SCALE;
+    }
+
+    *start  = begin;
+    *length = base * scale;
+}
+
+internal void InjectRadiance(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
+{
+    if (pipeline->Compute == VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    BindComputePipeline(context, cmd, pipeline);
+
+    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(rc_inject_params), 16);
+
+    rc_inject_params params = {};
+    params.SolidSlot      = VOLUME_SLOT_ALBEDO;
+    params.NormalSlot     = VOLUME_SLOT_NORMAL;
+    params.RadianceSlot   = VOLUME_SLOT_RADIANCE;
+    params.IrradianceSlot = VOLUME_SLOT_IRRADIANCE;
+    params.SkySlot        = VOLUME_SLOT_SKY_OCCLUSION;
+    params.LightSize      = LIGHT_GRID_SIZE;
+
+    *(rc_inject_params *)alloc.Cpu = params;
+
+    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+
+    uint32 groupCount = LIGHT_GRID_SIZE / VOLUME_GROUP_SIZE;
+
+    DispatchCompute(cmd, groupCount, groupCount, groupCount);
+}
+
+internal void SmoothRadiance(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
 {
     if (pipeline->Compute == VK_NULL_HANDLE)
     {
@@ -534,12 +592,9 @@ internal void DownsampleLightGrid(vulkan_context *context, VkCommandBuffer cmd, 
     shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(downsample_params), 16);
 
     downsample_params params = {};
-    params.AlbedoSlot      = VOLUME_SLOT_ALBEDO;
-    params.NormalSlot      = VOLUME_SLOT_NORMAL;
-    params.SolidSlot       = VOLUME_SLOT_LIGHT_SOLID;
-    params.LightNormalSlot = VOLUME_SLOT_LIGHT_NORMAL;
-    params.VoxelSize       = VOLUME_GRID_SIZE;
-    params.LightSize       = LIGHT_GRID_SIZE;
+    params.AlbedoSlot = VOLUME_SLOT_RADIANCE;
+    params.NormalSlot = VOLUME_SLOT_RADIANCE_SMOOTH;
+    params.VoxelSize  = LIGHT_GRID_SIZE;
 
     *(downsample_params *)alloc.Cpu = params;
 
@@ -550,7 +605,7 @@ internal void DownsampleLightGrid(vulkan_context *context, VkCommandBuffer cmd, 
     DispatchCompute(cmd, groupCount, groupCount, groupCount);
 }
 
-internal void InjectDirectLight(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
+internal void TraceCascades(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
 {
     if (pipeline->Compute == VK_NULL_HANDLE)
     {
@@ -559,64 +614,35 @@ internal void InjectDirectLight(vulkan_context *context, VkCommandBuffer cmd, vu
 
     BindComputePipeline(context, cmd, pipeline);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(inject_params), 16);
+    uint32 tileGroups = RC_TILE_SIZE / RC_GROUP_SIZE;
 
-    inject_params params = {};
-    params.SolidSlot  = VOLUME_SLOT_LIGHT_SOLID;
-    params.NormalSlot = VOLUME_SLOT_LIGHT_NORMAL;
-    params.LightSlot  = VOLUME_SLOT_LIGHT_A;
-    params.LightSize  = LIGHT_GRID_SIZE;
-    params.SumSlot    = VOLUME_SLOT_LIGHT_SUM;
-
-    *(inject_params *)alloc.Cpu = params;
-
-    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
-
-    uint32 groupCount = LIGHT_GRID_SIZE / VOLUME_GROUP_SIZE;
-
-    DispatchCompute(cmd, groupCount, groupCount, groupCount);
-}
-
-internal void PropagateLight(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
-{
-    if (pipeline->Compute == VK_NULL_HANDLE)
+    for (uint32 cascade = RC_SCREEN_HANDOFF; cascade < RC_CASCADE_COUNT; ++cascade)
     {
-        return;
-    }
+        real32 start  = 0.0f;
+        real32 length = 0.0f;
 
-    BindComputePipeline(context, cmd, pipeline);
+        RcCascadeInterval(cascade, &start, &length);
 
-    uint32 groupCount = LIGHT_GRID_SIZE / VOLUME_GROUP_SIZE;
+        shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(rc_trace_params), 16);
 
-    uint32 source = VOLUME_SLOT_LIGHT_A;
-    uint32 target = VOLUME_SLOT_LIGHT_B;
+        rc_trace_params params = {};
+        params.RadianceSlot   = VOLUME_SLOT_RADIANCE_SMOOTH;
+        params.CascadeSlot    = VOLUME_SLOT_CASCADE + cascade;
+        params.ProbeSize      = RC_PROBE_SIZE >> cascade;
+        params.DirRes         = RC_DIR_RES << cascade;
+        params.Steps          = RC_BASE_STEPS << cascade;
+        params.IntervalStart  = start;
+    params.IntervalLength = start;
 
-    for (uint32 iteration = 0; iteration < LIGHT_ITERATIONS; ++iteration)
-    {
-        StorageBarrier(cmd);
-
-        shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(propagate_params), 16);
-
-        propagate_params params = {};
-        params.SourceSlot = source;
-        params.TargetSlot = target;
-        params.SumSlot    = VOLUME_SLOT_LIGHT_SUM;
-        params.SolidSlot  = VOLUME_SLOT_LIGHT_SOLID;
-        params.LightSize  = LIGHT_GRID_SIZE;
-
-        *(propagate_params *)alloc.Cpu = params;
+        *(rc_trace_params *)alloc.Cpu = params;
 
         BindParams(cmd, res->PipelineLayout, alloc.Gpu);
 
-        DispatchCompute(cmd, groupCount, groupCount, groupCount);
-
-        uint32 swap = source;
-        source      = target;
-        target      = swap;
+        DispatchCompute(cmd, tileGroups, tileGroups, params.ProbeSize);
     }
 }
 
-internal void BlendLightHistory(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
+internal void MergeCascades(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
 {
     if (pipeline->Compute == VK_NULL_HANDLE)
     {
@@ -625,22 +651,199 @@ internal void BlendLightHistory(vulkan_context *context, VkCommandBuffer cmd, vu
 
     BindComputePipeline(context, cmd, pipeline);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(propagate_params), 16);
+    uint32 tileGroups = RC_TILE_SIZE / RC_GROUP_SIZE;
 
-    propagate_params params = {};
-    params.SourceSlot = VOLUME_SLOT_LIGHT_SUM;
-    params.TargetSlot = VOLUME_SLOT_LIGHT_HISTORY;
-    params.SumSlot    = VOLUME_SLOT_LIGHT_SUM;
-    params.SolidSlot  = VOLUME_SLOT_LIGHT_SOLID;
-    params.LightSize  = LIGHT_GRID_SIZE;
+    for (uint32 cascade = RC_CASCADE_COUNT - 1; cascade > RC_SCREEN_HANDOFF; --cascade)
+    {
+        uint32 parent = cascade - 1;
 
-    *(propagate_params *)alloc.Cpu = params;
+        StorageBarrier(cmd);
+
+        shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(rc_merge_params), 16);
+
+        rc_merge_params params = {};
+        params.ParentSlot      = VOLUME_SLOT_CASCADE + parent;
+        params.ChildSlot       = VOLUME_SLOT_CASCADE + cascade;
+        params.ParentProbeSize = RC_PROBE_SIZE >> parent;
+        params.ParentDirRes    = RC_DIR_RES << parent;
+        params.ChildProbeSize  = RC_PROBE_SIZE >> cascade;
+        params.RadianceSlot    = VOLUME_SLOT_RADIANCE_SMOOTH;
+
+        *(rc_merge_params *)alloc.Cpu = params;
+
+        BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+
+        DispatchCompute(cmd, tileGroups, tileGroups, params.ParentProbeSize);
+    }
+}
+
+internal void PrefilterHandoff(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
+{
+    if (pipeline->Compute == VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    BindComputePipeline(context, cmd, pipeline);
+
+    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(downsample_params), 16);
+
+    downsample_params params = {};
+    params.AlbedoSlot      = VOLUME_SLOT_CASCADE + RC_SCREEN_HANDOFF + 1;
+    params.NormalSlot      = VOLUME_SLOT_HANDOFF;
+    params.SolidSlot       = RC_DIR_RES << (RC_SCREEN_HANDOFF + 1);
+    params.LightNormalSlot = RC_SCREEN_DIR_RES;
+    params.VoxelSize       = RC_PROBE_SIZE >> (RC_SCREEN_HANDOFF + 1);
+
+    *(downsample_params *)alloc.Cpu = params;
 
     BindParams(cmd, res->PipelineLayout, alloc.Gpu);
 
-    uint32 groupCount = LIGHT_GRID_SIZE / VOLUME_GROUP_SIZE;
+    uint32 tile = params.VoxelSize * RC_SCREEN_DIR_RES;
+
+    uint32 groupCount = (tile + RC_GROUP_SIZE - 1) / RC_GROUP_SIZE;
+
+    DispatchCompute(cmd, groupCount, groupCount, params.VoxelSize);
+}
+
+internal void ResolveIrradiance(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
+{
+    if (pipeline->Compute == VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    BindComputePipeline(context, cmd, pipeline);
+
+    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(rc_resolve_params), 16);
+
+    rc_resolve_params params = {};
+    params.CascadeSlot    = VOLUME_SLOT_CASCADE + RC_SCREEN_HANDOFF;
+    params.IrradianceSlot = VOLUME_SLOT_IRRADIANCE;
+    params.ProbeSize      = RC_PROBE_SIZE >> RC_SCREEN_HANDOFF;
+    params.DirRes         = RC_DIR_RES << RC_SCREEN_HANDOFF;
+    params.RadianceSlot   = VOLUME_SLOT_RADIANCE_SMOOTH;
+
+    *(rc_resolve_params *)alloc.Cpu = params;
+
+    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+
+    uint32 groupCount = RC_IRRADIANCE_SIZE / VOLUME_GROUP_SIZE;
 
     DispatchCompute(cmd, groupCount, groupCount, groupCount);
+}
+
+
+internal void ComputeScreenGI(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)
+{
+    if (pipeline->Compute == VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    BindComputePipeline(context, cmd, pipeline);
+
+    uint32 probeCountX = (context->swapchainExtent.width  + RC_SCREEN_TILE - 1) / RC_SCREEN_TILE;
+    uint32 probeCountY = (context->swapchainExtent.height + RC_SCREEN_TILE - 1) / RC_SCREEN_TILE;
+
+    if (probeCountX > RC_SCREEN_MAX_X)
+    {
+        probeCountX = RC_SCREEN_MAX_X;
+    }
+
+    if (probeCountY > RC_SCREEN_MAX_Y)
+    {
+        probeCountY = RC_SCREEN_MAX_Y;
+    }
+
+    real32 start  = 0.0f;
+    real32 length = 0.0f;
+
+    RcCascadeInterval(RC_SCREEN_HANDOFF + 1, &start, &length);
+
+    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(rc_screen_params), 16);
+
+    rc_screen_params params = {};
+    params.RadianceSlot   = VOLUME_SLOT_RADIANCE_SMOOTH;
+    params.CascadeSlot    = VOLUME_SLOT_HANDOFF;
+    params.ScreenSlot     = VOLUME_SLOT_SCREEN_GI;
+    params.DepthSlot      = TEXTURE_SLOT_DEPTH;
+    params.ProbeSize      = RC_PROBE_SIZE >> (RC_SCREEN_HANDOFF + 1);
+    params.DirRes         = RC_SCREEN_DIR_RES;
+    params.Steps          = RC_BASE_STEPS << (RC_SCREEN_HANDOFF + 1);
+    params.IntervalLength = start;
+    params.ProbeCountX    = probeCountX;
+    params.ProbeCountY    = probeCountY;
+
+    *(rc_screen_params *)alloc.Cpu = params;
+
+    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+
+    uint32 groupX = (probeCountX + RC_SCREEN_GROUP - 1) / RC_SCREEN_GROUP;
+    uint32 groupY = (probeCountY + RC_SCREEN_GROUP - 1) / RC_SCREEN_GROUP;
+
+    DispatchCompute(cmd, groupX, groupY, 1);
+}
+
+internal void RenderDepthPrepass(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, render_pipeline *pipeline, render_commands *commands)
+{
+    if (pipeline->Vert == VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    render_state current = {};
+    render_state wanted  = {};
+
+    BindPipelineState(context, cmd, pipeline, &current, &wanted);
+
+    vkCmdBindIndexBuffer(cmd, res->IndexBuffer.Buffer, 0, VK_INDEX_TYPE_UINT32);
+
+    uint32 offset = 0;
+    for (command_type *cmdBase = NextRenderCommand(commands, &offset); cmdBase; cmdBase = NextRenderCommand(commands, &offset))
+    {
+        if (*cmdBase != Render_Mesh)
+        {
+            continue;
+        }
+
+        command_render_mesh *meshCmd = (command_render_mesh *)cmdBase;
+        Assert(meshCmd->MeshHandle < MAX_MESHES);
+
+        gpu_mesh *mesh = res->Meshes + meshCmd->MeshHandle;
+        if (!mesh->IndexCount)
+        {
+            continue;
+        }
+
+        uint32 materialSlot = meshCmd->MaterialHandle;
+        Assert(materialSlot < res->MaterialCount);
+
+        material_state *material = &res->MaterialStates[materialSlot];
+        if (material->Queue != Queue_Opaque || !material->DepthWrite)
+        {
+            continue;
+        }
+
+        wanted.CullMode = ToVulkanCullMode(material->CullMode);
+
+        ApplyRenderState(context, cmd, &current, &wanted);
+
+        shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(draw_params), 16);
+
+        draw_params params = {};
+        params.Model        = meshCmd->Transform;
+        params.Tint         = meshCmd->Tint;
+        params.Vertices     = res->VertexBuffer.Address;
+        params.Materials    = res->MaterialBuffer.Address;
+        params.MaterialSlot = materialSlot;
+
+        *(draw_params *)alloc.Cpu = params;
+
+        BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+
+        vkCmdDrawIndexed(cmd, mesh->IndexCount, 1, mesh->FirstIndex, (int32)mesh->FirstVertex, 0);
+    }
 }
 
 internal void VoxelizeScene(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipelines, render_commands *commands)
@@ -660,16 +863,18 @@ internal void VoxelizeScene(vulkan_context *context, VkCommandBuffer cmd, vulkan
     BindComputePipeline(context, cmd, uintClear);
     DispatchCompute(cmd, voxelGroups, voxelGroups, voxelGroups);
 
-    if (!LightHistoryReady)
+    if (!IrradianceReady)
     {
         BindComputePipeline(context, cmd, clear);
 
         for (uint32 i = 0; i < LIGHT_DIRECTIONS; ++i)
         {
-            ClearVolume(cmd, res, VOLUME_SLOT_LIGHT_HISTORY + i, LIGHT_GRID_SIZE);
+            ClearVolume(cmd, res, VOLUME_SLOT_IRRADIANCE + i, RC_IRRADIANCE_SIZE);
         }
 
-        LightHistoryReady = true;
+        ClearVolume(cmd, res, VOLUME_SLOT_RADIANCE, LIGHT_GRID_SIZE);
+
+        IrradianceReady = true;
     }
 
     GpuBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
@@ -776,7 +981,7 @@ internal void DrawVolumeDebug(vulkan_context *context, VkCommandBuffer cmd, vulk
     params.VolumeSize       = volumeSize;
     params.VolumeSlice      = slice;
     params.VolumeMode       = mode;
-    params.VolumeLightSlot  = VOLUME_SLOT_LIGHT_HISTORY;
+    params.VolumeLightSlot  = VOLUME_SLOT_IRRADIANCE;
 
     *(volume_params *)alloc.Cpu = params;
 
@@ -836,34 +1041,50 @@ internal void RenderVulkanFrame(render_commands *Commands)
 
     StorageBarrier(Frame.Cmd);
 
-    DownsampleLightGrid(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_LightDownsample]);
+    InjectRadiance(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_RcInject]);
 
     StorageBarrier(Frame.Cmd);
 
-    InjectDirectLight(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_LightInject]);
-
-    PropagateLight(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_LightPropagate]);
+    SmoothRadiance(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_RcSmooth]);
 
     StorageBarrier(Frame.Cmd);
 
-    BlendLightHistory(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_LightBlend]);
+    TraceCascades(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_RcTrace]);
+
+    MergeCascades(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_RcMerge]);
+
+    StorageBarrier(Frame.Cmd);
+
+    ResolveIrradiance(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_RcResolve]);
+
+    PrefilterHandoff(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_RcPrefilter]);
+
+    StorageBarrier(Frame.Cmd);
+
+    BeginPass(context, Frame.Cmd, SceneTarget.View, VK_ATTACHMENT_LOAD_OP_DONT_CARE, Vector4(0.0f, 0.0f, 0.0f, 0.0f), Depth_Clear);
+    RenderDepthPrepass(context, Frame.Cmd, &GlobalResources, &Pipelines[Pipeline_Depth], Commands);
+    EndPass(Frame.Cmd);
+
+    GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+
+    ComputeScreenGI(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_RcScreen]);
 
     GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 
-    BeginPass(context, Frame.Cmd, SceneTarget.View, VK_ATTACHMENT_LOAD_OP_CLEAR, Vector4(0.05f, 0.05f, 0.08f, 1.0f), true);
+    BeginPass(context, Frame.Cmd, SceneTarget.View, VK_ATTACHMENT_LOAD_OP_CLEAR, Vector4(0.05f, 0.05f, 0.08f, 1.0f), Depth_Load);
     ExecuteRenderCommands(context, Frame.Cmd, &GlobalResources, Pipelines, Commands);
     EndPass(Frame.Cmd);
 
     GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 
-    BeginPass(context, Frame.Cmd, PostTarget.View, VK_ATTACHMENT_LOAD_OP_DONT_CARE, Vector4(0.0f, 0.0f, 0.0f, 0.0f), false);
+    BeginPass(context, Frame.Cmd, PostTarget.View, VK_ATTACHMENT_LOAD_OP_DONT_CARE, Vector4(0.0f, 0.0f, 0.0f, 0.0f), Depth_None);
     DrawFullscreen(context, Frame.Cmd, &GlobalResources, &Pipelines[Pipeline_Post], TEXTURE_SLOT_SCENE);
     EndPass(Frame.Cmd);
 
     GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
     CmdImageToGeneral(Frame.Cmd, swapchainImage, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
 
-    BeginPass(context, Frame.Cmd, context->swapchainImageViews[Frame.ImageIndex], VK_ATTACHMENT_LOAD_OP_DONT_CARE, Vector4(0.0f, 0.0f, 0.0f, 0.0f), false);
+    BeginPass(context, Frame.Cmd, context->swapchainImageViews[Frame.ImageIndex], VK_ATTACHMENT_LOAD_OP_DONT_CARE, Vector4(0.0f, 0.0f, 0.0f, 0.0f), Depth_None);
     DrawFullscreen(context, Frame.Cmd, &GlobalResources, &Pipelines[Pipeline_UI], TEXTURE_SLOT_POST);
     ExecuteUICommands(context, Frame.Cmd, &GlobalResources, Pipelines, Commands);
     DrawVolumeDebug(context, Frame.Cmd, &GlobalResources, &Pipelines[Pipeline_VolumeView], VOLUME_SLOT_ALBEDO, VOLUME_GRID_SIZE, VOLUME_MODE_LIGHT, 0.5f);

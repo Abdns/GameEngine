@@ -56,6 +56,7 @@ enum pipeline_type
     Pipeline_UI,
     Pipeline_UIRect,
     Pipeline_VolumeView,
+    Pipeline_Depth,
     Pipeline_Count,
 
     Pipeline_MeshCount = Pipeline_Skybox,

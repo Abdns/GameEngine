@@ -96,70 +96,127 @@ float3 EnvironmentBRDF(float3 F0, float Roughness, float NdotV)
     return (F0 * ab.x + ab.y) * Compensation;
 }
 
-float3 SampleLightGrid(float3 worldPos, float3 normal, float3 center, float3 skyIrradiance)
+float3 SampleCascadeProbes(float3 uvw, float3 direction)
 {
-    float cellSize = (2.0 * VOLUME_WORLD_EXTENT) / (float)LIGHT_GRID_SIZE;
-
-    float3 samplePos = worldPos + normal * cellSize * 0.5 - center;
-    float3 UVW       = (samplePos + VOLUME_WORLD_EXTENT) / (2.0 * VOLUME_WORLD_EXTENT);
-
-    if (any(UVW < 0.0) || any(UVW > 1.0))
-    {
-        return skyIrradiance;
-    }
-
     float3 total       = float3(0.0, 0.0, 0.0);
     float  totalWeight = 0.0;
 
-    for (uint direction = 0; direction < LIGHT_DIRECTIONS; ++direction)
+    for (uint axis = 0; axis < LIGHT_DIRECTIONS; ++axis)
     {
-        float aligned = max(dot(normal, -LightAxis[direction]), 0.0);
+        float weight = max(dot(direction, LightAxis[axis]), 0.0);
 
-        float weight = aligned * aligned + LIGHT_READ_AMBIENT;
-
-        total       += Volumes[VOLUME_SLOT_LIGHT_HISTORY + direction].SampleLevel(VolumeSamp, UVW, 0).rgb * weight;
-        totalWeight += weight;
-    }
-
-    float3 bounce = total * (LIGHT_GI_STRENGTH / max(totalWeight, 1e-4));
-
-    float skyVisibility = Volumes[VOLUME_SLOT_SKY_OCCLUSION].SampleLevel(VolumeSamp, UVW, 0).r;
-
-    return bounce + skyIrradiance * skyVisibility;
-}
-
-float3 SampleLightGridRay(float3 worldPos, float3 direction, float3 center)
-{
-    float cellSize = (2.0 * VOLUME_WORLD_EXTENT) / (float)LIGHT_GRID_SIZE;
-
-    float3 samplePos = worldPos + direction * cellSize - center;
-    float3 UVW       = (samplePos + VOLUME_WORLD_EXTENT) / (2.0 * VOLUME_WORLD_EXTENT);
-
-    if (any(UVW < 0.0) || any(UVW > 1.0))
-    {
-        return float3(0.0, 0.0, 0.0);
-    }
-
-    float3 posFar = worldPos + direction * cellSize * 2.5 - center;
-    float3 UVWFar = clamp((posFar + VOLUME_WORLD_EXTENT) / (2.0 * VOLUME_WORLD_EXTENT), 0.0, 1.0);
-
-    float3 total       = float3(0.0, 0.0, 0.0);
-    float  totalWeight = 0.0;
-
-    for (uint bucket = 0; bucket < LIGHT_DIRECTIONS; ++bucket)
-    {
-        float weight = max(dot(direction, -LightAxis[bucket]), 0.0);
-
-        weight *= weight;
-
-        float3 closeTap  = Volumes[VOLUME_SLOT_LIGHT_HISTORY + bucket].SampleLevel(VolumeSamp, UVW, 0).rgb;
-        float3 distantTap = Volumes[VOLUME_SLOT_LIGHT_HISTORY + bucket].SampleLevel(VolumeSamp, UVWFar, 0).rgb;
-
-        total       += (closeTap + distantTap) * 0.5 * weight;
+        total       += Volumes[VOLUME_SLOT_IRRADIANCE + axis].SampleLevel(VolumeSamp, SmoothUVW(uvw, (float)RC_IRRADIANCE_SIZE), 0).rgb * weight;
         totalWeight += weight;
     }
 
     return total * (LIGHT_GI_STRENGTH / max(totalWeight, 1e-4));
+}
+
+float3 SampleScreenBounce(float2 pixel, float viewDepth, float3 normal, uint2 probeCount, out float coverage)
+{
+    float2 coord = pixel / (float)RC_SCREEN_TILE - 0.5;
+
+    int2   base     = (int2)floor(coord);
+    float2 fraction = coord - (float2)base;
+
+    fraction = fraction * fraction * (3.0 - 2.0 * fraction);
+
+    float3 total       = float3(0.0, 0.0, 0.0);
+    float  totalWeight = 0.0;
+
+    for (uint corner = 0; corner < 4; ++corner)
+    {
+        int2 offset = int2(corner & 1, corner >> 1);
+        int2 probe  = base + offset;
+
+        if (any(probe < 0) || probe.x >= (int)probeCount.x || probe.y >= (int)probeCount.y)
+        {
+            continue;
+        }
+
+        float4 stored[LIGHT_DIRECTIONS];
+
+        for (uint axis = 0; axis < LIGHT_DIRECTIONS; ++axis)
+        {
+            stored[axis] = Volumes[VOLUME_SLOT_SCREEN_GI + axis].Load(int4(probe, 0, 0));
+        }
+
+        if (stored[0].a <= 0.0)
+        {
+            continue;
+        }
+
+        float3 probeNormal = float3(stored[1].a, stored[2].a, stored[3].a);
+
+        float2 axisWeight = lerp(1.0 - fraction, fraction, (float2)offset);
+
+        float depthWeight  = saturate(1.0 - abs(stored[0].a - viewDepth) / max(viewDepth * 0.05, 1e-3));
+        float normalWeight = saturate(dot(probeNormal, normal));
+
+        normalWeight *= normalWeight;
+
+        float weight = axisWeight.x * axisWeight.y * depthWeight * normalWeight;
+
+        if (weight <= 0.0)
+        {
+            continue;
+        }
+
+        float3 value       = float3(0.0, 0.0, 0.0);
+        float  valueWeight = 0.0;
+
+        for (uint lobe = 0; lobe < LIGHT_DIRECTIONS; ++lobe)
+        {
+            float aligned = max(dot(normal, LightAxis[lobe]), 0.0);
+
+            value       += stored[lobe].rgb * aligned;
+            valueWeight += aligned;
+        }
+
+        total       += value * (weight / max(valueWeight, 1e-4));
+        totalWeight += weight;
+    }
+
+    coverage = totalWeight;
+
+    return totalWeight > 1e-4 ? total * (LIGHT_GI_STRENGTH / totalWeight) : float3(0.0, 0.0, 0.0);
+}
+
+
+float3 SampleIrradiance(float3 worldPos, float3 normal, float3 center, float3 skyIrradiance, float3 screenBounce, float coverage)
+{
+    float probeSpacing = (2.0 * VOLUME_WORLD_EXTENT) / (float)RC_PROBE_SIZE;
+    float voxelSize    = (2.0 * VOLUME_WORLD_EXTENT) / (float)VOLUME_GRID_SIZE;
+
+    float3 local = worldPos - center;
+    float3 uvw   = LocalToUVW(local + normal * probeSpacing * 0.5);
+
+    if (any(uvw < 0.0) || any(uvw > 1.0))
+    {
+        return skyIrradiance;
+    }
+
+    float visibility = Volumes[VOLUME_SLOT_SKY_OCCLUSION].SampleLevel(VolumeSamp, SmoothUVW(LocalToUVW(local + normal * voxelSize), (float)VOLUME_GRID_SIZE), 0).r;
+
+    float3 skylight = skyIrradiance * lerp(1.0, visibility, LIGHT_OCCLUSION_STRENGTH);
+
+    float3 bounce = coverage > 1e-4 ? screenBounce : SampleCascadeProbes(uvw, normal);
+
+    return bounce + skylight;
+}
+
+float3 SampleIrradianceRay(float3 worldPos, float3 direction, float3 center)
+{
+    float probeSpacing = (2.0 * VOLUME_WORLD_EXTENT) / (float)RC_PROBE_SIZE;
+
+    float3 uvw = LocalToUVW(worldPos + direction * probeSpacing * 0.5 - center);
+
+    if (any(uvw < 0.0) || any(uvw > 1.0))
+    {
+        return float3(0.0, 0.0, 0.0);
+    }
+
+    return SampleCascadeProbes(uvw, direction);
 }
 
 float4 PSMain(vs_output input) : SV_Target
@@ -201,12 +258,18 @@ float4 PSMain(vs_output input) : SV_Target
     uint   SkyIndex      = min(globals.SkyCubemap, (uint)(MAX_CUBEMAPS - 1));
     float  LastMip       = max((float)globals.SkyMipCount - 1.0, 0.0);
     float3 SkyIrradiance = Sky[SkyIndex].SampleLevel(Samp, N, LastMip).rgb;
-    float3 Irradiance    = SampleLightGrid(input.WorldPos, Ngeom, globals.VolumeCenter, SkyIrradiance);
+    float  ViewDepth  = mul(globals.ViewProj, float4(input.WorldPos, 1.0)).w;
+    uint2  ProbeCount = uint2((globals.ScreenWidth + RC_SCREEN_TILE - 1) / RC_SCREEN_TILE, (globals.ScreenHeight + RC_SCREEN_TILE - 1) / RC_SCREEN_TILE);
+
+    float  Coverage     = 0.0;
+    float3 ScreenBounce = SampleScreenBounce(input.Position.xy, ViewDepth, Ngeom, ProbeCount, Coverage);
+
+    float3 Irradiance = SampleIrradiance(input.WorldPos, Ngeom, globals.VolumeCenter, SkyIrradiance, ScreenBounce, Coverage);
 
     float3 Reflection = OffSpecularPeakDirection(N, reflect(-V, N), Roughness);
-    float3 Radiance   = Sky[SkyIndex].SampleLevel(Samp, Reflection, RoughnessToMip(Roughness, LastMip)).rgb;
+    float3 SkyRadiance = Sky[SkyIndex].SampleLevel(Samp, Reflection, RoughnessToMip(Roughness, LastMip)).rgb;
 
-    Radiance += SampleLightGridRay(input.WorldPos, Reflection, globals.VolumeCenter);
+    float3 Radiance = SkyRadiance + SampleIrradianceRay(input.WorldPos, Reflection, globals.VolumeCenter);
 
     float3 Ambient = Albedo * Irradiance + Radiance * EnvironmentBRDF(F0, Roughness, NdotV);
 

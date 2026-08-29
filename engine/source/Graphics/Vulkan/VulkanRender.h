@@ -172,18 +172,28 @@ enum compute_type
 {
     Compute_VolumeClear = 0,
     Compute_Voxelize,
-    Compute_LightDownsample,
-    Compute_LightInject,
-    Compute_LightPropagate,
-    Compute_LightBlend,
     Compute_UintClear,
     Compute_VoxelResolve,
     Compute_SkyOcclusion,
     Compute_SkyOcclusionBlur,
+    Compute_RcInject,
+    Compute_RcTrace,
+    Compute_RcMerge,
+    Compute_RcResolve,
+    Compute_RcScreen,
+    Compute_RcSmooth,
+    Compute_RcPrefilter,
 
     Compute_Count,
 };
 
+
+enum depth_mode
+{
+    Depth_None = 0,
+    Depth_Clear,
+    Depth_Load,
+};
 
 struct vulkan_frame
 {
