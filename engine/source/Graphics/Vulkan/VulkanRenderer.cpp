@@ -11,6 +11,9 @@ global_variable render_pipeline  Pipelines[Pipeline_Count];
 global_variable compute_pipeline ComputePipelines[Compute_Count];
 
 global_variable bool32           IrradianceReady;
+global_variable bool32           TimestampReady[MAX_FRAMES_IN_FLIGHT];
+global_variable real64           GpuSectionAccum[8];
+global_variable uint32           GpuSampleCount;
 
 global_variable pipeline_desc PipelineDescs[] =
 {
@@ -43,6 +46,27 @@ global_variable const char *ComputeDescs[] =
 
 static_assert(ArrayCount(PipelineDescs) == Pipeline_Count, "PipelineDescs must describe every pipeline_type");
 static_assert(ArrayCount(ComputeDescs) == Compute_Count, "ComputeDescs must describe every compute_type");
+
+internal void CreateTimestampPool(vulkan_context *context)
+{
+    VkPhysicalDeviceProperties props{};
+    vkGetPhysicalDeviceProperties(context->physicalDevice, &props);
+
+    context->timestampPeriod = props.limits.timestampPeriod;
+
+    VkQueryPoolCreateInfo info{};
+    info.sType      = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+    info.queryType  = VK_QUERY_TYPE_TIMESTAMP;
+    info.queryCount = MAX_FRAMES_IN_FLIGHT * 16;
+
+    VkResult result = vkCreateQueryPool(context->device, &info, nullptr, &context->timestampPool);
+    Assert(result == VK_SUCCESS);
+}
+
+internal void GpuStamp(vulkan_context *context, VkCommandBuffer cmd, uint32 base, uint32 index)
+{
+    vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, context->timestampPool, base + index);
+}
 
 internal void ResizeRenderer(vulkan_context *context)
 {
@@ -123,6 +147,7 @@ internal const char *InitVulkan(HINSTANCE hinstance, HWND hwnd)
     CreateCommandPool(context);
     CreateCommandBuffer(context);
     CreateSyncObjects(context);
+    CreateTimestampPool(context);
 
     CreateSwapchain(context, hwnd);
     CreateSwapchainImageViews(context);
@@ -632,7 +657,7 @@ internal void TraceCascades(vulkan_context *context, VkCommandBuffer cmd, vulkan
         params.DirRes         = RC_DIR_RES << cascade;
         params.Steps          = RC_BASE_STEPS << cascade;
         params.IntervalStart  = start;
-    params.IntervalLength = start;
+        params.IntervalLength = length;
 
         *(rc_trace_params *)alloc.Cpu = params;
 
@@ -767,6 +792,7 @@ internal void ComputeScreenGI(vulkan_context *context, VkCommandBuffer cmd, vulk
     params.RadianceSlot   = VOLUME_SLOT_RADIANCE_SMOOTH;
     params.CascadeSlot    = VOLUME_SLOT_HANDOFF;
     params.ScreenSlot     = VOLUME_SLOT_SCREEN_GI;
+    params.MetaSlot       = VOLUME_SLOT_SCREEN_META;
     params.DepthSlot      = TEXTURE_SLOT_DEPTH;
     params.ProbeSize      = RC_PROBE_SIZE >> (RC_SCREEN_HANDOFF + 1);
     params.DirRes         = RC_SCREEN_DIR_RES;
@@ -1025,7 +1051,51 @@ internal void RenderVulkanFrame(render_commands *Commands)
 
     BindDescriptorHeap(context, Frame.Cmd, &GlobalResources, GlobalResources.PipelineLayout);
 
+    uint32 stampBase = Frame.Slot * 16;
+
+    if (TimestampReady[Frame.Slot])
+    {
+        uint64 stamps[9];
+
+        if (vkGetQueryPoolResults(context->device, context->timestampPool, stampBase, 9, sizeof(stamps), stamps, sizeof(uint64), VK_QUERY_RESULT_64_BIT) == VK_SUCCESS)
+        {
+            for (uint32 i = 0; i < 8; ++i)
+            {
+                GpuSectionAccum[i] += (real64)(stamps[i + 1] - stamps[i]) * (real64)context->timestampPeriod * 1e-6;
+            }
+
+            ++GpuSampleCount;
+
+            if (GpuSampleCount >= 120)
+            {
+                real64 scale = 1.0 / (real64)GpuSampleCount;
+                real64 total = 0.0;
+
+                for (uint32 i = 0; i < 8; ++i)
+                {
+                    GpuSectionAccum[i] *= scale;
+                    total += GpuSectionAccum[i];
+                }
+
+                DebugLog("[gpu] vox %.2f sky %.2f inject %.2f cascades %.2f depth %.2f screen %.2f scene %.2f post %.2f | total %.2f ms\n", GpuSectionAccum[0], GpuSectionAccum[1], GpuSectionAccum[2], GpuSectionAccum[3], GpuSectionAccum[4], GpuSectionAccum[5], GpuSectionAccum[6], GpuSectionAccum[7], total);
+
+                for (uint32 i = 0; i < 8; ++i)
+                {
+                    GpuSectionAccum[i] = 0.0;
+                }
+
+                GpuSampleCount = 0;
+            }
+        }
+    }
+
+    vkCmdResetQueryPool(Frame.Cmd, context->timestampPool, stampBase, 16);
+
+    GpuStamp(context, Frame.Cmd, stampBase, 0);
+
     VoxelizeScene(context, Frame.Cmd, &GlobalResources, ComputePipelines, Commands);
+
+    GpuStamp(context, Frame.Cmd, stampBase, 1);
 
     StorageBarrier(Frame.Cmd);
 
@@ -1039,6 +1109,8 @@ internal void RenderVulkanFrame(render_commands *Commands)
 
     BlurSkyOcclusion(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_SkyOcclusionBlur], VOLUME_SLOT_SKY_OCCLUSION_SCRATCH, VOLUME_SLOT_SKY_OCCLUSION);
 
+    GpuStamp(context, Frame.Cmd, stampBase, 2);
+
     StorageBarrier(Frame.Cmd);
 
     InjectRadiance(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_RcInject]);
@@ -1046,6 +1118,8 @@ internal void RenderVulkanFrame(render_commands *Commands)
     StorageBarrier(Frame.Cmd);
 
     SmoothRadiance(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_RcSmooth]);
+
+    GpuStamp(context, Frame.Cmd, stampBase, 3);
 
     StorageBarrier(Frame.Cmd);
 
@@ -1059,21 +1133,29 @@ internal void RenderVulkanFrame(render_commands *Commands)
 
     PrefilterHandoff(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_RcPrefilter]);
 
+    GpuStamp(context, Frame.Cmd, stampBase, 4);
+
     StorageBarrier(Frame.Cmd);
 
     BeginPass(context, Frame.Cmd, SceneTarget.View, VK_ATTACHMENT_LOAD_OP_DONT_CARE, Vector4(0.0f, 0.0f, 0.0f, 0.0f), Depth_Clear);
     RenderDepthPrepass(context, Frame.Cmd, &GlobalResources, &Pipelines[Pipeline_Depth], Commands);
     EndPass(Frame.Cmd);
 
+    GpuStamp(context, Frame.Cmd, stampBase, 5);
+
     GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 
     ComputeScreenGI(context, Frame.Cmd, &GlobalResources, &ComputePipelines[Compute_RcScreen]);
+
+    GpuStamp(context, Frame.Cmd, stampBase, 6);
 
     GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 
     BeginPass(context, Frame.Cmd, SceneTarget.View, VK_ATTACHMENT_LOAD_OP_CLEAR, Vector4(0.05f, 0.05f, 0.08f, 1.0f), Depth_Load);
     ExecuteRenderCommands(context, Frame.Cmd, &GlobalResources, Pipelines, Commands);
     EndPass(Frame.Cmd);
+
+    GpuStamp(context, Frame.Cmd, stampBase, 7);
 
     GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 
@@ -1089,6 +1171,10 @@ internal void RenderVulkanFrame(render_commands *Commands)
     ExecuteUICommands(context, Frame.Cmd, &GlobalResources, Pipelines, Commands);
     DrawVolumeDebug(context, Frame.Cmd, &GlobalResources, &Pipelines[Pipeline_VolumeView], VOLUME_SLOT_ALBEDO, VOLUME_GRID_SIZE, VOLUME_MODE_LIGHT, 0.5f);
     EndPass(Frame.Cmd);
+
+    GpuStamp(context, Frame.Cmd, stampBase, 8);
+
+    TimestampReady[Frame.Slot] = true;
 
     CmdImageToPresent(Frame.Cmd, swapchainImage);
 

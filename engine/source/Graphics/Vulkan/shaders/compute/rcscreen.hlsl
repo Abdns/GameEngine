@@ -52,8 +52,10 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     {
         for (uint sky = 0; sky < LIGHT_DIRECTIONS; ++sky)
         {
-            VolumesRW[params.ScreenSlot + sky][uint3(id.xy, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+            VolumesRW[params.ScreenSlot + sky][uint3(id.xy, 0)] = float4(0.0, 0.0, 0.0, 1.0);
         }
+
+        VolumesRW[params.MetaSlot][uint3(id.xy, 0)] = float4(0.0, 0.0, 0.0, 0.0);
 
         return;
     }
@@ -137,12 +139,14 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float cascadeNorm = 1.0 / max(cascadeTotal, 1e-4);
 
     float3 total[LIGHT_DIRECTIONS];
+    float  skyTotal[LIGHT_DIRECTIONS];
     float  weights[LIGHT_DIRECTIONS];
 
     for (uint clear = 0; clear < LIGHT_DIRECTIONS; ++clear)
     {
-        total[clear]   = float3(0.0, 0.0, 0.0);
-        weights[clear] = 0.0;
+        total[clear]    = float3(0.0, 0.0, 0.0);
+        skyTotal[clear] = 0.0;
+        weights[clear]  = 0.0;
     }
 
     float stepSize = params.IntervalLength / (float)params.Steps;
@@ -210,30 +214,28 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 
             farField *= cascadeNorm / (float)(ratio * ratio);
 
-            float3 merged = radiance + transmittance * farField.rgb;
+            float3 merged   = radiance + transmittance * farField.rgb;
+            float  skyReach = transmittance * farField.a;
 
             for (uint axis = 0; axis < LIGHT_DIRECTIONS; ++axis)
             {
                 float weight = max(dot(LightAxis[axis], direction), 0.0);
 
-                total[axis]   += merged * weight;
-                weights[axis] += weight;
+                total[axis]    += merged * weight;
+                skyTotal[axis] += skyReach * weight;
+                weights[axis]  += weight;
             }
         }
     }
 
     float viewDepth = ViewDistance(globals, depth);
 
-    float extra[LIGHT_DIRECTIONS];
-    extra[0] = viewDepth;
-    extra[1] = normal.x;
-    extra[2] = normal.y;
-    extra[3] = normal.z;
-    extra[4] = 0.0;
-    extra[5] = 0.0;
+    VolumesRW[params.MetaSlot][uint3(id.xy, 0)] = float4(normal, viewDepth);
 
     for (uint store = 0; store < LIGHT_DIRECTIONS; ++store)
     {
-        VolumesRW[params.ScreenSlot + store][uint3(id.xy, 0)] = float4(total[store] / max(weights[store], 1e-4), extra[store]);
+        float norm = 1.0 / max(weights[store], 1e-4);
+
+        VolumesRW[params.ScreenSlot + store][uint3(id.xy, 0)] = float4(total[store] * norm, saturate(skyTotal[store] * norm));
     }
 }

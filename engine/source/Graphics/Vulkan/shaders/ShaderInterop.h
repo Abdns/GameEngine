@@ -31,6 +31,7 @@
 #define VOLUME_SLOT_SKY_OCCLUSION_SCRATCH 17
 #define VOLUME_SLOT_SCREEN_GI             18
 #define VOLUME_SLOT_HANDOFF               24
+#define VOLUME_SLOT_SCREEN_META           25
 
 #define LIGHT_DIRECTIONS 6
 #define LIGHT_GI_STRENGTH  1.0
@@ -304,7 +305,7 @@ struct rc_screen_params
     uint ProbeCountX;
     uint ProbeCountY;
     uint ScreenPad0;
-    uint ScreenPad1;
+    uint MetaSlot;
 };
 
 

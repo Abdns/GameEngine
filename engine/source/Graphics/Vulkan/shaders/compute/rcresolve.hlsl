@@ -14,7 +14,7 @@ float ProbeOccupancy(uint slot, uint3 probe, uint probeSize)
     return Volumes[slot].SampleLevel(VolumeSamp, LocalToUVW(RcProbeLocal(probe, probeSize)), 0).a;
 }
 
-void AccumulateProbe(rc_resolve_params params, uint3 probe, float probeWeight, inout float3 total[LIGHT_DIRECTIONS], inout float weights[LIGHT_DIRECTIONS])
+void AccumulateProbe(rc_resolve_params params, uint3 probe, float probeWeight, inout float3 total[LIGHT_DIRECTIONS], inout float skyTotal[LIGHT_DIRECTIONS], inout float weights[LIGHT_DIRECTIONS])
 {
     for (uint v = 0; v < params.DirRes; ++v)
     {
@@ -24,14 +24,15 @@ void AccumulateProbe(rc_resolve_params params, uint3 probe, float probeWeight, i
 
             uint3 coord = uint3(probe.xy * params.DirRes + uint2(u, v), probe.z);
 
-            float3 radiance = VolumesRW[params.CascadeSlot][coord].rgb;
+            float4 cascade = VolumesRW[params.CascadeSlot][coord];
 
             for (uint axis = 0; axis < LIGHT_DIRECTIONS; ++axis)
             {
                 float weight = max(dot(LightAxis[axis], direction), 0.0) * probeWeight;
 
-                total[axis]   += radiance * weight;
-                weights[axis] += weight;
+                total[axis]    += cascade.rgb * weight;
+                skyTotal[axis] += cascade.a * weight;
+                weights[axis]  += weight;
             }
         }
     }
@@ -48,12 +49,14 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     }
 
     float3 total[LIGHT_DIRECTIONS];
+    float  skyTotal[LIGHT_DIRECTIONS];
     float  weights[LIGHT_DIRECTIONS];
 
     for (uint clear = 0; clear < LIGHT_DIRECTIONS; ++clear)
     {
-        total[clear]   = float3(0.0, 0.0, 0.0);
-        weights[clear] = 0.0;
+        total[clear]    = float3(0.0, 0.0, 0.0);
+        skyTotal[clear] = 0.0;
+        weights[clear]  = 0.0;
     }
 
     int size = (int)params.ProbeSize;
@@ -80,18 +83,20 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             continue;
         }
 
-        AccumulateProbe(params, (uint3)probe, probeWeight, total, weights);
+        AccumulateProbe(params, (uint3)probe, probeWeight, total, skyTotal, weights);
 
         covered += probeWeight;
     }
 
     if (covered <= 1e-3)
     {
-        AccumulateProbe(params, id, 1.0, total, weights);
+        AccumulateProbe(params, id, 1.0, total, skyTotal, weights);
     }
 
     for (uint store = 0; store < LIGHT_DIRECTIONS; ++store)
     {
-        VolumesRW[params.IrradianceSlot + store][id] = float4(total[store] / max(weights[store], 1e-4), 1.0);
+        float norm = 1.0 / max(weights[store], 1e-4);
+
+        VolumesRW[params.IrradianceSlot + store][id] = float4(total[store] * norm, saturate(skyTotal[store] * norm));
     }
 }

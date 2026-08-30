@@ -43,6 +43,9 @@ struct vulkan_context
     uint32 graphicsFamilyIndex;
     uint32 presentFamilyIndex;
 
+    VkQueryPool timestampPool;
+    real32      timestampPeriod;
+
     VkSwapchainKHR swapchain;
     VkImage swapchainImages[MAX_SWAPCHAIN_IMAGES];
     VkImageView swapchainImageViews[MAX_SWAPCHAIN_IMAGES];

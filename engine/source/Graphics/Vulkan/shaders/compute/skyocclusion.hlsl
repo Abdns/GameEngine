@@ -23,6 +23,6 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 
         VolumesRW[params.NormalSlot][coord] = float4(visibility, 0.0, 0.0, 1.0);
 
-        visibility *= saturate(1.0 - VolumesRW[params.AlbedoSlot][coord].a * 0.85);
+        visibility *= saturate(1.0 - VolumesRW[params.AlbedoSlot][coord].a);
     }
 }

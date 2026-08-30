@@ -255,6 +255,12 @@ internal void CreateResources(vulkan_context *context, vulkan_resources *res, Vk
     }
 
     {
+        gpu_volume *volume = CreateVolume(context, res, VOLUME_SLOT_SCREEN_META, RC_SCREEN_MAX_X, RC_SCREEN_MAX_Y, 1, VK_FORMAT_R16G16B16A16_SFLOAT);
+
+        CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+    }
+
+    {
         uint32 handoffProbes = RC_PROBE_SIZE >> (RC_SCREEN_HANDOFF + 1);
         uint32 handoffTile   = handoffProbes * RC_SCREEN_DIR_RES;
 
