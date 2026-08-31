@@ -12,6 +12,7 @@
 #include "Input.cpp"
 #include "Camera.cpp"
 #include "Material.cpp"
+#include "Preset.cpp"
 #include "Text.cpp"
 #include "UI.cpp"
 #include "Gizmo.cpp"
@@ -98,19 +99,40 @@ internal void PushEntitiesToRender(sim_region *Region, render_commands *Commands
 
 internal void UpdateDebugPanel(game_state *GameState, ui_context *UI)
 {
-    asset_store *Assets = &GameState->Assets;
-    uint32       Font   = GameState->FontHandle;
+    ui_layout Layout = UIBeginPanel(UI, Vector2(20.0f, 20.0f), 140.0f);
 
-    UILabledCheckBox(UI, Assets, Font, "pause", RectMinDim(20.0f, 20.0f, 140.0f, 36.0f), &GameState->Paused);
+    UICheckBox(&Layout, "pause", &GameState->Paused);
 
-    if (UILabeledButton(UI, Assets, Font, "spawn", RectMinDim(20.0f, 66.0f, 140.0f, 36.0f)))
+    if (UIButton(&Layout, "spawn"))
     {
-        AddEntity(GameState, Entity_Prop, TransformAt(Vector3(0.0f, 3.0f, 0.0f)), GameState->SpawnMeshHandles[0], GameState->SpawnMaterialHandles[0], false, 0);
+        AddEntityFromPreset(GameState, GetPresetIndex(&GameState->Presets, "cube"), WorldOrigin(), Vector3(0.0f, 0.0f, 0.0f));
     }
 
-    if (UILabeledButton(UI, Assets, Font, "clear", RectMinDim(20.0f, 112.0f, 140.0f, 36.0f)))
+    if (UIButton(&Layout, "clear"))
     {
         ClearSpawnedEntities(GameState);
+    }
+
+    UIDragReal32(&Layout, "fov", &GameState->Camera.FovY, 0.004f);
+    GameState->Camera.FovY = Clamp(DegToRad(20.0f), GameState->Camera.FovY, DegToRad(120.0f));
+
+    UIEndPanel(&Layout);
+}
+
+internal void UpdateVoxelPanel(game_state *GameState, ui_context *UI)
+{
+    ui_layout Layout = UIBeginPanelAnchored(UI, UIAnchor_BottomRight, Vector2(20.0f, 20.0f), 140.0f);
+
+    if (UIButton(&Layout, "voxels"))
+    {
+        GameState->ShowVoxels = !GameState->ShowVoxels;
+    }
+
+    UIEndPanel(&Layout);
+
+    if (GameState->ShowVoxels)
+    {
+        PushVolumeDebug(UI->Commands);
     }
 }
 
@@ -156,6 +178,25 @@ internal uint32 PickAndShoot(game_state *GameState, sim_region *Region, ray Pick
     }
 
     return HitIndex;
+}
+
+internal void InitPresets(game_state *GameState, game_memory *Memory)
+{
+    preset_table *Presets = &GameState->Presets;
+
+    if (!LoadPresets(Presets, Memory, PRESET_PATH))
+    {
+        material Textured = UnlitMaterial(Vector4(1.0f, 1.0f, 1.0f, 1.0f), 0);
+
+        AddPreset(Presets, MakePreset("cube", Entity_Prop, "cube",   "test", TransformAt(Vector3(0.0f, 3.0f, 0.0f)), false, Textured));
+        AddPreset(Presets, MakePreset("ball", Entity_Ball, "sphere", "test", TransformIdentity(), false, Textured));
+
+#if ENGINE_INTERNAL
+        SavePresets(Presets, Memory, PRESET_PATH);
+#endif
+    }
+
+    LinkPresets(Presets, &GameState->Assets, &GameState->Materials);
 }
 
 internal void InitTools(game_state *GameState)
@@ -253,6 +294,7 @@ internal void InitGame(game_memory *Memory, game_state *GameState, render_comman
 
     InitTools(GameState);
     BuildTestScene(GameState);
+    InitPresets(GameState, Memory);
 
     PushMaterialsToRender(&GameState->Materials, RenderCommands);
 
@@ -287,10 +329,11 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     mouse_input   *Mouse    = &Controls->Mouse;
 
     BeginInput(Controls, Input);
-    BeginUI(UI, Mouse, RenderCommands);
+    BeginUI(UI, Mouse, RenderCommands, &GameState->Assets, GameState->FontHandle, Controls->ViewportSize);
     BeginGizmo(Gizmo, Mouse, RenderCommands);
 
     UpdateDebugPanel(GameState, UI);
+    UpdateVoxelPanel(GameState, UI);
 
     rectangle3  SimBounds = Rect3CenterRadius(Vector3(0.0f, 0.0f, 0.0f), SIM_HALF_DIM);
     sim_region *Region    = BeginSim(&GameState->FrameArena, GameState->World, &GameState->Storage, Camera->Position, SimBounds, SIM_MAX_ENTITIES);

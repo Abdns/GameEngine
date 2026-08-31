@@ -5,21 +5,6 @@
 #include "GameState.h"
 
 #define BALL_SPEED 15.0f
-#define MAX_ENTITY_PRESETS 10
-
-struct entity_preset
-{
-    const char* Name;
-    entity_type Type;
-    uint32      MeshHandle;
-    uint32      MaterialHandle;
-    transform   Pose;
-    bool32      Static;
-};
-
-entity_preset Presets[MAX_ENTITY_PRESETS];
-uint32        PresetCount;
-
 
 internal uint32 AddEntityAt(game_state *GameState, entity_type Type, world_position Origin, transform Pose, uint32 MeshHandle, uint32 MaterialHandle, bool32 Static, const char *Name)
 {
@@ -52,12 +37,21 @@ internal uint32 AddEntity(game_state *GameState, entity_type Type, transform Pos
     return AddEntityAt(GameState, Type, WorldOrigin(), Pose, MeshHandle, MaterialHandle, Static, Name);
 }
 
-internal uint32 AddEntityFromPreset(game_state* GameState, entity_preset* Preset, world_position Origin, Vector3 Offset)
+internal uint32 AddEntityFromPreset(game_state *GameState, uint32 PresetIndex, world_position Origin, Vector3 Offset)
 {
-    transform Pose = Preset->Pose;
-    Pose.Position = Offset;
+    preset_table *Presets = &GameState->Presets;
 
-    return AddEntityAt(GameState, Preset->Type, Origin, Pose, Preset->MeshHandle, Preset->MaterialHandle, Preset->Static, Preset->Name);
+    if (PresetIndex >= Presets->Count)
+    {
+        return ENTITY_STORAGE_NONE;
+    }
+
+    entity_preset *Preset = Presets->Presets + PresetIndex;
+
+    transform Pose = Preset->Pose;
+    Pose.Position  = Preset->Pose.Position + Offset;
+
+    return AddEntityAt(GameState, (entity_type)Preset->Type, Origin, Pose, Presets->MeshHandles[PresetIndex], Presets->MaterialHandles[PresetIndex], Preset->Static, Preset->Name);
 }
 
 internal void ClearSpawnedEntities(game_state *GameState)
@@ -83,9 +77,9 @@ internal void ClearSpawnedEntities(game_state *GameState)
 
 internal void ShootBall(game_state *GameState, sim_region *Region, ray Aim)
 {
-    transform Pose = TransformAt(Aim.Origin + Aim.Direction);
+    uint32 PresetIndex = GetPresetIndex(&GameState->Presets, "ball");
 
-    uint32 StorageIndex = AddEntityAt(GameState, Entity_Ball, Region->Origin, Pose, GameState->SpawnMeshHandles[1], GameState->SpawnMaterialHandles[0], false, 0);
+    uint32 StorageIndex = AddEntityFromPreset(GameState, PresetIndex, Region->Origin, Aim.Origin + Aim.Direction);
     if (StorageIndex == ENTITY_STORAGE_NONE)
     {
         return;

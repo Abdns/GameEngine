@@ -176,6 +176,8 @@ struct render_commands
     uint32 MaterialCount;
     uint32 RectCount;
 
+    bool32 ShowVolumeDebug;
+
     uint8 *PushBufferBase;
     uint32 PushBufferSize;
     uint32 MaxPushBufferSize;
@@ -342,6 +344,11 @@ inline void PushRenderTexturedRect(render_commands *Commands, Vector2 Min, Vecto
 inline void PushRenderRect(render_commands *Commands, Vector2 Min, Vector2 Max, Vector4 Color)
 {
     PushRenderTexturedRect(Commands, Min, Max, Color, Vector4(0.0f, 0.0f, 0.0f, 0.0f), TEXTURE_NONE);
+}
+
+inline void PushVolumeDebug(render_commands *Commands)
+{
+    Commands->ShowVolumeDebug = true;
 }
 
 inline void PushRenderSkybox(render_commands *Commands, uint32 Cubemap)
