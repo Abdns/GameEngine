@@ -130,11 +130,6 @@ internal void UpdateVoxelPanel(game_state *GameState, ui_context *UI)
 
     UIEndPanel(&Layout);
 
-    if ((UI->FrameIndex % 120) == 0)
-    {
-        DebugLog("voxels flag %d\n", GameState->ShowVoxels);
-    }
-
     if (GameState->ShowVoxels)
     {
         PushVolumeDebug(UI->Commands);

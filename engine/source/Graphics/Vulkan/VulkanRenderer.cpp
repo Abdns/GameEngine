@@ -1168,11 +1168,12 @@ internal void RenderVulkanFrame(render_commands *Commands)
 
     BeginPass(context, Frame.Cmd, context->swapchainImageViews[Frame.ImageIndex], VK_ATTACHMENT_LOAD_OP_DONT_CARE, Vector4(0.0f, 0.0f, 0.0f, 0.0f), Depth_None);
     DrawFullscreen(context, Frame.Cmd, &GlobalResources, &Pipelines[Pipeline_UI], TEXTURE_SLOT_POST);
-    ExecuteUICommands(context, Frame.Cmd, &GlobalResources, Pipelines, Commands);
     if (Commands->ShowVolumeDebug)
     {
         DrawVolumeDebug(context, Frame.Cmd, &GlobalResources, &Pipelines[Pipeline_VolumeView], VOLUME_SLOT_ALBEDO, VOLUME_GRID_SIZE, VOLUME_MODE_LIGHT, 0.5f);
     }
+
+    ExecuteUICommands(context, Frame.Cmd, &GlobalResources, Pipelines, Commands);
     EndPass(Frame.Cmd);
 
     GpuStamp(context, Frame.Cmd, stampBase, 8);
