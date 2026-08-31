@@ -119,7 +119,13 @@
     <ClInclude Include="..\engine\source\Game\src\World.cpp">
       <Filter>engine\source\Game\src</Filter>
     </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\Entity.cpp">
+    <ClInclude Include="..\engine\source\Game\src\SimEntity.cpp">
+      <Filter>engine\source\Game\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Game\src\EntityStorage.cpp">
+      <Filter>engine\source\Game\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Game\src\EntitySpawn.cpp">
       <Filter>engine\source\Game\src</Filter>
     </ClInclude>
     <ClInclude Include="..\engine\source\Game\src\SimRegion.cpp">

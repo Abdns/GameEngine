@@ -1,7 +1,12 @@
+#pragma once
+
 #include "Types.h"
 #include "EngineMath.h"
 #include "Memory.h"
 #include "Collider.h"
+#include "SimRegion.cpp"
+#include "SimEntity.cpp"
+#include "AssetStore.cpp"
 
 struct raycast_hit
 {
@@ -141,11 +146,10 @@ internal uint32 RayGatherCandidates(ray SimRay, sim_region *Region, asset_store 
             continue;
         }
 
-        Vector3    P           = Entity->PrevPosition + Alpha * (Entity->Position - Entity->PrevPosition);
-        Quaternion Orientation = QuatNLerp(Entity->PrevOrientation, Entity->Orientation, Alpha);
+        transform Pose = TransformLerp(Entity->Previous, Entity->Current, Alpha);
 
         Vector3 BoundsMin, BoundsMax;
-        ComputeWorldAABB(P, Orientation, Assets->MeshBoundsMin[Entity->MeshHandle], Assets->MeshBoundsMax[Entity->MeshHandle], &BoundsMin, &BoundsMax);
+        ComputeWorldAABB(Pose.Position, Pose.Orientation, Assets->MeshBoundsMin[Entity->MeshHandle], Assets->MeshBoundsMax[Entity->MeshHandle], &BoundsMin, &BoundsMax);
 
         real32 EnterDistance;
         if (!RayIntersectsAABB(SimRay, BoundsMin, BoundsMax, &EnterDistance))
@@ -205,7 +209,7 @@ internal bool32 RayCastSim(ray SimRay, sim_region *Region, asset_store *Assets, 
         if (RayIntersectsMesh(&Mesh, LocalRay, &Distance) && Distance < BestDistance)
         {
             BestDistance      = Distance;
-            Hit.StorageIndex  = Entity->StorageIndex;
+            Hit.StorageIndex  = Entity->LowStorageIndex;
         }
     }
 

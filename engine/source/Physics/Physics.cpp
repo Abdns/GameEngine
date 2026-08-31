@@ -1,7 +1,13 @@
+#pragma once
+
 #include "Types.h"
 #include "EngineMath.h"
 #include "Memory.h"
 #include "Collider.h"
+#include "SimEntity.cpp"
+#include "Shapes.cpp"
+#include "Broadphase.cpp"
+#include "SimRegion.cpp"
 
 #define PHYSICS_TICK                      (1.0f / 60.0f)
 #define PHYSICS_ACCUMULATOR_CAP           (4.0f * PHYSICS_TICK)
@@ -103,14 +109,14 @@ internal void PhysicsComputeBounds(physics_state *Physics, sim_entity *Entity)
 
     if (Shape->Type == Shape_Sphere)
     {
-        Vector3 Center = Entity->Position + QuatRotate(Entity->Orientation, Shape->Center);
+        Vector3 Center = Entity->Current.Position + QuatRotate(Entity->Current.Orientation, Shape->Center);
 
         Entity->Bounds = Rect3CenterRadius(Center, Shape->Radius);
 
         return;
     }
 
-    ComputeWorldAABB(Entity->Position, Entity->Orientation, Shape->BoundsMin, Shape->BoundsMax, &Entity->Bounds.Min, &Entity->Bounds.Max);
+    ComputeWorldAABB(Entity->Current.Position, Entity->Current.Orientation, Shape->BoundsMin, Shape->BoundsMax, &Entity->Bounds.Min, &Entity->Bounds.Max);
 }
 
 inline real32 PhysicsInvMass(sim_entity *Entity)
@@ -125,8 +131,8 @@ inline real32 PhysicsInvInertia(sim_entity *Entity)
 
 internal Vector3 PhysicsRelativeVelocity(contact *Contact)
 {
-    Vector3 rA = Contact->Point - Contact->A->Position;
-    Vector3 rB = Contact->Point - Contact->B->Position;
+    Vector3 rA = Contact->Point - Contact->A->Current.Position;
+    Vector3 rB = Contact->Point - Contact->B->Current.Position;
 
     return (Contact->A->dPosition + Cross(Contact->A->dOrientation, rA))
          - (Contact->B->dPosition + Cross(Contact->B->dOrientation, rB));
@@ -163,8 +169,8 @@ internal bool32 PhysicsPushContact(contact *Contacts, uint32 *Count, uint32 MaxC
 
 internal uint32 CollectSphereSphereContacts(collision_shape *ShapeA, collision_shape *ShapeB, sim_entity *A, sim_entity *B, contact *Contacts, uint32 MaxContacts)
 {
-    Vector3 CenterA = A->Position + QuatRotate(A->Orientation, ShapeA->Center);
-    Vector3 CenterB = B->Position + QuatRotate(B->Orientation, ShapeB->Center);
+    Vector3 CenterA = A->Current.Position + QuatRotate(A->Current.Orientation, ShapeA->Center);
+    Vector3 CenterB = B->Current.Position + QuatRotate(B->Current.Orientation, ShapeB->Center);
 
     Vector3 Delta      = CenterA - CenterB;
     real32  RadiusSum  = ShapeA->Radius + ShapeB->Radius;
@@ -188,8 +194,8 @@ internal uint32 CollectSphereSphereContacts(collision_shape *ShapeA, collision_s
 
 internal uint32 CollectSphereConvexContacts(collision_shape *SphereShape, collision_shape *ConvexShape, sim_entity *Sphere, sim_entity *Convex, contact *Contacts, uint32 MaxContacts)
 {
-    Vector3 Center      = Sphere->Position + QuatRotate(Sphere->Orientation, SphereShape->Center);
-    Vector3 LocalCenter = QuatInverseRotate(Convex->Orientation, Center - Convex->Position);
+    Vector3 Center      = Sphere->Current.Position + QuatRotate(Sphere->Current.Orientation, SphereShape->Center);
+    Vector3 LocalCenter = QuatInverseRotate(Convex->Current.Orientation, Center - Convex->Current.Position);
 
     uint32 PlaneIndex;
     real32 SignedDistance;
@@ -203,7 +209,7 @@ internal uint32 CollectSphereConvexContacts(collision_shape *SphereShape, collis
         return 0;
     }
 
-    Vector3 Normal = QuatRotate(Convex->Orientation, ConvexShape->Planes[PlaneIndex].Normal);
+    Vector3 Normal = QuatRotate(Convex->Current.Orientation, ConvexShape->Planes[PlaneIndex].Normal);
     real32  Depth  = SphereShape->Radius - SignedDistance;
     Vector3 Point  = Center - Normal * (SphereShape->Radius - 0.5f * Depth);
 
@@ -215,7 +221,7 @@ internal uint32 CollectSphereConvexContacts(collision_shape *SphereShape, collis
 
 internal Vector3 ShapeSupportWorld(collision_shape *Shape, sim_entity *Entity, Vector3 WorldDirection)
 {
-    Vector3 LocalDirection = QuatInverseRotate(Entity->Orientation, WorldDirection);
+    Vector3 LocalDirection = QuatInverseRotate(Entity->Current.Orientation, WorldDirection);
 
     real32  BestDot    = -REAL32_LARGE;
     Vector3 BestVertex = Shape->Vertices[0];
@@ -231,7 +237,7 @@ internal Vector3 ShapeSupportWorld(collision_shape *Shape, sim_entity *Entity, V
         }
     }
 
-    return Entity->Position + QuatRotate(Entity->Orientation, BestVertex);
+    return Entity->Current.Position + QuatRotate(Entity->Current.Orientation, BestVertex);
 }
 
 internal real32 SATQueryFaces(collision_shape *ShapeA, sim_entity *A, collision_shape *ShapeB, sim_entity *B, uint32 *OutFace)
@@ -248,8 +254,8 @@ internal real32 SATQueryFaces(collision_shape *ShapeA, sim_entity *A, collision_
 
         shape_plane *Plane = ShapeA->Planes + Index;
 
-        Vector3 WorldNormal = QuatRotate(A->Orientation, Plane->Normal);
-        Vector3 WorldPoint  = A->Position + QuatRotate(A->Orientation, Plane->Normal * Plane->Distance);
+        Vector3 WorldNormal = QuatRotate(A->Current.Orientation, Plane->Normal);
+        Vector3 WorldPoint  = A->Current.Position + QuatRotate(A->Current.Orientation, Plane->Normal * Plane->Distance);
 
         Vector3 Support = ShapeSupportWorld(ShapeB, B, -1.0f * WorldNormal);
 
@@ -276,7 +282,7 @@ internal uint32 SATFaceWorldPolygon(collision_shape *Shape, sim_entity *Entity, 
     {
         Vector3 Local = Shape->Vertices[Shape->FaceVertices[Face->FirstVertex + Index]];
 
-        Out[Index] = Entity->Position + QuatRotate(Entity->Orientation, Local);
+        Out[Index] = Entity->Current.Position + QuatRotate(Entity->Current.Orientation, Local);
     }
 
     return Count;
@@ -343,8 +349,8 @@ internal uint32 CollectConvexContacts(collision_shape *ShapeA, collision_shape *
 
     shape_plane *ReferencePlane = ReferenceShape->Planes + ReferenceFace;
 
-    Vector3 ReferenceNormal = QuatRotate(ReferenceEntity->Orientation, ReferencePlane->Normal);
-    Vector3 ReferencePoint  = ReferenceEntity->Position + QuatRotate(ReferenceEntity->Orientation, ReferencePlane->Normal * ReferencePlane->Distance);
+    Vector3 ReferenceNormal = QuatRotate(ReferenceEntity->Current.Orientation, ReferencePlane->Normal);
+    Vector3 ReferencePoint  = ReferenceEntity->Current.Position + QuatRotate(ReferenceEntity->Current.Orientation, ReferencePlane->Normal * ReferencePlane->Distance);
 
     uint32 IncidentFace = 0;
     real32 BestAlignment = REAL32_LARGE;
@@ -356,7 +362,7 @@ internal uint32 CollectConvexContacts(collision_shape *ShapeA, collision_shape *
             continue;
         }
 
-        real32 Alignment = Dot(QuatRotate(IncidentEntity->Orientation, IncidentShape->Planes[Index].Normal), ReferenceNormal);
+        real32 Alignment = Dot(QuatRotate(IncidentEntity->Current.Orientation, IncidentShape->Planes[Index].Normal), ReferenceNormal);
 
         if (Alignment < BestAlignment)
         {
@@ -450,8 +456,8 @@ internal void ApplyContactImpulse(contact *Contact, real32 InvDt)
     real32 InvInertiaA = PhysicsInvInertia(A);
     real32 InvInertiaB = PhysicsInvInertia(B);
 
-    Vector3 rA = Contact->Point - A->Position;
-    Vector3 rB = Contact->Point - B->Position;
+    Vector3 rA = Contact->Point - A->Current.Position;
+    Vector3 rB = Contact->Point - B->Current.Position;
 
     Vector3 RelativeVelocity = PhysicsRelativeVelocity(Contact);
 
@@ -529,10 +535,10 @@ internal void PhysicsSubStep(physics_state *Physics, sim_region *Region, real32 
         if (Entity->Updatable && Entity->InvMass > 0.0f)
         {
             Entity->dPosition.Y += PHYSICS_GRAVITY_Y * dt;
-            Entity->Position    += Entity->dPosition * dt;
+            Entity->Current.Position    += Entity->dPosition * dt;
 
             Entity->dOrientation = Entity->dOrientation * (1.0f / (1.0f + PHYSICS_ANGULAR_DAMPING * dt));
-            Entity->Orientation  = QuatIntegrate(Entity->Orientation, Entity->dOrientation, dt);
+            Entity->Current.Orientation  = QuatIntegrate(Entity->Current.Orientation, Entity->dOrientation, dt);
         }
 
         PhysicsComputeBounds(Physics, Entity);
@@ -595,22 +601,8 @@ internal void SimSavePreviousTransforms(sim_region *Region)
     {
         sim_entity *Entity = Region->Entities + Index;
 
-        Entity->PrevPosition           = Entity->Position;
-        Entity->PrevOrientation = Entity->Orientation;
+        Entity->Previous = Entity->Current;
     }
-}
-
-internal Vector3 SimEntityRenderPosition(sim_entity *Entity, real32 Alpha)
-{
-    return Entity->PrevPosition + Alpha * (Entity->Position - Entity->PrevPosition);
-}
-
-internal Matrix4 SimEntityRenderTransform(sim_entity *Entity, real32 Alpha)
-{
-    Vector3    P           = SimEntityRenderPosition(Entity, Alpha);
-    Quaternion Orientation = QuatNLerp(Entity->PrevOrientation, Entity->Orientation, Alpha);
-
-    return Mat4Rigid(P, Orientation);
 }
 
 internal void PhysicsStep(physics_state *Physics, sim_region *Region)

@@ -1,8 +1,13 @@
+#pragma once
+
 #include "Types.h"
 #include "EngineMath.h"
 #include "PlatformAPI.h"
 #include "RenderCommands.h"
 #include "Input.h"
+#include "AssetStore.cpp"
+#include "SimEntity.cpp"
+#include "Raycast.cpp"
 
 #define GIZMO_AXIS_COUNT 3
 

@@ -1,7 +1,10 @@
+#pragma once
+
 #include "Types.h"
 #include "EngineMath.h"
 #include "EngaFormat.h"
 #include "RenderCommands.h"
+#include "AssetStore.cpp"
 
 internal uint32 NextCodepoint(const char **At)
 {

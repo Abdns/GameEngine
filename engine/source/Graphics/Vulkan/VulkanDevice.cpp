@@ -1,5 +1,5 @@
-#include "Vulkan.h"
 #include "Strings.h"
+#include "Vulkan.h"
 
 global_variable const char *RequiredInstanceExtensions[] =
 {

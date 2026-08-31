@@ -1,8 +1,9 @@
 #include "Game.h"
 
 #include "AssetStore.cpp"
+#include "SimEntity.cpp"
 #include "World.cpp"
-#include "Entity.cpp"
+#include "EntityStorage.cpp"
 #include "SimRegion.cpp"
 #include "Shapes.cpp"
 #include "Broadphase.cpp"
@@ -17,12 +18,13 @@
 
 #include "GameState.h"
 
+#include "EntitySpawn.cpp"
+
 #define FRAME_ARENA_SIZE      Megabytes(8)
 #define WORLD_CHUNK_DIM       16.0f
 #define ENTITY_CAPACITY       4096
 #define SIM_MAX_ENTITIES      4096
 #define SIM_HALF_DIM          48.0f
-#define BALL_SPEED            15.0f
 
 internal void GameOutputSound(game_state* GameState, game_sound_output_buffer* SoundBuffer)
 {
@@ -73,70 +75,6 @@ internal void BuildMeshShapes(game_state *GameState, memory_arena *Arena)
     }
 }
 
-internal uint32 AddEntityAt(game_state *GameState, entity_type Type, world_position Position, uint32 MeshHandle, uint32 MaterialHandle, bool32 Static, const char *Name)
-{
-    uint32 StorageIndex = AddLowEntity(&GameState->Storage, Type, Position, Name);
-    if (StorageIndex == ENTITY_STORAGE_NONE)
-    {
-        return ENTITY_STORAGE_NONE;
-    }
-
-    ChangeEntityLocation(&GameState->WorldArena, GameState->World, &GameState->Storage, StorageIndex, Position);
-
-    low_entity *Stored = GetLowEntity(&GameState->Storage, StorageIndex);
-
-    Stored->SimVariant.Flags          = EntityFlag_Visible | EntityFlag_Simulates | (Static ? EntityFlag_Static : 0);
-    Stored->SimVariant.MeshHandle     = MeshHandle;
-    Stored->SimVariant.MaterialHandle = MaterialHandle;
-
-    PhysicsSetMass(&GameState->Physics, &Stored->SimVariant, Static);
-
-    return StorageIndex;
-}
-
-internal uint32 AddEntity(game_state *GameState, entity_type Type, Vector3 Offset, uint32 MeshHandle, uint32 MaterialHandle, bool32 Static, const char *Name)
-{
-    return AddEntityAt(GameState, Type, MapIntoChunkSpace(GameState->World, WorldOrigin(), Offset), MeshHandle, MaterialHandle, Static, Name);
-}
-
-internal void ClearSpawnedEntities(game_state *GameState)
-{
-    entity_storage *Storage = &GameState->Storage;
-
-    for (uint32 StorageIndex = 1; StorageIndex < Storage->Count; ++StorageIndex)
-    {
-        low_entity *Stored = Storage->LowEntities + StorageIndex;
-
-        if (Stored->SimVariant.Type == Entity_Null || (Stored->SimVariant.Flags & EntityFlag_Static))
-        {
-            continue;
-        }
-
-        ChangeEntityLocation(&GameState->WorldArena, GameState->World, Storage, StorageIndex, NullWorldPosition());
-
-        RemoveLowEntity(Storage, StorageIndex);
-    }
-
-    GameState->Gizmo.Selected = ENTITY_STORAGE_NONE;
-}
-
-internal void ShootBall(game_state *GameState, sim_region *Region, ray Aim)
-{
-    world_position P = MapIntoChunkSpace(GameState->World, Region->Origin, Aim.Origin + Aim.Direction);
-
-    uint32 StorageIndex = AddEntityAt(GameState, Entity_Ball, P, GameState->SpawnMeshHandles[1], GameState->SpawnMaterialHandles[0], false, 0);
-    if (StorageIndex == ENTITY_STORAGE_NONE)
-    {
-        return;
-    }
-
-    low_entity *Stored = GetLowEntity(&GameState->Storage, StorageIndex);
-    Stored->SimVariant.dPosition = Aim.Direction * BALL_SPEED;
-
-    Vector3 SimSpaceP = GetSimSpacePosition(Region, Stored);
-    AddEntityToRegion(Region, StorageIndex, Stored, SimSpaceP, SimSpaceP);
-}
-
 internal void PushEntitiesToRender(sim_region *Region, render_commands *Commands, real32 Alpha, uint32 HighlightIndex, Vector4 HighlightColor)
 {
     for (uint32 Index = 0; Index < Region->EntityCount; ++Index)
@@ -149,7 +87,7 @@ internal void PushEntitiesToRender(sim_region *Region, render_commands *Commands
         }
 
         Vector4 Tint = Entity->Tint;
-        if (Entity->StorageIndex == HighlightIndex)
+        if (Entity->LowStorageIndex == HighlightIndex)
         {
             Tint = Vector4(HighlightColor.X, HighlightColor.Y, HighlightColor.Z, Tint.W);
         }
@@ -167,7 +105,7 @@ internal void UpdateDebugPanel(game_state *GameState, ui_context *UI)
 
     if (UILabeledButton(UI, Assets, Font, "spawn", RectMinDim(20.0f, 66.0f, 140.0f, 36.0f)))
     {
-        AddEntity(GameState, Entity_Prop, Vector3(0.0f, 3.0f, 0.0f), GameState->SpawnMeshHandles[0], GameState->SpawnMaterialHandles[0], false, 0);
+        AddEntity(GameState, Entity_Prop, TransformAt(Vector3(0.0f, 3.0f, 0.0f)), GameState->SpawnMeshHandles[0], GameState->SpawnMaterialHandles[0], false, 0);
     }
 
     if (UILabeledButton(UI, Assets, Font, "clear", RectMinDim(20.0f, 112.0f, 140.0f, 36.0f)))
@@ -226,11 +164,11 @@ internal void InitTools(game_state *GameState)
     materials   *Materials = &GameState->Materials;
 
     uint32 AxisMeshes[GIZMO_AXIS_COUNT];
-    AxisMeshes[0] = AssetMeshHandle(Assets, "gizmo_axis_x");
-    AxisMeshes[1] = AssetMeshHandle(Assets, "gizmo_axis_y");
-    AxisMeshes[2] = AssetMeshHandle(Assets, "gizmo_axis_z");
+    AxisMeshes[0] = GetAssetMeshHandle(Assets, "gizmo_axis_x");
+    AxisMeshes[1] = GetAssetMeshHandle(Assets, "gizmo_axis_y");
+    AxisMeshes[2] = GetAssetMeshHandle(Assets, "gizmo_axis_z");
 
-    uint32 GizmoMaterial = AddMaterial(Materials, OverlayMaterial(Vector4(1.0f, 1.0f, 1.0f, 1.0f), AssetTextureHandle(Assets, "test")));
+    uint32 GizmoMaterial = AddMaterial(Materials, OverlayMaterial(Vector4(1.0f, 1.0f, 1.0f, 1.0f), GetAssetTextureHandle(Assets, "test")));
 
     GameState->UI.Style       = DefaultUIStyle();
     GameState->Gizmo.Style    = DefaultGizmoStyle(AxisMeshes, GizmoMaterial);
@@ -244,14 +182,14 @@ internal void BuildTestScene(game_state *GameState)
 
     uint32 SphereMesh = GameState->SpawnMeshHandles[1];
 
-    GameState->SpawnMaterialHandles[0] = AddMaterial(Materials, UnlitMaterial(Vector4(1.0f, 1.0f, 1.0f, 1.0f), AssetTextureHandle(Assets, "test")));
+    GameState->SpawnMaterialHandles[0] = AddMaterial(Materials, UnlitMaterial(Vector4(1.0f, 1.0f, 1.0f, 1.0f), GetAssetTextureHandle(Assets, "test")));
     GameState->SpawnMaterialHandles[1] = GameState->SpawnMaterialHandles[0];
     GameState->SpawnMaterialHandles[2] = GameState->SpawnMaterialHandles[0];
 
     uint32 LitHandle   = AddMaterial(Materials, LitMaterial(Vector4(0.9f, 0.5f, 0.2f, 1.0f), 1.0f, 0.25f));
     uint32 FloorHandle = AddMaterial(Materials, LitMaterial(Vector4(0.45f, 0.45f, 0.5f, 1.0f), 0.0f, 0.7f));
 
-    AddEntity(GameState, Entity_Floor, Vector3(0.0f, -2.1f, 0.0f), AssetMeshHandle(Assets, "plane"), FloorHandle, true, "floor");
+    AddEntity(GameState, Entity_Floor, TransformAt(Vector3(0.0f, -2.1f, 0.0f)), GetAssetMeshHandle(Assets, "plane"), FloorHandle, true, "floor");
 
     for (uint32 Row = 0; Row < 2; ++Row)
     {
@@ -265,7 +203,7 @@ internal void BuildTestScene(game_state *GameState)
 
             Vector3 Position = Vector3(((real32)Column - 3.0f) * 1.3f, Metallic * 1.6f - 0.8f, -4.0f);
 
-            AddEntity(GameState, Entity_Prop, Position, SphereMesh, BallMaterial, true, 0);
+            AddEntity(GameState, Entity_Prop, TransformAt(Position), SphereMesh, BallMaterial, true, 0);
         }
     }
 
@@ -279,11 +217,11 @@ internal void BuildTestScene(game_state *GameState)
         uint32 Mesh     = GameState->SpawnMeshHandles[SpawnIndex % ArrayCount(GameState->SpawnMeshHandles)];
         uint32 Material = GameState->SpawnMaterialHandles[SpawnIndex % ArrayCount(GameState->SpawnMaterialHandles)];
 
-        AddEntity(GameState, Entity_Prop, Position, Mesh, Material, false, 0);
+        AddEntity(GameState, Entity_Prop, TransformAt(Position), Mesh, Material, false, 0);
     }
 
-    AddEntity(GameState, Entity_Prop, Vector3(-2.5f, 0.0f, 0.0f), GameState->SpawnMeshHandles[1], LitHandle, false, 0);
-    AddEntity(GameState, Entity_Prop, Vector3( 2.5f, 0.0f, 0.0f), GameState->SpawnMeshHandles[0], LitHandle, false, 0);
+    AddEntity(GameState, Entity_Prop, TransformAt(Vector3(-2.5f, 0.0f, 0.0f)), GameState->SpawnMeshHandles[1], LitHandle, false, 0);
+    AddEntity(GameState, Entity_Prop, TransformAt(Vector3( 2.5f, 0.0f, 0.0f)), GameState->SpawnMeshHandles[0], LitHandle, false, 0);
 }
 
 internal void InitGame(game_memory *Memory, game_state *GameState, render_commands *RenderCommands)
@@ -307,11 +245,11 @@ internal void InitGame(game_memory *Memory, game_state *GameState, render_comman
     PhysicsInit(&GameState->Physics, WorldArena, SIM_MAX_ENTITIES, Assets->MeshCount);
     BuildMeshShapes(GameState, WorldArena);
 
-    GameState->SkyHandle  = AssetCubemapHandle(Assets, "sky");
-    GameState->FontHandle = AssetFontHandle(Assets, "DejaVuSansMono24");
+    GameState->SkyHandle  = GetAssetCubemapHandle(Assets, "sky");
+    GameState->FontHandle = GetAssetFontHandle(Assets, "DejaVuSansMono24");
 
-    GameState->SpawnMeshHandles[0] = AssetMeshHandle(Assets, "cube");
-    GameState->SpawnMeshHandles[1] = AssetMeshHandle(Assets, "sphere");
+    GameState->SpawnMeshHandles[0] = GetAssetMeshHandle(Assets, "cube");
+    GameState->SpawnMeshHandles[1] = GetAssetMeshHandle(Assets, "sphere");
 
     InitTools(GameState);
     BuildTestScene(GameState);
@@ -374,9 +312,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
             if (Axis(Gizmo, &GameState->Assets, PickRay, &GizmoPosition))
             {
-                Selected->Position     = GizmoPosition;
-                Selected->PrevPosition = GizmoPosition;
-                Selected->dPosition    = Vector3(0.0f, 0.0f, 0.0f);
+                SimEntitySetPosition(Selected, GizmoPosition);
             }
         }
 

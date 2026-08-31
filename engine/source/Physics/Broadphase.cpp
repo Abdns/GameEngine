@@ -1,6 +1,9 @@
+#pragma once
+
 #include "Types.h"
 #include "EngineMath.h"
 #include "Memory.h"
+#include "SimEntity.cpp"
 
 struct body_pair
 {

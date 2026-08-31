@@ -41,7 +41,6 @@ set CommonCompilerFlags=-MTd^
  -FC^
  -Z7^
  -I..\shared^
- -I..\third_party^
  -I..\engine\source^
  -I..\engine\source\Physics^
  -I..\engine\source\Assets^
@@ -60,7 +59,8 @@ set CommonLinkerFlags=-incremental:no^
 cl %CommonCompilerFlags%^
  ..\tools\AssetBuilder\AssetBuilder.cpp^
  -FeAssetBuilder.exe^
- /link %CommonLinkerFlags%
+ /link %CommonLinkerFlags%^
+ gdi32.lib
 if errorlevel 1 goto :failed
 .\AssetBuilder.exe
 if errorlevel 1 goto :failed

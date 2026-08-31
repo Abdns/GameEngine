@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Types.h"
 #include "Memory.h"
 #include "Strings.h"
@@ -51,12 +53,13 @@ struct asset_store
     uint32 *CubemapFormat;
     uint32  CubemapCount, CubemapCapacity;
 
-    char            *FontNames;
+    char   *FontNames;
     asset_font_info *FontInfo;
-    uint32          *FontTextureHandle;
-    uint16          *FontMap;
-    real32          *FontAdvance;
-    uint32           FontCount, FontCapacity;
+    uint32 *FontTextureHandle;
+    uint16 *FontMap;
+    real32 *FontAdvance;
+    uint32  FontCount, FontCapacity;
+
 };
 
 struct asset_pack
@@ -441,7 +444,7 @@ internal void AssetStoreLoadPack(asset_store *Store, void *PackData, uint32 Pack
              Store->MeshCount, Store->VertexUsed, Store->IndexUsed, Store->TextureCount, Store->CubemapCount, Store->FontCount, Store->PixelByteUsed);
 }
 
-internal uint32 AssetHandleFromName(char *Names, uint32 Count, const char *Name)
+internal uint32 AssetHandleByName(char *Names, uint32 Count, const char *Name)
 {
     for (uint32 Index = 0; Index < Count; ++Index)
     {
@@ -454,33 +457,33 @@ internal uint32 AssetHandleFromName(char *Names, uint32 Count, const char *Name)
     return ASSET_HANDLE_NONE;
 }
 
-internal uint32 AssetMeshHandle(asset_store *Store, const char *Name)
+internal uint32 GetAssetMeshHandle(asset_store *Store, const char *Name)
 {
-    uint32 Handle = AssetHandleFromName(Store->MeshNames, Store->MeshCount, Name);
+    uint32 Handle = AssetHandleByName(Store->MeshNames, Store->MeshCount, Name);
     Assert(Handle != ASSET_HANDLE_NONE);
 
     return Handle;
 }
 
-internal uint32 AssetTextureHandle(asset_store *Store, const char *Name)
+internal uint32 GetAssetTextureHandle(asset_store *Store, const char *Name)
 {
-    uint32 Handle = AssetHandleFromName(Store->TextureNames, Store->TextureCount, Name);
+    uint32 Handle = AssetHandleByName(Store->TextureNames, Store->TextureCount, Name);
     Assert(Handle != ASSET_HANDLE_NONE);
 
     return Handle;
 }
 
-internal uint32 AssetCubemapHandle(asset_store *Store, const char *Name)
+internal uint32 GetAssetCubemapHandle(asset_store *Store, const char *Name)
 {
-    uint32 Handle = AssetHandleFromName(Store->CubemapNames, Store->CubemapCount, Name);
+    uint32 Handle = AssetHandleByName(Store->CubemapNames, Store->CubemapCount, Name);
     Assert(Handle != ASSET_HANDLE_NONE);
 
     return Handle;
 }
 
-internal uint32 AssetFontHandle(asset_store *Store, const char *Name)
+internal uint32 GetAssetFontHandle(asset_store *Store, const char *Name)
 {
-    uint32 Handle = AssetHandleFromName(Store->FontNames, Store->FontCount, Name);
+    uint32 Handle = AssetHandleByName(Store->FontNames, Store->FontCount, Name);
     Assert(Handle != ASSET_HANDLE_NONE);
 
     return Handle;

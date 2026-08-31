@@ -1,6 +1,9 @@
+#pragma once
+
 #include "Types.h"
 #include "EngineMath.h"
 #include "Memory.h"
+#include "EntityStorage.cpp"
 
 #define SIM_HASH_SIZE           4096
 #define SIM_MAX_ENTITY_RADIUS   16.0f
@@ -98,7 +101,7 @@ internal sim_entity *AddEntityRaw(sim_region *Region, uint32 StorageIndex, low_e
         ZeroStruct(*Entity);
     }
 
-    Entity->StorageIndex = StorageIndex;
+    Entity->LowStorageIndex = StorageIndex;
     Entity->Updatable    = false;
 
     return Entity;
@@ -110,8 +113,8 @@ internal sim_entity *AddEntityToRegion(sim_region *Region, uint32 StorageIndex, 
 
     if (Entity)
     {
-        Entity->Position         = SimSpaceP;
-        Entity->PrevPosition     = SimSpacePrevP;
+        Entity->Current.Position         = SimSpaceP;
+        Entity->Previous.Position     = SimSpacePrevP;
         Entity->Updatable = Rect3Contains(Region->UpdatableBounds, SimSpaceP);
     }
 
@@ -137,8 +140,8 @@ internal void LoadEntityReference(sim_region *Region, sim_entity_reference *Refe
             Entity = AddEntityRaw(Region, StorageIndex, Stored);
             if (Entity)
             {
-                Entity->Position     = GetSimSpacePosition(Region, Stored);
-                Entity->PrevPosition = WorldSubtract(Region->World, &Stored->PrevPosition, &Region->Origin);
+                Entity->Current.Position     = GetSimSpacePosition(Region, Stored);
+                Entity->Previous.Position = WorldSubtract(Region->World, &Stored->PrevPosition, &Region->Origin);
             }
         }
     }
@@ -148,7 +151,7 @@ internal void LoadEntityReference(sim_region *Region, sim_entity_reference *Refe
 
 internal void StoreEntityReference(sim_entity_reference *Reference)
 {
-    Reference->Index = Reference->Ptr ? Reference->Ptr->StorageIndex : ENTITY_STORAGE_NONE;
+    Reference->Index = Reference->Ptr ? Reference->Ptr->LowStorageIndex : ENTITY_STORAGE_NONE;
 }
 
 internal sim_region *BeginSim(memory_arena *SimArena, world *World, entity_storage *Storage, world_position Origin, rectangle3 UpdatableBounds, uint32 MaxEntityCount)
@@ -220,11 +223,11 @@ internal void EndSim(sim_region *Region, memory_arena *Arena)
     for (uint32 Index = 0; Index < Region->EntityCount; ++Index)
     {
         sim_entity *Entity = Region->Entities + Index;
-        low_entity *Stored = Storage->LowEntities + Entity->StorageIndex;
+        low_entity *Stored = Storage->LowEntities + Entity->LowStorageIndex;
 
         Stored->SimVariant   = *Entity;
-        Stored->PrevPosition = MapIntoChunkSpace(World, Region->Origin, Entity->PrevPosition);
+        Stored->PrevPosition = MapIntoChunkSpace(World, Region->Origin, Entity->Previous.Position);
 
-        ChangeEntityLocation(Arena, World, Storage, Entity->StorageIndex, MapIntoChunkSpace(World, Region->Origin, Entity->Position));
+        ChangeEntityLocation(Arena, World, Storage, Entity->LowStorageIndex, MapIntoChunkSpace(World, Region->Origin, Entity->Current.Position));
     }
 }

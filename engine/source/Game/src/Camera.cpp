@@ -1,7 +1,10 @@
+#pragma once
+
 #include "Types.h"
 #include "EngineMath.h"
 #include "Input.h"
 #include "PlatformAPI.h"
+#include "World.cpp"
 
 struct camera
 {

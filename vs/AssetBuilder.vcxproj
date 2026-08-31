@@ -23,7 +23,7 @@
     <NMakeCleanCommandLine>if exist "$(ProjectDir)..\build" rd /s /q "$(ProjectDir)..\build"</NMakeCleanCommandLine>
     <NMakeOutput>$(ProjectDir)..\build\AssetBuilder.exe</NMakeOutput>
     <NMakePreprocessorDefinitions>ENGINE_INTERNAL=1;ENGINE_SLOW=1;ENGINE_WIN32=1;UNICODE;_UNICODE;_DEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
-    <NMakeIncludeSearchPath>$(ProjectDir)..\tools\AssetBuilder;$(ProjectDir)..\shared;$(ProjectDir)..\third_party;$(VC_IncludePath);$(WindowsSDK_IncludePath);$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
+    <NMakeIncludeSearchPath>$(ProjectDir)..\tools\AssetBuilder;$(ProjectDir)..\shared;$(VC_IncludePath);$(WindowsSDK_IncludePath);$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
     <LocalDebuggerCommand>$(ProjectDir)..\build\AssetBuilder.exe</LocalDebuggerCommand>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)..\build</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
@@ -40,7 +40,6 @@
     <ClInclude Include="..\tools\AssetBuilder\Loaders\Cubemap.h" />
     <ClInclude Include="..\tools\AssetBuilder\Loaders\Font.h" />
     <ClInclude Include="..\tools\AssetBuilder\Loaders\Json.h" />
-    <ClInclude Include="..\third_party\stb_truetype.h" />
     <ClInclude Include="..\shared\EngaFormat.h" />
     <ClInclude Include="..\shared\Half.h" />
     <ClInclude Include="..\shared\Memory.h" />

@@ -42,7 +42,12 @@
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\platformapi\\platformapi.h",
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\shared\\strings.h",
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\platformapi\\rendercommands.h",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\game\\include\\input.h"
+            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\game\\include\\input.h",
+            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\game\\src\\text.cpp",
+            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\shared\\engaformat.h",
+            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\assets\\assetstore.cpp",
+            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\shared\\memory.h",
+            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\physics\\collider.h"
         ],
         "ImportedModules": [],
         "ImportedHeaderUnits": []

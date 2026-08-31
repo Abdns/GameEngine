@@ -4,10 +4,51 @@
 #include "Types.h"
 #include "Intrinsics.h"
 
+// =============================================================================
+// Scalar
+// =============================================================================
+
+#define REAL32_LARGE 1.0e30f
+
+#define Square(x)     ((x) * (x))
+#define Minimum(a, b) ((a) < (b) ? (a) : (b))
+#define Maximum(a, b) ((a) > (b) ? (a) : (b))
+
 inline real32 DegToRad(real32 Degrees)
 {
     return Degrees * (Pi32 / 180.0f);
 }
+
+inline real32 Lerp(real32 A, real32 t, real32 B)
+{
+    return (1.0f - t) * A + t * B;
+}
+
+inline real32 Clamp(real32 Min, real32 Value, real32 Max)
+{
+    real32 Result = Value;
+
+    if (Result < Min)
+    {
+        Result = Min;
+    }
+
+    if (Result > Max)
+    {
+        Result = Max;
+    }
+
+    return Result;
+}
+
+inline real32 Clamp01(real32 Value)
+{
+    return Clamp(0.0f, Value, 1.0f);
+}
+
+// =============================================================================
+// Vector2
+// =============================================================================
 
 union Vector2
 {
@@ -52,6 +93,10 @@ inline Vector2 &operator-=(Vector2 &A, Vector2 B)
     return A;
 }
 
+// =============================================================================
+// Vector3
+// =============================================================================
+
 union Vector3
 {
     struct { real32 X, Y, Z; };
@@ -85,12 +130,14 @@ inline Vector3 operator*(Vector3 A, real32 S)
 inline Vector3 &operator+=(Vector3 &A, Vector3 B)
 {
     A = A + B;
+
     return A;
 }
 
 inline Vector3 &operator-=(Vector3 &A, Vector3 B)
 {
     A = A - B;
+
     return A;
 }
 
@@ -123,8 +170,13 @@ inline Vector3 Normalize(Vector3 A)
     {
         return (1.0f / Len) * A;
     }
+
     return A;
 }
+
+// =============================================================================
+// Vector4
+// =============================================================================
 
 union Vector4
 {
@@ -136,144 +188,9 @@ union Vector4
     Vector4(real32 InX, real32 InY, real32 InZ, real32 InW) { X = InX; Y = InY; Z = InZ; W = InW; }
 };
 
-struct Matrix4
-{
-    real32 Elements[4][4];
-};
-
-inline Matrix4 Mat4Identity(void)
-{
-    Matrix4 Result = {};
-    Result.Elements[0][0] = 1.0f;
-    Result.Elements[1][1] = 1.0f;
-    Result.Elements[2][2] = 1.0f;
-    Result.Elements[3][3] = 1.0f;
-
-    return Result;
-}
-
-inline Matrix4 Mat4Multiply(Matrix4 A, Matrix4 B)
-{
-    Matrix4 Result = {};
-    for (int Column = 0; Column < 4; ++Column)
-    {
-        for (int Row = 0; Row < 4; ++Row)
-        {
-            real32 Sum = 0.0f;
-            for (int Inner = 0; Inner < 4; ++Inner)
-            {
-                Sum += A.Elements[Inner][Row] * B.Elements[Column][Inner];
-            }
-            Result.Elements[Column][Row] = Sum;
-        }
-    }
-
-    return Result;
-}
-
-inline Matrix4 Mat4Translation(real32 X, real32 Y, real32 Z)
-{
-    Matrix4 Result = Mat4Identity();
-    Result.Elements[3][0] = X;
-    Result.Elements[3][1] = Y;
-    Result.Elements[3][2] = Z;
-
-    return Result;
-}
-
-inline Matrix4 Mat4RotationX(real32 Angle)
-{
-    real32 Cosine = Cos(Angle);
-    real32 Sine   = Sin(Angle);
-    Matrix4 Result = Mat4Identity();
-    Result.Elements[1][1] =  Cosine;
-    Result.Elements[1][2] =  Sine;
-    Result.Elements[2][1] = -Sine;
-    Result.Elements[2][2] =  Cosine;
-
-    return Result;
-}
-
-inline Matrix4 Mat4RotationY(real32 Angle)
-{
-    real32 Cosine = Cos(Angle);
-    real32 Sine   = Sin(Angle);
-    Matrix4 Result = Mat4Identity();
-    Result.Elements[0][0] =  Cosine;
-    Result.Elements[0][2] = -Sine;
-    Result.Elements[2][0] =  Sine;
-    Result.Elements[2][2] =  Cosine;
-
-    return Result;
-}
-
-inline Matrix4 Mat4RotationZ(real32 Angle)
-{
-    real32 Cosine = Cos(Angle);
-    real32 Sine   = Sin(Angle);
-    Matrix4 Result = Mat4Identity();
-    Result.Elements[0][0] =  Cosine;
-    Result.Elements[0][1] =  Sine;
-    Result.Elements[1][0] = -Sine;
-    Result.Elements[1][1] =  Cosine;
-
-    return Result;
-}
-
-inline Matrix4 Mat4Perspective(real32 FovYRadians, real32 Aspect, real32 Near, real32 Far)
-{
-    real32 TanHalf = tanf(FovYRadians * 0.5f);
-    Matrix4 Result = {};
-    Result.Elements[0][0] = 1.0f / (Aspect * TanHalf);
-    Result.Elements[1][1] = -1.0f / TanHalf;
-    Result.Elements[2][2] = Far / (Near - Far);
-    Result.Elements[2][3] = -1.0f;
-    Result.Elements[3][2] = (Far * Near) / (Near - Far);
-
-    return Result;
-}
-
-inline Matrix4 Mat4InverseRigid(Matrix4 M)
-{
-    Matrix4 Result = Mat4Identity();
-
-    for (int Column = 0; Column < 3; ++Column)
-    {
-        for (int Row = 0; Row < 3; ++Row)
-        {
-            Result.Elements[Column][Row] = M.Elements[Row][Column];
-        }
-    }
-
-    real32 Tx = M.Elements[3][0];
-    real32 Ty = M.Elements[3][1];
-    real32 Tz = M.Elements[3][2];
-
-    Result.Elements[3][0] = -(Result.Elements[0][0] * Tx + Result.Elements[1][0] * Ty + Result.Elements[2][0] * Tz);
-    Result.Elements[3][1] = -(Result.Elements[0][1] * Tx + Result.Elements[1][1] * Ty + Result.Elements[2][1] * Tz);
-    Result.Elements[3][2] = -(Result.Elements[0][2] * Tx + Result.Elements[1][2] * Ty + Result.Elements[2][2] * Tz);
-
-    return Result;
-}
-
-inline Vector3 Mat4Transform(Matrix4 M, Vector3 V, real32 W)
-{
-    return Vector3(M.Elements[0][0] * V.X + M.Elements[1][0] * V.Y + M.Elements[2][0] * V.Z + M.Elements[3][0] * W,
-                   M.Elements[0][1] * V.X + M.Elements[1][1] * V.Y + M.Elements[2][1] * V.Z + M.Elements[3][1] * W,
-                   M.Elements[0][2] * V.X + M.Elements[1][2] * V.Y + M.Elements[2][2] * V.Z + M.Elements[3][2] * W);
-}
-
-inline Vector3 Mat4Column(Matrix4 M, int Column)
-{
-    return Vector3(M.Elements[Column][0], M.Elements[Column][1], M.Elements[Column][2]);
-}
-
-inline void Mat4SetColumn(Matrix4 *M, int Column, Vector3 V)
-{
-    M->Elements[Column][0] = V.X;
-    M->Elements[Column][1] = V.Y;
-    M->Elements[Column][2] = V.Z;
-}
+// =============================================================================
+// Quaternion
+// =============================================================================
 
 union Quaternion
 {
@@ -365,6 +282,140 @@ inline Quaternion QuatNLerp(Quaternion A, Quaternion B, real32 T)
                                     A.W + T * (Sign * B.W - A.W)));
 }
 
+// =============================================================================
+// Matrix4
+// =============================================================================
+
+struct Matrix4
+{
+    real32 Elements[4][4];
+};
+
+inline Matrix4 Mat4Identity(void)
+{
+    Matrix4 Result = {};
+    Result.Elements[0][0] = 1.0f;
+    Result.Elements[1][1] = 1.0f;
+    Result.Elements[2][2] = 1.0f;
+    Result.Elements[3][3] = 1.0f;
+
+    return Result;
+}
+
+inline Matrix4 Mat4Multiply(Matrix4 A, Matrix4 B)
+{
+    Matrix4 Result = {};
+    for (int Column = 0; Column < 4; ++Column)
+    {
+        for (int Row = 0; Row < 4; ++Row)
+        {
+            real32 Sum = 0.0f;
+            for (int Inner = 0; Inner < 4; ++Inner)
+            {
+                Sum += A.Elements[Inner][Row] * B.Elements[Column][Inner];
+            }
+            Result.Elements[Column][Row] = Sum;
+        }
+    }
+
+    return Result;
+}
+
+inline Matrix4 Mat4Translation(real32 X, real32 Y, real32 Z)
+{
+    Matrix4 Result = Mat4Identity();
+    Result.Elements[3][0] = X;
+    Result.Elements[3][1] = Y;
+    Result.Elements[3][2] = Z;
+
+    return Result;
+}
+
+inline Matrix4 Mat4Scale(Vector3 Scale)
+{
+    Matrix4 Result = Mat4Identity();
+    Result.Elements[0][0] = Scale.X;
+    Result.Elements[1][1] = Scale.Y;
+    Result.Elements[2][2] = Scale.Z;
+
+    return Result;
+}
+
+inline Matrix4 Mat4RotationX(real32 Angle)
+{
+    real32 Cosine = Cos(Angle);
+    real32 Sine   = Sin(Angle);
+    Matrix4 Result = Mat4Identity();
+    Result.Elements[1][1] =  Cosine;
+    Result.Elements[1][2] =  Sine;
+    Result.Elements[2][1] = -Sine;
+    Result.Elements[2][2] =  Cosine;
+
+    return Result;
+}
+
+inline Matrix4 Mat4RotationY(real32 Angle)
+{
+    real32 Cosine = Cos(Angle);
+    real32 Sine   = Sin(Angle);
+    Matrix4 Result = Mat4Identity();
+    Result.Elements[0][0] =  Cosine;
+    Result.Elements[0][2] = -Sine;
+    Result.Elements[2][0] =  Sine;
+    Result.Elements[2][2] =  Cosine;
+
+    return Result;
+}
+
+inline Matrix4 Mat4RotationZ(real32 Angle)
+{
+    real32 Cosine = Cos(Angle);
+    real32 Sine   = Sin(Angle);
+    Matrix4 Result = Mat4Identity();
+    Result.Elements[0][0] =  Cosine;
+    Result.Elements[0][1] =  Sine;
+    Result.Elements[1][0] = -Sine;
+    Result.Elements[1][1] =  Cosine;
+
+    return Result;
+}
+
+inline Matrix4 Mat4Perspective(real32 FovYRadians, real32 Aspect, real32 Near, real32 Far)
+{
+    real32 TanHalf = tanf(FovYRadians * 0.5f);
+    Matrix4 Result = {};
+    Result.Elements[0][0] = 1.0f / (Aspect * TanHalf);
+    Result.Elements[1][1] = -1.0f / TanHalf;
+    Result.Elements[2][2] = Far / (Near - Far);
+    Result.Elements[2][3] = -1.0f;
+    Result.Elements[3][2] = (Far * Near) / (Near - Far);
+
+    return Result;
+}
+
+inline Matrix4 Mat4InverseRigid(Matrix4 M)
+{
+    Matrix4 Result = Mat4Identity();
+
+    for (int Column = 0; Column < 3; ++Column)
+    {
+        for (int Row = 0; Row < 3; ++Row)
+        {
+            Result.Elements[Column][Row] = M.Elements[Row][Column];
+        }
+    }
+
+    real32 Tx = M.Elements[3][0];
+    real32 Ty = M.Elements[3][1];
+    real32 Tz = M.Elements[3][2];
+
+    Result.Elements[3][0] = -(Result.Elements[0][0] * Tx + Result.Elements[1][0] * Ty + Result.Elements[2][0] * Tz);
+    Result.Elements[3][1] = -(Result.Elements[0][1] * Tx + Result.Elements[1][1] * Ty + Result.Elements[2][1] * Tz);
+    Result.Elements[3][2] = -(Result.Elements[0][2] * Tx + Result.Elements[1][2] * Ty + Result.Elements[2][2] * Tz);
+
+    return Result;
+}
+
 inline Matrix4 Mat4FromQuaternion(Quaternion Q)
 {
     real32 X2 = Q.X + Q.X;
@@ -404,6 +455,73 @@ inline Matrix4 Mat4Rigid(Vector3 Position, Quaternion Orientation)
 
     return Result;
 }
+
+inline Vector3 Mat4Transform(Matrix4 M, Vector3 V, real32 W)
+{
+    return Vector3(M.Elements[0][0] * V.X + M.Elements[1][0] * V.Y + M.Elements[2][0] * V.Z + M.Elements[3][0] * W,
+                   M.Elements[0][1] * V.X + M.Elements[1][1] * V.Y + M.Elements[2][1] * V.Z + M.Elements[3][1] * W,
+                   M.Elements[0][2] * V.X + M.Elements[1][2] * V.Y + M.Elements[2][2] * V.Z + M.Elements[3][2] * W);
+}
+
+inline Vector3 Mat4Column(Matrix4 M, int Column)
+{
+    return Vector3(M.Elements[Column][0], M.Elements[Column][1], M.Elements[Column][2]);
+}
+
+inline void Mat4SetColumn(Matrix4 *M, int Column, Vector3 V)
+{
+    M->Elements[Column][0] = V.X;
+    M->Elements[Column][1] = V.Y;
+    M->Elements[Column][2] = V.Z;
+}
+
+// =============================================================================
+// Transform
+// =============================================================================
+
+struct transform
+{
+    Vector3    Position;
+    Quaternion Orientation;
+    Vector3    Scale;
+};
+
+inline transform TransformIdentity(void)
+{
+    transform Result;
+    Result.Position    = Vector3(0.0f, 0.0f, 0.0f);
+    Result.Orientation = QuatIdentity();
+    Result.Scale       = Vector3(1.0f, 1.0f, 1.0f);
+
+    return Result;
+}
+
+inline transform TransformAt(Vector3 Position)
+{
+    transform Result = TransformIdentity();
+    Result.Position = Position;
+
+    return Result;
+}
+
+inline transform TransformLerp(transform A, transform B, real32 T)
+{
+    transform Result;
+    Result.Position    = A.Position + T * (B.Position - A.Position);
+    Result.Orientation = QuatNLerp(A.Orientation, B.Orientation, T);
+    Result.Scale       = A.Scale + T * (B.Scale - A.Scale);
+
+    return Result;
+}
+
+inline Matrix4 Mat4FromTransform(transform T)
+{
+    return Mat4Multiply(Mat4Rigid(T.Position, T.Orientation), Mat4Scale(T.Scale));
+}
+
+// =============================================================================
+// Rectangle3
+// =============================================================================
 
 struct rectangle3
 {
@@ -449,7 +567,9 @@ inline bool32 Rect3Contains(rectangle3 Rect, Vector3 P)
             P.Z >= Rect.Min.Z && P.Z <= Rect.Max.Z);
 }
 
-#define REAL32_LARGE 1.0e30f
+// =============================================================================
+// Ray
+// =============================================================================
 
 struct ray
 {
@@ -470,29 +590,6 @@ inline ray RayFromScreen(real32 MouseX, real32 MouseY, real32 ViewportWidth, rea
     Result.Direction = Normalize(CameraRight * (NdcX * TanHalf * Aspect) + CameraUp * (NdcY * TanHalf) + CameraForward);
 
     return Result;
-}
-
-#define Square(x)     ((x) * (x))
-#define Minimum(a, b) ((a) < (b) ? (a) : (b))
-#define Maximum(a, b) ((a) > (b) ? (a) : (b))
-
-inline real32 Lerp(real32 A, real32 t, real32 B)
-{
-    return (1.0f - t) * A + t * B;
-}
-
-inline real32 Clamp(real32 Min, real32 Value, real32 Max)
-{
-    real32 Result = Value;
-    if (Result < Min) Result = Min;
-    if (Result > Max) Result = Max;
-
-    return Result;
-}
-
-inline real32 Clamp01(real32 Value)
-{
-    return Clamp(0.0f, Value, 1.0f);
 }
 
 #endif

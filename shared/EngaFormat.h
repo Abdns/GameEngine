@@ -4,7 +4,7 @@
 #include "Types.h"
 
 #define ENGA_MAGIC   (((uint32)'E') | ((uint32)'N' << 8) | ((uint32)'G' << 16) | ((uint32)'A' << 24))
-#define ENGA_VERSION 8
+#define ENGA_VERSION 9
 
 #define ENGA_MAX_ASSET_NAME 32
 #define ENGA_MAX_CODEPOINT  1120
@@ -70,7 +70,6 @@ struct asset_font_info
     uint32 CellWidth;
     uint32 CellHeight;
     real32 OriginX;
-    real32 OriginY;
     real32 LineAdvance;
 };
 

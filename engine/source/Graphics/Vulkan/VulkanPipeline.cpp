@@ -1,5 +1,5 @@
-#include "Vulkan.h"
 #include "Strings.h"
+#include "Vulkan.h"
 
 internal vulkan_shader LoadShader(const char *name)
 {

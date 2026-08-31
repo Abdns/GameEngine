@@ -3,6 +3,14 @@
 
 #include "Types.h"
 #include "Memory.h"
+#include "Input.h"
+#include "AssetStore.cpp"
+#include "Material.cpp"
+#include "EntityStorage.cpp"
+#include "Physics.cpp"
+#include "Camera.cpp"
+#include "UI.cpp"
+#include "Gizmo.cpp"
 
 struct game_state
 {

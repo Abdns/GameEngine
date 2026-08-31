@@ -120,10 +120,8 @@ internal void AddAsset(enga_asset_table *Table, asset_source Source)
     Table->Count++;
 }
 
-internal void LoadFont(enga_asset_table *Table, memory_arena *Arena, const char *Path, const char *Name, real32 PixelHeight, uint32 AtlasSize)
+internal void LoadFont(enga_asset_table *Table, memory_arena *Arena, const char *Path, const char *FaceName, const char *Name, int32 PixelHeight, uint32 AtlasSize)
 {
-    file_data File = ReadAssetFile(Path);
-
     int32 Ranges[][2] =
     {
         {   32,  126 },
@@ -143,7 +141,7 @@ internal void LoadFont(enga_asset_table *Table, memory_arena *Arena, const char 
         }
     }
 
-    loaded_font Font = BakeFont(Arena, File.Data, PixelHeight, Codepoints, Count, AtlasSize);
+    loaded_font Font = BakeFont(Arena, Path, FaceName, PixelHeight, Codepoints, Count, AtlasSize);
 
     asset_source FontAsset = {};
     FontAsset.Type = Asset_Font;
@@ -291,7 +289,7 @@ int main(int ArgCount, char **Args)
     LoadGLTF(&Table, &Arena, "..\\assets\\models\\TestShapes\\TestShapes.gltf");
     LoadGLTF(&Table, &Arena, "..\\assets\\models\\Gizmo\\Gizmo.gltf");
     LoadSkyCubemap(&Table, &Arena, "..\\assets\\images\\sky.hdr", "sky", 512);
-    LoadFont(&Table, &Arena, "..\\assets\\fonts\\DejaVuSansMono.ttf", "DejaVuSansMono24", 24.0f, 256);
+    LoadFont(&Table, &Arena, "..\\assets\\fonts\\DejaVuSansMono.ttf", "DejaVu Sans Mono", "DejaVuSansMono24", 24, 256);
     CreateENGA(&Table, OutPath);
 
     DebugLog("AssetBuilder: '%s' written (%u assets)\n", OutPath, Table.Count);

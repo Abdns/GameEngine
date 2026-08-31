@@ -1,7 +1,8 @@
+#pragma once
+
 #include "Types.h"
 #include "EngineMath.h"
 #include "Memory.h"
-
 #define WORLD_CHUNK_HASH_SIZE        4096
 #define WORLD_ENTITIES_PER_BLOCK     16
 #define WORLD_CHUNK_UNINITIALIZED    INT32_MAX

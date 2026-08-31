@@ -34,9 +34,6 @@
     <Filter Include="EngaAsset">
       <UniqueIdentifier>{b1000000-0000-0000-0000-000000000014}</UniqueIdentifier>
     </Filter>
-    <Filter Include="third_party">
-      <UniqueIdentifier>{b1000000-0000-0000-0000-000000000015}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\tools\AssetBuilder\AssetBuilder.cpp">
@@ -61,9 +58,6 @@
     </ClInclude>
     <ClInclude Include="..\tools\AssetBuilder\Loaders\Json.h">
       <Filter>tools\AssetBuilder\Loaders</Filter>
-    </ClInclude>
-    <ClInclude Include="..\third_party\stb_truetype.h">
-      <Filter>third_party</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\EngaFormat.h">
       <Filter>shared</Filter>
