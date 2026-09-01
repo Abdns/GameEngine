@@ -27,6 +27,8 @@ typedef double real64;
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
+#define HashSlotIndex(Table, HashValue) ((uint32)((HashValue) & (ArrayCount(Table) - 1)))
+
 #define AlignPow2(Value, Alignment) (((Value) + ((Alignment) - 1)) & ~((Alignment) - 1))
 
 #define Kilobytes(Value) ((Value) * 1024LL)

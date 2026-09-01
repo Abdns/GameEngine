@@ -46,6 +46,7 @@ set CommonCompilerFlags=-MTd^
  -I..\engine\source\Assets^
  -I..\engine\source\Game\include^
  -I..\engine\source\Game\src^
+ -I..\engine\source\Game\src\UI^
  -I..\engine\source\PlatformApi^
  -I..\engine\source\Platform\win32\include^
  -I..\engine\source\Platform\win32\src^

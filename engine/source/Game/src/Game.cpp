@@ -20,6 +20,7 @@
 #include "GameState.h"
 
 #include "EntitySpawn.cpp"
+#include "EditorUI.cpp"
 
 #define FRAME_ARENA_SIZE      Megabytes(8)
 #define WORLD_CHUNK_DIM       16.0f
@@ -94,45 +95,6 @@ internal void PushEntitiesToRender(sim_region *Region, render_commands *Commands
         }
 
         PushRenderMesh(Commands, SimEntityRenderTransform(Entity, Alpha), Tint, Entity->MeshHandle, Entity->MaterialHandle);
-    }
-}
-
-internal void UpdateDebugPanel(game_state *GameState, ui_context *UI)
-{
-    ui_layout Layout = UIBeginPanel(UI, Vector2(20.0f, 20.0f), 140.0f);
-
-    UICheckBox(&Layout, "pause", &GameState->Paused);
-
-    if (UIButton(&Layout, "spawn"))
-    {
-        AddEntityFromPreset(GameState, GetPresetIndex(&GameState->Presets, "cube"), WorldOrigin(), Vector3(0.0f, 0.0f, 0.0f));
-    }
-
-    if (UIButton(&Layout, "clear"))
-    {
-        ClearSpawnedEntities(GameState);
-    }
-
-    UIDragReal32(&Layout, "fov", &GameState->Camera.FovY, 0.004f);
-    GameState->Camera.FovY = Clamp(DegToRad(20.0f), GameState->Camera.FovY, DegToRad(120.0f));
-
-    UIEndPanel(&Layout);
-}
-
-internal void UpdateVoxelPanel(game_state *GameState, ui_context *UI)
-{
-    ui_layout Layout = UIBeginPanelAnchored(UI, UIAnchor_BottomRight, Vector2(20.0f, 20.0f), 140.0f);
-
-    if (UIButton(&Layout, "voxels"))
-    {
-        GameState->ShowVoxels = !GameState->ShowVoxels;
-    }
-
-    UIEndPanel(&Layout);
-
-    if (GameState->ShowVoxels)
-    {
-        PushVolumeDebug(UI->Commands);
     }
 }
 
@@ -332,8 +294,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     BeginUI(UI, Mouse, RenderCommands, &GameState->Assets, GameState->FontHandle, Controls->ViewportSize);
     BeginGizmo(Gizmo, Mouse, RenderCommands);
 
-    UpdateDebugPanel(GameState, UI);
-    UpdateVoxelPanel(GameState, UI);
+    UpdateEditorUI(GameState, UI);
 
     rectangle3  SimBounds = Rect3CenterRadius(Vector3(0.0f, 0.0f, 0.0f), SIM_HALF_DIM);
     sim_region *Region    = BeginSim(&GameState->FrameArena, GameState->World, &GameState->Storage, Camera->Position, SimBounds, SIM_MAX_ENTITIES);

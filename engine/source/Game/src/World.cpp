@@ -3,7 +3,7 @@
 #include "Types.h"
 #include "EngineMath.h"
 #include "Memory.h"
-#define WORLD_CHUNK_HASH_SIZE        4096
+#define WORLD_HASH_SLOT_COUNT        4096
 #define WORLD_ENTITIES_PER_BLOCK     16
 #define WORLD_CHUNK_UNINITIALIZED    INT32_MAX
 
@@ -38,7 +38,7 @@ struct world
     real32 ChunkDimInMeters;
     real32 InvChunkDimInMeters;
 
-    world_chunk         ChunkHash[WORLD_CHUNK_HASH_SIZE];
+    world_chunk         HashSlots[WORLD_HASH_SLOT_COUNT];
     world_entity_block *FirstFreeBlock;
 };
 
@@ -48,12 +48,12 @@ internal void WorldInit(world *World, real32 ChunkDimInMeters)
     World->InvChunkDimInMeters = 1.0f / ChunkDimInMeters;
     World->FirstFreeBlock      = 0;
 
-    for (uint32 Index = 0; Index < ArrayCount(World->ChunkHash); ++Index)
+    for (uint32 SlotIndex = 0; SlotIndex < ArrayCount(World->HashSlots); ++SlotIndex)
     {
-        World->ChunkHash[Index].ChunkX                = WORLD_CHUNK_UNINITIALIZED;
-        World->ChunkHash[Index].FirstBlock.EntityCount = 0;
-        World->ChunkHash[Index].FirstBlock.Next        = 0;
-        World->ChunkHash[Index].NextInHash             = 0;
+        World->HashSlots[SlotIndex].ChunkX                 = WORLD_CHUNK_UNINITIALIZED;
+        World->HashSlots[SlotIndex].FirstBlock.EntityCount = 0;
+        World->HashSlots[SlotIndex].FirstBlock.Next        = 0;
+        World->HashSlots[SlotIndex].NextInHash             = 0;
     }
 }
 
@@ -123,9 +123,9 @@ inline Vector3 WorldSubtract(world *World, world_position *A, world_position *B)
 internal world_chunk *GetWorldChunk(world *World, int32 ChunkX, int32 ChunkY, int32 ChunkZ, memory_arena *Arena)
 {
     uint32 HashValue = (uint32)(19 * ChunkX + 7 * ChunkY + 3 * ChunkZ);
-    uint32 HashSlot  = HashValue & (ArrayCount(World->ChunkHash) - 1);
+    uint32 SlotIndex = HashSlotIndex(World->HashSlots, HashValue);
 
-    world_chunk *Chunk = World->ChunkHash + HashSlot;
+    world_chunk *Chunk = World->HashSlots + SlotIndex;
 
     while (Chunk)
     {

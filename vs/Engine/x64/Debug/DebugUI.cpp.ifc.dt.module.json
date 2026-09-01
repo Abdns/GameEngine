@@ -3,10 +3,10 @@
     "revision": 0,
     "rules": [
         {
-            "primary-output": "Engine\\x64\\Debug\\Game.obj",
+            "primary-output": "Engine\\x64\\Debug\\DebugUI.obj",
             "outputs": [
-                "Engine\\x64\\Debug\\Game.cpp.ifc.dt.module.json",
-                "Engine\\x64\\Debug\\Game.cpp.ifc.dt.d.json",
+                "Engine\\x64\\Debug\\DebugUI.cpp.ifc.dt.module.json",
+                "Engine\\x64\\Debug\\DebugUI.cpp.ifc.dt.d.json",
                 "Engine\\x64\\Debug\\Engine.pch"
             ],
             "requires": []

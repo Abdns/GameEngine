@@ -57,12 +57,13 @@
     <ClInclude Include="..\engine\source\Game\src\SimEntity.cpp" />
     <ClInclude Include="..\engine\source\Game\src\EntityStorage.cpp" />
     <ClInclude Include="..\engine\source\Game\src\EntitySpawn.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\UI\EditorUI.cpp" />
     <ClInclude Include="..\engine\source\Game\src\SimRegion.cpp" />
     <ClInclude Include="..\engine\source\Game\src\Material.cpp" />
     <ClInclude Include="..\engine\source\Game\src\Input.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\UI.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\UI\UI.cpp" />
     <ClInclude Include="..\engine\source\Game\src\Gizmo.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\Text.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\UI\Text.cpp" />
     <ClInclude Include="..\engine\source\Game\include\Game.h" />
     <ClInclude Include="..\engine\source\Game\include\GameState.h" />
     <ClInclude Include="..\engine\source\Game\include\Input.h" />

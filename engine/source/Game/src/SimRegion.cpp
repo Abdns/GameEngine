@@ -5,7 +5,7 @@
 #include "Memory.h"
 #include "EntityStorage.cpp"
 
-#define SIM_HASH_SIZE           4096
+#define SIM_HASH_SLOT_COUNT     4096
 #define SIM_MAX_ENTITY_RADIUS   16.0f
 
 struct sim_entity_slot
@@ -27,22 +27,22 @@ struct sim_region
     uint32      EntityCount;
     sim_entity *Entities;
 
-    sim_entity_slot HashTable[SIM_HASH_SIZE];
+    sim_entity_slot HashSlots[SIM_HASH_SLOT_COUNT];
 };
 
 internal sim_entity_slot *GetSlotFromStorageIndex(sim_region *Region, uint32 StorageIndex)
 {
     Assert(StorageIndex != ENTITY_STORAGE_NONE);
 
-    uint32 HashMask = ArrayCount(Region->HashTable) - 1;
-
-    for (uint32 Offset = 0; Offset < ArrayCount(Region->HashTable); ++Offset)
+    for (uint32 Offset = 0; Offset < ArrayCount(Region->HashSlots); ++Offset)
     {
-        sim_entity_slot *Entry = Region->HashTable + ((StorageIndex + Offset) & HashMask);
+        uint32 SlotIndex = HashSlotIndex(Region->HashSlots, StorageIndex + Offset);
 
-        if (Entry->StorageIndex == ENTITY_STORAGE_NONE || Entry->StorageIndex == StorageIndex)
+        sim_entity_slot *Slot = Region->HashSlots + SlotIndex;
+
+        if (Slot->StorageIndex == ENTITY_STORAGE_NONE || Slot->StorageIndex == StorageIndex)
         {
-            return Entry;
+            return Slot;
         }
     }
 
@@ -56,9 +56,9 @@ internal sim_entity *GetEntityByStorageIndex(sim_region *Region, uint32 StorageI
         return 0;
     }
 
-    sim_entity_slot *Entry = GetSlotFromStorageIndex(Region, StorageIndex);
+    sim_entity_slot *Slot = GetSlotFromStorageIndex(Region, StorageIndex);
 
-    return (Entry && Entry->StorageIndex == StorageIndex) ? Entry->Ptr : 0;
+    return (Slot && Slot->StorageIndex == StorageIndex) ? Slot->Ptr : 0;
 }
 
 internal Vector3 GetSimSpacePosition(sim_region *Region, low_entity *Stored)
@@ -70,15 +70,15 @@ internal sim_entity *AddEntityRaw(sim_region *Region, uint32 StorageIndex, low_e
 {
     Assert(StorageIndex != ENTITY_STORAGE_NONE);
 
-    sim_entity_slot *Entry = GetSlotFromStorageIndex(Region, StorageIndex);
-    if (!Entry)
+    sim_entity_slot *Slot = GetSlotFromStorageIndex(Region, StorageIndex);
+    if (!Slot)
     {
         return 0;
     }
 
-    if (Entry->Ptr)
+    if (Slot->Ptr)
     {
-        return Entry->Ptr;
+        return Slot->Ptr;
     }
 
     if (Region->EntityCount >= Region->MaxEntityCount)
@@ -89,8 +89,8 @@ internal sim_entity *AddEntityRaw(sim_region *Region, uint32 StorageIndex, low_e
 
     sim_entity *Entity = Region->Entities + Region->EntityCount++;
 
-    Entry->StorageIndex = StorageIndex;
-    Entry->Ptr          = Entity;
+    Slot->StorageIndex = StorageIndex;
+    Slot->Ptr          = Entity;
 
     if (Source)
     {
@@ -157,7 +157,7 @@ internal void StoreEntityReference(sim_entity_reference *Reference)
 internal sim_region *BeginSim(memory_arena *SimArena, world *World, entity_storage *Storage, world_position Origin, rectangle3 UpdatableBounds, uint32 MaxEntityCount)
 {
     sim_region *Region = PushStruct(SimArena, sim_region);
-    ZeroArray(ArrayCount(Region->HashTable), Region->HashTable);
+    ZeroArray(ArrayCount(Region->HashSlots), Region->HashSlots);
 
     Region->World   = World;
     Region->Storage = Storage;

@@ -16,6 +16,9 @@
     <Filter Include="engine\source\Game\src">
       <UniqueIdentifier>{a1000000-0000-0000-0000-000000000022}</UniqueIdentifier>
     </Filter>
+    <Filter Include="engine\source\Game\src\UI">
+      <UniqueIdentifier>{a1000000-0000-0000-0000-000000000023}</UniqueIdentifier>
+    </Filter>
     <Filter Include="engine\source\PlatformApi">
       <UniqueIdentifier>{a1000000-0000-0000-0000-0000000000c0}</UniqueIdentifier>
     </Filter>
@@ -128,6 +131,9 @@
     <ClInclude Include="..\engine\source\Game\src\EntitySpawn.cpp">
       <Filter>engine\source\Game\src</Filter>
     </ClInclude>
+    <ClInclude Include="..\engine\source\Game\src\UI\EditorUI.cpp">
+      <Filter>engine\source\Game\src\UI</Filter>
+    </ClInclude>
     <ClInclude Include="..\engine\source\Game\src\SimRegion.cpp">
       <Filter>engine\source\Game\src</Filter>
     </ClInclude>
@@ -137,14 +143,14 @@
     <ClInclude Include="..\engine\source\Game\src\Input.cpp">
       <Filter>engine\source\Game\src</Filter>
     </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\UI.cpp">
-      <Filter>engine\source\Game\src</Filter>
+    <ClInclude Include="..\engine\source\Game\src\UI\UI.cpp">
+      <Filter>engine\source\Game\src\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\engine\source\Game\src\Gizmo.cpp">
       <Filter>engine\source\Game\src</Filter>
     </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\Text.cpp">
-      <Filter>engine\source\Game\src</Filter>
+    <ClInclude Include="..\engine\source\Game\src\UI\Text.cpp">
+      <Filter>engine\source\Game\src\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\engine\source\Game\include\Game.h">
       <Filter>engine\source\Game\include</Filter>

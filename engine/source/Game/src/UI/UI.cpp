@@ -11,8 +11,6 @@
 #define UI_HASH_SLOT_COUNT 128
 #define UI_MAX_ELEMENTS    256
 
-#define UI_LIST_NONE 0xFFFFFFFF
-
 #define UI_STRINGIFY_(Value) #Value
 #define UI_STRINGIFY(Value)  UI_STRINGIFY_(Value)
 #define UI_CALL_SITE         __FILE__ ":" UI_STRINGIFY(__LINE__)
@@ -72,8 +70,8 @@ struct ui_element_state
     ui_id  ID;
     uint32 LastTouchedFrame;
 
-    Vector2 Dim;
-    real32  Scroll;
+    real32 Height;
+    real32 Scroll;
 
     ui_element_state *NextInHash;
 };
@@ -94,7 +92,7 @@ struct ui_context
 
     uint32 FrameIndex;
 
-    ui_element_state *Slots[UI_HASH_SLOT_COUNT];
+    ui_element_state *HashSlots[UI_HASH_SLOT_COUNT];
     ui_element_state  Elements[UI_MAX_ELEMENTS];
     ui_element_state *FirstFreeElement;
     ui_element_state  DummyElement;
@@ -107,6 +105,7 @@ struct ui_layout
 {
     ui_context *UI;
     ui_id       PanelID;
+    ui_id       IDScope;
 
     Vector2 BaseCorner;
     Vector2 At;
@@ -229,11 +228,11 @@ inline bool32 UIInteractionsAreEqual(ui_interaction A, ui_interaction B)
     return UIIDsAreEqual(A.ID, B.ID) && A.Type == B.Type && A.Target == B.Target;
 }
 
-internal ui_element_state *GetUIElementState(ui_context *UI, ui_id ID)
+internal ui_element_state *FindOrAddNewUIElementState(ui_context *UI, ui_id ID)
 {
-    uint32 SlotIndex = (uint32)(ID.Value & (UI_HASH_SLOT_COUNT - 1));
+    uint32 SlotIndex = HashSlotIndex(UI->HashSlots, ID.Value);
 
-    for (ui_element_state *Found = UI->Slots[SlotIndex]; Found; Found = Found->NextInHash)
+    for (ui_element_state *Found = UI->HashSlots[SlotIndex]; Found; Found = Found->NextInHash)
     {
         if (UIIDsAreEqual(Found->ID, ID))
         {
@@ -264,18 +263,18 @@ internal ui_element_state *GetUIElementState(ui_context *UI, ui_id ID)
 
     Element->ID               = ID;
     Element->LastTouchedFrame = UI->FrameIndex;
-    Element->NextInHash       = UI->Slots[SlotIndex];
+    Element->NextInHash       = UI->HashSlots[SlotIndex];
 
-    UI->Slots[SlotIndex] = Element;
+    UI->HashSlots[SlotIndex] = Element;
 
     return Element;
 }
 
 internal void UICollectStaleElements(ui_context *UI)
 {
-    for (uint32 SlotIndex = 0; SlotIndex < UI_HASH_SLOT_COUNT; ++SlotIndex)
+    for (uint32 SlotIndex = 0; SlotIndex < ArrayCount(UI->HashSlots); ++SlotIndex)
     {
-        ui_element_state **At = UI->Slots + SlotIndex;
+        ui_element_state **At = UI->HashSlots + SlotIndex;
 
         while (*At)
         {
@@ -310,6 +309,35 @@ internal ui_style DefaultUIStyle()
     Style.Spacing = 4.0f;
 
     return Style;
+}
+
+internal Vector4 UIWidgetColor(ui_context *UI, ui_interaction Interaction)
+{
+    if (UIInteractionsAreEqual(UI->Active, Interaction))
+    {
+        return UI->Style.Active;
+    }
+
+    if (UIInteractionsAreEqual(UI->Hot, Interaction))
+    {
+        return UI->Style.Hot;
+    }
+
+    return UI->Style.Base;
+}
+
+internal void UIDrawTextIn(ui_context *UI, const char *Text, rect2 Rect, bool32 Centered)
+{
+    real32 TextX = Rect.Min.X + UI->Style.Padding;
+
+    if (Centered)
+    {
+        TextX = Rect.Min.X + 0.5f * ((Rect.Max.X - Rect.Min.X) - TextWidth(UI->Assets, UI->FontHandle, Text));
+    }
+
+    real32 TextY = Rect.Min.Y + 0.5f * ((Rect.Max.Y - Rect.Min.Y) - TextLineAdvance(UI->Assets, UI->FontHandle));
+
+    DrawText(UI->Commands, UI->Assets, UI->FontHandle, Vector2(TextX, TextY), UI->Style.Text, Text);
 }
 
 internal void UIRequestHot(ui_context *UI, ui_interaction Interaction, real32 Priority)
@@ -357,52 +385,6 @@ internal void UIDragActiveInteraction(ui_context *UI)
     }
 }
 
-internal void BeginUI(ui_context *UI, mouse_input *Mouse, render_commands *Commands, asset_store *Assets, uint32 FontHandle, Vector2 ViewportSize)
-{
-    UI->Mouse        = Mouse;
-    UI->Commands     = Commands;
-    UI->Assets       = Assets;
-    UI->FontHandle   = FontHandle;
-    UI->ViewportSize = ViewportSize;
-
-    UI->NextHot         = UINullInteraction();
-    UI->NextHotPriority = -REAL32_LARGE;
-
-    ++UI->FrameIndex;
-}
-
-internal void EndUI(ui_context *UI)
-{
-    if (UIInteractionIsValid(UI->Active))
-    {
-        UIDragActiveInteraction(UI);
-    }
-
-    if (!UI->Mouse->Down)
-    {
-        UI->Active = UINullInteraction();
-    }
-
-    UI->Hot = UI->NextHot;
-
-    UICollectStaleElements(UI);
-}
-
-internal Vector4 UIWidgetColor(ui_context *UI, ui_interaction Interaction)
-{
-    if (UIInteractionsAreEqual(UI->Active, Interaction))
-    {
-        return UI->Style.Active;
-    }
-
-    if (UIInteractionsAreEqual(UI->Hot, Interaction))
-    {
-        return UI->Style.Hot;
-    }
-
-    return UI->Style.Base;
-}
-
 internal bool32 UIHandleInteraction(ui_context *UI, ui_interaction Interaction, rect2 Rect, real32 Priority)
 {
     mouse_input *Mouse = UI->Mouse;
@@ -441,20 +423,51 @@ internal bool32 UIHandleInteraction(ui_context *UI, ui_interaction Interaction, 
     return Fired;
 }
 
+internal void BeginUI(ui_context *UI, mouse_input *Mouse, render_commands *Commands, asset_store *Assets, uint32 FontHandle, Vector2 ViewportSize)
+{
+    UI->Mouse        = Mouse;
+    UI->Commands     = Commands;
+    UI->Assets       = Assets;
+    UI->FontHandle   = FontHandle;
+    UI->ViewportSize = ViewportSize;
+
+    UI->NextHot         = UINullInteraction();
+    UI->NextHotPriority = -REAL32_LARGE;
+
+    ++UI->FrameIndex;
+}
+
+internal void EndUI(ui_context *UI)
+{
+    if (UIInteractionIsValid(UI->Active))
+    {
+        UIDragActiveInteraction(UI);
+    }
+
+    if (!UI->Mouse->Down)
+    {
+        UI->Active = UINullInteraction();
+    }
+
+    UI->Hot = UI->NextHot;
+
+    UICollectStaleElements(UI);
+}
+
 internal real32 UIRowHeight(ui_context *UI)
 {
     return TextLineAdvance(UI->Assets, UI->FontHandle) + 2.0f * UI->Style.Padding;
 }
 
-internal ui_layout UIBeginPanel_(ui_context *UI, Vector2 P, real32 Width, ui_id ID)
+internal ui_layout UIBeginPanel_(ui_context *UI, Vector2 Position, real32 Width, ui_id ID)
 {
-    ui_element_state *State = GetUIElementState(UI, ID);
+    ui_element_state *State = FindOrAddNewUIElementState(UI, ID);
 
     real32 PanelWidth = Width + 2.0f * UI->Style.Padding;
 
-    if (State->Dim.Y > 0.0f)
+    if (State->Height > 0.0f)
     {
-        rect2 Background = RectMinDim(P.X, P.Y, PanelWidth, State->Dim.Y);
+        rect2 Background = RectMinDim(Position.X, Position.Y, PanelWidth, State->Height);
 
         if (PointInRect(UI->Mouse->Position, Background))
         {
@@ -468,8 +481,9 @@ internal ui_layout UIBeginPanel_(ui_context *UI, Vector2 P, real32 Width, ui_id 
 
     Layout.UI         = UI;
     Layout.PanelID    = ID;
-    Layout.BaseCorner = P;
-    Layout.At         = P + Vector2(UI->Style.Padding, UI->Style.Padding);
+    Layout.IDScope    = ID;
+    Layout.BaseCorner = Position;
+    Layout.At         = Position + Vector2(UI->Style.Padding, UI->Style.Padding);
     Layout.Width      = Width;
     Layout.RowHeight  = UIRowHeight(UI);
     Layout.MaxX       = Layout.At.X;
@@ -478,14 +492,14 @@ internal ui_layout UIBeginPanel_(ui_context *UI, Vector2 P, real32 Width, ui_id 
     return Layout;
 }
 
-#define UIBeginPanel(UI, P, Width) UIBeginPanel_(UI, P, Width, UIID())
+#define UIBeginPanel(UI, Position, Width) UIBeginPanel_(UI, Position, Width, UIID())
 
 internal ui_layout UIBeginPanelAnchored_(ui_context *UI, ui_anchor Anchor, Vector2 Margin, real32 Width, ui_id ID)
 {
-    ui_element_state *State = GetUIElementState(UI, ID);
+    ui_element_state *State = FindOrAddNewUIElementState(UI, ID);
 
     real32 PanelWidth  = Width + 2.0f * UI->Style.Padding;
-    real32 PanelHeight = State->Dim.Y;
+    real32 PanelHeight = State->Height;
 
     if (PanelHeight <= 0.0f)
     {
@@ -512,10 +526,9 @@ internal ui_layout UIBeginPanelAnchored_(ui_context *UI, ui_anchor Anchor, Vecto
 internal void UIEndPanel(ui_layout *Layout)
 {
     ui_context       *UI    = Layout->UI;
-    ui_element_state *State = GetUIElementState(UI, Layout->PanelID);
+    ui_element_state *State = FindOrAddNewUIElementState(UI, Layout->PanelID);
 
-    State->Dim = Vector2(Layout->Width + 2.0f * UI->Style.Padding,
-                         (Layout->MaxY - Layout->BaseCorner.Y) + UI->Style.Padding);
+    State->Height = (Layout->MaxY - Layout->BaseCorner.Y) + UI->Style.Padding;
 }
 
 internal void UIBeginRow(ui_layout *Layout)
@@ -556,34 +569,28 @@ internal rect2 UINextRect(ui_layout *Layout, real32 Width, real32 Height)
     return Result;
 }
 
-internal void UIDrawTextIn(ui_context *UI, const char *Text, rect2 Rect, bool32 Centered)
+inline ui_id UIWidgetID(ui_layout *Layout, ui_id ID)
 {
-    real32 TextX = Rect.Min.X + UI->Style.Padding;
-
-    if (Centered)
-    {
-        TextX = Rect.Min.X + 0.5f * ((Rect.Max.X - Rect.Min.X) - TextWidth(UI->Assets, UI->FontHandle, Text));
-    }
-
-    real32 TextY = Rect.Min.Y + 0.5f * ((Rect.Max.Y - Rect.Min.Y) - TextLineAdvance(UI->Assets, UI->FontHandle));
-
-    DrawText(UI->Commands, UI->Assets, UI->FontHandle, Vector2(TextX, TextY), UI->Style.Text, Text);
+    return UIIDCombine(ID, Layout->IDScope.Value);
 }
 
-internal void UILabel(ui_layout *Layout, const char *Text)
+internal void UILabel_(ui_layout *Layout, const char *Text, real32 Width)
 {
-    rect2 Rect = UINextRect(Layout, Layout->Width, Layout->RowHeight);
+    rect2 Rect = UINextRect(Layout, Width, Layout->RowHeight);
 
     UIDrawTextIn(Layout->UI, Text, Rect, false);
 }
 
-internal bool32 UIButton_(ui_layout *Layout, const char *Label, ui_id ID)
+#define UILabel(Layout, Text)             UILabel_(Layout, Text, (Layout)->Width)
+#define UILabelSized(Layout, Text, Width) UILabel_(Layout, Text, Width)
+
+internal bool32 UIButton_(ui_layout *Layout, const char *Label, real32 Width, ui_id ID)
 {
     ui_context *UI = Layout->UI;
 
-    ui_interaction Interaction = UIInteraction(ID, UIInteraction_Click, 0, 0.0f);
+    ui_interaction Interaction = UIInteraction(UIWidgetID(Layout, ID), UIInteraction_Click, 0, 0.0f);
 
-    rect2 Rect = UINextRect(Layout, Layout->Width, Layout->RowHeight);
+    rect2 Rect = UINextRect(Layout, Width, Layout->RowHeight);
 
     bool32 Clicked = UIHandleInteraction(UI, Interaction, Rect, 0.0f);
 
@@ -594,15 +601,16 @@ internal bool32 UIButton_(ui_layout *Layout, const char *Label, ui_id ID)
     return Clicked;
 }
 
-#define UIButton(Layout, Label) UIButton_(Layout, Label, UIID())
+#define UIButton(Layout, Label)             UIButton_(Layout, Label, (Layout)->Width, UIID())
+#define UIButtonSized(Layout, Label, Width) UIButton_(Layout, Label, Width, UIID())
 
-internal bool32 UICheckBox_(ui_layout *Layout, const char *Label, bool32 *Value, ui_id ID)
+internal bool32 UICheckBox_(ui_layout *Layout, const char *Label, bool32 *Value, real32 Width, ui_id ID)
 {
     ui_context *UI = Layout->UI;
 
-    ui_interaction Interaction = UIInteraction(ID, UIInteraction_ToggleBool, Value, 0.0f);
+    ui_interaction Interaction = UIInteraction(UIWidgetID(Layout, ID), UIInteraction_ToggleBool, Value, 0.0f);
 
-    rect2 Rect = UINextRect(Layout, Layout->Width, Layout->RowHeight);
+    rect2 Rect = UINextRect(Layout, Width, Layout->RowHeight);
 
     bool32 Toggled = UIHandleInteraction(UI, Interaction, Rect, 0.0f);
 
@@ -619,15 +627,16 @@ internal bool32 UICheckBox_(ui_layout *Layout, const char *Label, bool32 *Value,
     return Toggled;
 }
 
-#define UICheckBox(Layout, Label, Value) UICheckBox_(Layout, Label, Value, UIID())
+#define UICheckBox(Layout, Label, Value)             UICheckBox_(Layout, Label, Value, (Layout)->Width, UIID())
+#define UICheckBoxSized(Layout, Label, Value, Width) UICheckBox_(Layout, Label, Value, Width, UIID())
 
-internal void UIDragReal32_(ui_layout *Layout, const char *Label, real32 *Value, real32 Step, ui_id ID)
+internal void UIDragReal32_(ui_layout *Layout, const char *Label, real32 *Value, real32 Step, real32 Width, ui_id ID)
 {
     ui_context *UI = Layout->UI;
 
-    ui_interaction Interaction = UIInteraction(ID, UIInteraction_DragReal32, Value, Step);
+    ui_interaction Interaction = UIInteraction(UIWidgetID(Layout, ID), UIInteraction_DragReal32, Value, Step);
 
-    rect2 Rect = UINextRect(Layout, Layout->Width, Layout->RowHeight);
+    rect2 Rect = UINextRect(Layout, Width, Layout->RowHeight);
 
     UIHandleInteraction(UI, Interaction, Rect, 0.0f);
 
@@ -636,66 +645,82 @@ internal void UIDragReal32_(ui_layout *Layout, const char *Label, real32 *Value,
     UIDrawTextIn(UI, Label, Rect, true);
 }
 
-#define UIDragReal32(Layout, Label, Value, Step) UIDragReal32_(Layout, Label, Value, Step, UIID())
+#define UIDragReal32(Layout, Label, Value, Step)             UIDragReal32_(Layout, Label, Value, Step, (Layout)->Width, UIID())
+#define UIDragReal32Sized(Layout, Label, Value, Step, Width) UIDragReal32_(Layout, Label, Value, Step, Width, UIID())
 
-internal uint32 UIScrollList_(ui_layout *Layout, char *Items, uint32 ItemStride, uint32 ItemCount, uint32 VisibleRows, ui_id ID)
+struct ui_scroll_list
 {
-    ui_context       *UI    = Layout->UI;
-    ui_element_state *State = GetUIElementState(UI, ID);
-    mouse_input      *Mouse = UI->Mouse;
+    ui_layout *Layout;
+    ui_id      ID;
 
-    real32 RowHeight = TextLineAdvance(UI->Assets, UI->FontHandle) + UI->Style.Spacing;
-    real32 ViewHeight = (real32)VisibleRows * RowHeight;
+    rect2  Rect;
+    real32 RowHeight;
+    real32 Scroll;
 
-    rect2 Rect = UINextRect(Layout, Layout->Width, ViewHeight);
+    uint32 FirstIndex;
+    uint32 OnePastLastIndex;
+};
 
-    real32 MaxScroll = Maximum(0.0f, (real32)ItemCount * RowHeight - ViewHeight);
+internal ui_scroll_list UIScrollList_(ui_layout *Layout, uint32 ItemCount, uint32 VisibleRows, ui_id ID)
+{
+    ui_context  *UI    = Layout->UI;
+    mouse_input *Mouse = UI->Mouse;
 
-    if (PointInRect(Mouse->Position, Rect))
+    ui_scroll_list Result = {};
+
+    Result.Layout    = Layout;
+    Result.ID        = UIWidgetID(Layout, ID);
+    Result.RowHeight = Layout->RowHeight;
+
+    ui_element_state *State = FindOrAddNewUIElementState(UI, Result.ID);
+
+    real32 ViewHeight = (real32)VisibleRows * Result.RowHeight;
+
+    Result.Rect = UINextRect(Layout, Layout->Width, ViewHeight);
+
+    real32 MaxScroll = Maximum(0.0f, (real32)ItemCount * Result.RowHeight - ViewHeight);
+
+    if (PointInRect(Mouse->Position, Result.Rect))
     {
         Mouse->OverUI = true;
 
         if (Mouse->Wheel)
         {
-            State->Scroll -= (real32)Mouse->Wheel * RowHeight;
+            State->Scroll -= (real32)Mouse->Wheel * Result.RowHeight;
         }
     }
 
     State->Scroll = Clamp(0.0f, State->Scroll, MaxScroll);
+    Result.Scroll = State->Scroll;
 
-    PushRenderRect(UI->Commands, Rect.Min, Rect.Max, UI->Style.Panel);
+    PushRenderRect(UI->Commands, Result.Rect.Min, Result.Rect.Max, UI->Style.Panel);
 
-    uint32 ClickedIndex = UI_LIST_NONE;
-    uint32 FirstIndex   = (uint32)(State->Scroll / RowHeight);
+    Result.FirstIndex       = (uint32)(Result.Scroll / Result.RowHeight);
+    Result.OnePastLastIndex = Minimum(ItemCount, (uint32)((ViewHeight + Result.Scroll) / Result.RowHeight));
 
-    for (uint32 Index = FirstIndex; Index < ItemCount; ++Index)
-    {
-        real32 RowMinY = Rect.Min.Y + (real32)Index * RowHeight - State->Scroll;
-        real32 RowMaxY = RowMinY + RowHeight;
-
-        if (RowMaxY > Rect.Max.Y)
-        {
-            break;
-        }
-
-        rect2 RowRect = RectMinMax(Rect.Min.X, RowMinY, Rect.Max.X, RowMaxY);
-
-        ui_interaction Interaction = UIInteraction(UIIDCombine(ID, Index), UIInteraction_Click, 0, 0.0f);
-
-        if (UIHandleInteraction(UI, Interaction, RowRect, 1.0f))
-        {
-            ClickedIndex = Index;
-        }
-
-        if (UIInteractionsAreEqual(UI->Hot, Interaction) || UIInteractionsAreEqual(UI->Active, Interaction))
-        {
-            PushRenderRect(UI->Commands, RowRect.Min, RowRect.Max, UIWidgetColor(UI, Interaction));
-        }
-
-        UIDrawTextIn(UI, Items + (memory_size)Index * ItemStride, RowRect, false);
-    }
-
-    return ClickedIndex;
+    return Result;
 }
 
-#define UIScrollList(Layout, Items, ItemStride, ItemCount, VisibleRows) UIScrollList_(Layout, Items, ItemStride, ItemCount, VisibleRows, UIID())
+#define UIScrollList(Layout, ItemCount, VisibleRows) UIScrollList_(Layout, ItemCount, VisibleRows, UIID())
+
+internal ui_layout UIScrollListRow(ui_scroll_list *List, uint32 Index)
+{
+    ui_layout Result = {};
+
+    Result.UI      = List->Layout->UI;
+    Result.PanelID = List->Layout->PanelID;
+    Result.IDScope = UIIDCombine(List->ID, Index);
+
+    Result.BaseCorner = Vector2(List->Rect.Min.X, List->Rect.Min.Y + (real32)Index * List->RowHeight - List->Scroll);
+    Result.At         = Result.BaseCorner;
+
+    Result.Width     = List->Rect.Max.X - List->Rect.Min.X;
+    Result.RowHeight = List->RowHeight;
+
+    Result.MaxX = Result.At.X;
+    Result.MaxY = Result.At.Y;
+
+    UIBeginRow(&Result);
+
+    return Result;
+}
