@@ -646,11 +646,11 @@ internal void UIScrollList_(ui_layout *Layout,uint32 ItemCount, uint32 VisibleRo
     real32 RowHeight  = Layout->RowHeight;
     real32 ViewHeight = (real32)VisibleRows * RowHeight;
 
-    rect2 Rect = UINextRect(Layout, Layout->Width, ViewHeight);
+    rect2 ViewRect = UINextRect(Layout, Layout->Width, ViewHeight);
 
     real32 MaxScroll = Maximum(0.0f, (real32)ItemCount * RowHeight - ViewHeight);
 
-    if (PointInRect(Mouse->Position, Rect))
+    if (PointInRect(Mouse->Position, ViewRect))
     {
         Mouse->OverUI = true;
 
@@ -664,7 +664,7 @@ internal void UIScrollList_(ui_layout *Layout,uint32 ItemCount, uint32 VisibleRo
 
     UINextRect(Layout, Layout->Width, State->Scroll * Layout->RowHeight);
 
-    PushRenderRect(UI->Commands, Rect.Min, Rect.Max, UI->Style.Panel);
+    PushRenderRect(UI->Commands, ViewRect.Min, ViewRect.Max, UI->Style.Panel);
 
     uint32 FirstIndex   = (uint32)(State->Scroll / RowHeight);
 }
