@@ -637,7 +637,7 @@ internal void UIDragReal32_(ui_layout *Layout, const char *Label, real32 *Value,
 
 #define UIDragReal32(Layout, Label, Value, Step) UIDragReal32_(Layout, Label, Value, Step, UIID())
 
-internal uint32 UIScrollList_(ui_layout *Layout, char *Items, uint32 ItemStride, uint32 ItemCount, uint32 VisibleRows, ui_id ID)
+internal void UIScrollList_(ui_layout *Layout,uint32 ItemCount, uint32 VisibleRows, ui_id ID)
 {
     ui_context       *UI    = Layout->UI;
     ui_element_state *State = FindOrAddNewUIElementState(UI, ID);
@@ -662,39 +662,11 @@ internal uint32 UIScrollList_(ui_layout *Layout, char *Items, uint32 ItemStride,
 
     State->Scroll = Clamp(0.0f, State->Scroll, MaxScroll);
 
+    UINextRect(Layout, Layout->Width, State->Scroll * Layout->RowHeight);
+
     PushRenderRect(UI->Commands, Rect.Min, Rect.Max, UI->Style.Panel);
 
-    uint32 ClickedIndex = UI_LIST_NONE;
     uint32 FirstIndex   = (uint32)(State->Scroll / RowHeight);
-
-    for (uint32 Index = FirstIndex; Index < ItemCount; ++Index)
-    {
-        real32 RowMinY = Rect.Min.Y + (real32)Index * RowHeight - State->Scroll;
-        real32 RowMaxY = RowMinY + RowHeight;
-
-        if (RowMaxY > Rect.Max.Y)
-        {
-            break;
-        }
-
-        rect2 RowRect = RectMinMax(Rect.Min.X, RowMinY, Rect.Max.X, RowMaxY);
-
-        ui_interaction Interaction = UIInteraction(UIIDCombine(ID, Index), UIInteraction_Click, 0, 0.0f);
-
-        if (UIHandleInteraction(UI, Interaction, RowRect, 1.0f))
-        {
-            ClickedIndex = Index;
-        }
-
-        if (UIInteractionsAreEqual(UI->Hot, Interaction) || UIInteractionsAreEqual(UI->Active, Interaction))
-        {
-            PushRenderRect(UI->Commands, RowRect.Min, RowRect.Max, UIWidgetColor(UI, Interaction));
-        }
-
-        UIDrawTextIn(UI, Items + (memory_size)Index * ItemStride, RowRect, false);
-    }
-
-    return ClickedIndex;
 }
 
-#define UIScrollList(Layout, Items, ItemStride, ItemCount, VisibleRows) UIScrollList_(Layout, Items, ItemStride, ItemCount, VisibleRows, UIID())
+#define UIScrollList(Layout, ItemCount, VisibleRows) UIScrollList_(Layout,ItemCount, VisibleRows, UIID())

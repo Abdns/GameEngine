@@ -38,12 +38,15 @@ internal void UpdateEntityInfoPanel(game_state *GameState, ui_context *UI)
     }
 
     ui_layout Layout = UIBeginPanelAnchored(UI, UIAnchor_BottomLeft, Vector2(20.0f, 20.0f), 180.0f);
+    {
+        UIScrollList(&Layout, 5, 3);
 
-    UILabel(&Layout, Entity->Name);
-    UILabel(&Layout, EntityTypeName(Entity->SimVariant.Type));
+        UILabel(&Layout, Entity->Name);
+        UILabel(&Layout, EntityTypeName(Entity->SimVariant.Type));
+        UIButton(&Layout, "ss");
 
-    UILabelVector3(&Layout, "pos", WorldPositionToMeters(GameState->World, Entity->Position));
-
+        UILabelVector3(&Layout, "pos", WorldPositionToMeters(GameState->World, Entity->Position));
+    }
     UIEndPanel(&Layout);
 }
 
@@ -71,13 +74,6 @@ internal void UpdateVoxelPanel(game_state *GameState, ui_context *UI)
     {
         PushVolumeDebug(UI->Commands);
     }
-}
-
-internal void EntityInfoPanel(game_state* GameState, ui_context* UI)
-{
-    ui_layout Layout = UIBeginPanelAnchored(UI, UIAnchor_TopRight, Vector2(20.0f, 20.0f), 140.0f);
-
-    UIEndPanel(&Layout);
 }
 
 internal void UpdateSpawnPanel(game_state *GameState, ui_context *UI)
