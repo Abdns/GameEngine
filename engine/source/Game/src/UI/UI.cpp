@@ -11,6 +11,8 @@
 #define UI_HASH_SLOT_COUNT 128
 #define UI_MAX_ELEMENTS    256
 
+#define UI_LIST_NONE 0xFFFFFFFF
+
 #define UI_STRINGIFY_(Value) #Value
 #define UI_STRINGIFY(Value)  UI_STRINGIFY_(Value)
 #define UI_CALL_SITE         __FILE__ ":" UI_STRINGIFY(__LINE__)
@@ -105,7 +107,6 @@ struct ui_layout
 {
     ui_context *UI;
     ui_id       PanelID;
-    ui_id       IDScope;
 
     Vector2 BaseCorner;
     Vector2 At;
@@ -481,7 +482,6 @@ internal ui_layout UIBeginPanel_(ui_context *UI, Vector2 Position, real32 Width,
 
     Layout.UI         = UI;
     Layout.PanelID    = ID;
-    Layout.IDScope    = ID;
     Layout.BaseCorner = Position;
     Layout.At         = Position + Vector2(UI->Style.Padding, UI->Style.Padding);
     Layout.Width      = Width;
@@ -569,28 +569,20 @@ internal rect2 UINextRect(ui_layout *Layout, real32 Width, real32 Height)
     return Result;
 }
 
-inline ui_id UIWidgetID(ui_layout *Layout, ui_id ID)
+internal void UILabel(ui_layout *Layout, const char *Text)
 {
-    return UIIDCombine(ID, Layout->IDScope.Value);
-}
-
-internal void UILabel_(ui_layout *Layout, const char *Text, real32 Width)
-{
-    rect2 Rect = UINextRect(Layout, Width, Layout->RowHeight);
+    rect2 Rect = UINextRect(Layout, Layout->Width, Layout->RowHeight);
 
     UIDrawTextIn(Layout->UI, Text, Rect, false);
 }
 
-#define UILabel(Layout, Text)             UILabel_(Layout, Text, (Layout)->Width)
-#define UILabelSized(Layout, Text, Width) UILabel_(Layout, Text, Width)
-
-internal bool32 UIButton_(ui_layout *Layout, const char *Label, real32 Width, ui_id ID)
+internal bool32 UIButton_(ui_layout *Layout, const char *Label, ui_id ID)
 {
     ui_context *UI = Layout->UI;
 
-    ui_interaction Interaction = UIInteraction(UIWidgetID(Layout, ID), UIInteraction_Click, 0, 0.0f);
+    ui_interaction Interaction = UIInteraction(ID, UIInteraction_Click, 0, 0.0f);
 
-    rect2 Rect = UINextRect(Layout, Width, Layout->RowHeight);
+    rect2 Rect = UINextRect(Layout, Layout->Width, Layout->RowHeight);
 
     bool32 Clicked = UIHandleInteraction(UI, Interaction, Rect, 0.0f);
 
@@ -601,16 +593,15 @@ internal bool32 UIButton_(ui_layout *Layout, const char *Label, real32 Width, ui
     return Clicked;
 }
 
-#define UIButton(Layout, Label)             UIButton_(Layout, Label, (Layout)->Width, UIID())
-#define UIButtonSized(Layout, Label, Width) UIButton_(Layout, Label, Width, UIID())
+#define UIButton(Layout, Label) UIButton_(Layout, Label, UIID())
 
-internal bool32 UICheckBox_(ui_layout *Layout, const char *Label, bool32 *Value, real32 Width, ui_id ID)
+internal bool32 UICheckBox_(ui_layout *Layout, const char *Label, bool32 *Value, ui_id ID)
 {
     ui_context *UI = Layout->UI;
 
-    ui_interaction Interaction = UIInteraction(UIWidgetID(Layout, ID), UIInteraction_ToggleBool, Value, 0.0f);
+    ui_interaction Interaction = UIInteraction(ID, UIInteraction_ToggleBool, Value, 0.0f);
 
-    rect2 Rect = UINextRect(Layout, Width, Layout->RowHeight);
+    rect2 Rect = UINextRect(Layout, Layout->Width, Layout->RowHeight);
 
     bool32 Toggled = UIHandleInteraction(UI, Interaction, Rect, 0.0f);
 
@@ -627,16 +618,15 @@ internal bool32 UICheckBox_(ui_layout *Layout, const char *Label, bool32 *Value,
     return Toggled;
 }
 
-#define UICheckBox(Layout, Label, Value)             UICheckBox_(Layout, Label, Value, (Layout)->Width, UIID())
-#define UICheckBoxSized(Layout, Label, Value, Width) UICheckBox_(Layout, Label, Value, Width, UIID())
+#define UICheckBox(Layout, Label, Value) UICheckBox_(Layout, Label, Value, UIID())
 
-internal void UIDragReal32_(ui_layout *Layout, const char *Label, real32 *Value, real32 Step, real32 Width, ui_id ID)
+internal void UIDragReal32_(ui_layout *Layout, const char *Label, real32 *Value, real32 Step, ui_id ID)
 {
     ui_context *UI = Layout->UI;
 
-    ui_interaction Interaction = UIInteraction(UIWidgetID(Layout, ID), UIInteraction_DragReal32, Value, Step);
+    ui_interaction Interaction = UIInteraction(ID, UIInteraction_DragReal32, Value, Step);
 
-    rect2 Rect = UINextRect(Layout, Width, Layout->RowHeight);
+    rect2 Rect = UINextRect(Layout, Layout->Width, Layout->RowHeight);
 
     UIHandleInteraction(UI, Interaction, Rect, 0.0f);
 
@@ -645,82 +635,66 @@ internal void UIDragReal32_(ui_layout *Layout, const char *Label, real32 *Value,
     UIDrawTextIn(UI, Label, Rect, true);
 }
 
-#define UIDragReal32(Layout, Label, Value, Step)             UIDragReal32_(Layout, Label, Value, Step, (Layout)->Width, UIID())
-#define UIDragReal32Sized(Layout, Label, Value, Step, Width) UIDragReal32_(Layout, Label, Value, Step, Width, UIID())
+#define UIDragReal32(Layout, Label, Value, Step) UIDragReal32_(Layout, Label, Value, Step, UIID())
 
-struct ui_scroll_list
+internal uint32 UIScrollList_(ui_layout *Layout, char *Items, uint32 ItemStride, uint32 ItemCount, uint32 VisibleRows, ui_id ID)
 {
-    ui_layout *Layout;
-    ui_id      ID;
+    ui_context       *UI    = Layout->UI;
+    ui_element_state *State = FindOrAddNewUIElementState(UI, ID);
+    mouse_input      *Mouse = UI->Mouse;
 
-    rect2  Rect;
-    real32 RowHeight;
-    real32 Scroll;
+    real32 RowHeight  = Layout->RowHeight;
+    real32 ViewHeight = (real32)VisibleRows * RowHeight;
 
-    uint32 FirstIndex;
-    uint32 OnePastLastIndex;
-};
+    rect2 Rect = UINextRect(Layout, Layout->Width, ViewHeight);
 
-internal ui_scroll_list UIScrollList_(ui_layout *Layout, uint32 ItemCount, uint32 VisibleRows, ui_id ID)
-{
-    ui_context  *UI    = Layout->UI;
-    mouse_input *Mouse = UI->Mouse;
+    real32 MaxScroll = Maximum(0.0f, (real32)ItemCount * RowHeight - ViewHeight);
 
-    ui_scroll_list Result = {};
-
-    Result.Layout    = Layout;
-    Result.ID        = UIWidgetID(Layout, ID);
-    Result.RowHeight = Layout->RowHeight;
-
-    ui_element_state *State = FindOrAddNewUIElementState(UI, Result.ID);
-
-    real32 ViewHeight = (real32)VisibleRows * Result.RowHeight;
-
-    Result.Rect = UINextRect(Layout, Layout->Width, ViewHeight);
-
-    real32 MaxScroll = Maximum(0.0f, (real32)ItemCount * Result.RowHeight - ViewHeight);
-
-    if (PointInRect(Mouse->Position, Result.Rect))
+    if (PointInRect(Mouse->Position, Rect))
     {
         Mouse->OverUI = true;
 
         if (Mouse->Wheel)
         {
-            State->Scroll -= (real32)Mouse->Wheel * Result.RowHeight;
+            State->Scroll -= (real32)Mouse->Wheel * RowHeight;
         }
     }
 
     State->Scroll = Clamp(0.0f, State->Scroll, MaxScroll);
-    Result.Scroll = State->Scroll;
 
-    PushRenderRect(UI->Commands, Result.Rect.Min, Result.Rect.Max, UI->Style.Panel);
+    PushRenderRect(UI->Commands, Rect.Min, Rect.Max, UI->Style.Panel);
 
-    Result.FirstIndex       = (uint32)(Result.Scroll / Result.RowHeight);
-    Result.OnePastLastIndex = Minimum(ItemCount, (uint32)((ViewHeight + Result.Scroll) / Result.RowHeight));
+    uint32 ClickedIndex = UI_LIST_NONE;
+    uint32 FirstIndex   = (uint32)(State->Scroll / RowHeight);
 
-    return Result;
+    for (uint32 Index = FirstIndex; Index < ItemCount; ++Index)
+    {
+        real32 RowMinY = Rect.Min.Y + (real32)Index * RowHeight - State->Scroll;
+        real32 RowMaxY = RowMinY + RowHeight;
+
+        if (RowMaxY > Rect.Max.Y)
+        {
+            break;
+        }
+
+        rect2 RowRect = RectMinMax(Rect.Min.X, RowMinY, Rect.Max.X, RowMaxY);
+
+        ui_interaction Interaction = UIInteraction(UIIDCombine(ID, Index), UIInteraction_Click, 0, 0.0f);
+
+        if (UIHandleInteraction(UI, Interaction, RowRect, 1.0f))
+        {
+            ClickedIndex = Index;
+        }
+
+        if (UIInteractionsAreEqual(UI->Hot, Interaction) || UIInteractionsAreEqual(UI->Active, Interaction))
+        {
+            PushRenderRect(UI->Commands, RowRect.Min, RowRect.Max, UIWidgetColor(UI, Interaction));
+        }
+
+        UIDrawTextIn(UI, Items + (memory_size)Index * ItemStride, RowRect, false);
+    }
+
+    return ClickedIndex;
 }
 
-#define UIScrollList(Layout, ItemCount, VisibleRows) UIScrollList_(Layout, ItemCount, VisibleRows, UIID())
-
-internal ui_layout UIScrollListRow(ui_scroll_list *List, uint32 Index)
-{
-    ui_layout Result = {};
-
-    Result.UI      = List->Layout->UI;
-    Result.PanelID = List->Layout->PanelID;
-    Result.IDScope = UIIDCombine(List->ID, Index);
-
-    Result.BaseCorner = Vector2(List->Rect.Min.X, List->Rect.Min.Y + (real32)Index * List->RowHeight - List->Scroll);
-    Result.At         = Result.BaseCorner;
-
-    Result.Width     = List->Rect.Max.X - List->Rect.Min.X;
-    Result.RowHeight = List->RowHeight;
-
-    Result.MaxX = Result.At.X;
-    Result.MaxY = Result.At.Y;
-
-    UIBeginRow(&Result);
-
-    return Result;
-}
+#define UIScrollList(Layout, Items, ItemStride, ItemCount, VisibleRows) UIScrollList_(Layout, Items, ItemStride, ItemCount, VisibleRows, UIID())
