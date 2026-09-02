@@ -114,13 +114,15 @@ struct ui_layout
     real32 Width;
     real32 RowHeight;
 
-    bool32 InRow;
-    real32 RowStartY;
-    real32 RowAtX;
-    real32 RowMaxHeight;
+    bool32  InRow;
+    Vector2 RowStartedFrom;
+    real32  RowMaxHeight;
 
     real32 MaxX;
     real32 MaxY;
+
+    bool32 Clipped;
+    rect2  Clip;
 };
 
 inline rect2 RectMinMax(real32 MinX, real32 MinY, real32 MaxX, real32 MaxY)
@@ -460,6 +462,22 @@ internal real32 UIRowHeight(ui_context *UI)
     return TextLineAdvance(UI->Assets, UI->FontHandle) + 2.0f * UI->Style.Padding;
 }
 
+internal ui_layout CreateLayout(ui_context* UI, Vector2 Position, real32 Width, ui_id ID)
+{
+    ui_layout Layout = {};
+
+    Layout.UI = UI;
+    Layout.PanelID = ID;
+    Layout.BaseCorner = Position;
+    Layout.At = Position + Vector2(UI->Style.Padding, UI->Style.Padding);
+    Layout.Width = Width;
+    Layout.RowHeight = UIRowHeight(UI);
+    Layout.MaxX = Layout.At.X;
+    Layout.MaxY = Layout.At.Y;
+
+    return Layout;
+}
+
 internal ui_layout UIBeginPanel_(ui_context *UI, Vector2 Position, real32 Width, ui_id ID)
 {
     ui_element_state *State = FindOrAddNewUIElementState(UI, ID);
@@ -533,27 +551,28 @@ internal void UIEndPanel(ui_layout *Layout)
 
 internal void UIBeginRow(ui_layout *Layout)
 {
-    Layout->InRow        = true;
-    Layout->RowStartY    = Layout->At.Y;
-    Layout->RowAtX       = Layout->At.X;
-    Layout->RowMaxHeight = 0.0f;
+    Layout->InRow          = true;
+    Layout->RowStartedFrom = Layout->At;
+    Layout->RowMaxHeight   = 0.0f;
 }
 
 internal void UIEndRow(ui_layout *Layout)
 {
     Layout->InRow = false;
-    Layout->At.Y  = Layout->RowStartY + Layout->RowMaxHeight + Layout->UI->Style.Spacing;
+
+    Layout->At.X = Layout->RowStartedFrom.X;
+    Layout->At.Y = Layout->RowStartedFrom.Y + Layout->RowMaxHeight + Layout->UI->Style.Spacing;
 }
 
-internal rect2 UINextRect(ui_layout *Layout, real32 Width, real32 Height)
+internal rect2 UINextRectInLayout(ui_layout *Layout, real32 Width, real32 Height)
 {
     rect2 Result;
 
     if (Layout->InRow)
     {
-        Result = RectMinDim(Layout->RowAtX, Layout->RowStartY, Width, Height);
+        Result = RectMinDim(Layout->At.X, Layout->At.Y, Width, Height);
 
-        Layout->RowAtX       += Width + Layout->UI->Style.Spacing;
+        Layout->At.X += Width + Layout->UI->Style.Spacing;
         Layout->RowMaxHeight  = Maximum(Layout->RowMaxHeight, Height);
     }
     else
@@ -569,9 +588,25 @@ internal rect2 UINextRect(ui_layout *Layout, real32 Width, real32 Height)
     return Result;
 }
 
+inline bool32 UIRectVisible(ui_layout *Layout, rect2 Rect)
+{
+    if (!Layout->Clipped)
+    {
+        return true;
+    }
+
+    return (Rect.Min.X >= Layout->Clip.Min.X && Rect.Max.X <= Layout->Clip.Max.X &&
+            Rect.Min.Y >= Layout->Clip.Min.Y && Rect.Max.Y <= Layout->Clip.Max.Y);
+}
+
 internal void UILabel(ui_layout *Layout, const char *Text)
 {
-    rect2 Rect = UINextRect(Layout, Layout->Width, Layout->RowHeight);
+    rect2 Rect = UINextRectInLayout(Layout, Layout->Width, Layout->RowHeight);
+
+    if (!UIRectVisible(Layout, Rect))
+    {
+        return;
+    }
 
     UIDrawTextIn(Layout->UI, Text, Rect, false);
 }
@@ -582,7 +617,12 @@ internal bool32 UIButton_(ui_layout *Layout, const char *Label, ui_id ID)
 
     ui_interaction Interaction = UIInteraction(ID, UIInteraction_Click, 0, 0.0f);
 
-    rect2 Rect = UINextRect(Layout, Layout->Width, Layout->RowHeight);
+    rect2 Rect = UINextRectInLayout(Layout, Layout->Width, Layout->RowHeight);
+
+    if (!UIRectVisible(Layout, Rect))
+    {
+        return false;
+    }
 
     bool32 Clicked = UIHandleInteraction(UI, Interaction, Rect, 0.0f);
 
@@ -601,7 +641,12 @@ internal bool32 UICheckBox_(ui_layout *Layout, const char *Label, bool32 *Value,
 
     ui_interaction Interaction = UIInteraction(ID, UIInteraction_ToggleBool, Value, 0.0f);
 
-    rect2 Rect = UINextRect(Layout, Layout->Width, Layout->RowHeight);
+    rect2 Rect = UINextRectInLayout(Layout, Layout->Width, Layout->RowHeight);
+
+    if (!UIRectVisible(Layout, Rect))
+    {
+        return false;
+    }
 
     bool32 Toggled = UIHandleInteraction(UI, Interaction, Rect, 0.0f);
 
@@ -626,7 +671,12 @@ internal void UIDragReal32_(ui_layout *Layout, const char *Label, real32 *Value,
 
     ui_interaction Interaction = UIInteraction(ID, UIInteraction_DragReal32, Value, Step);
 
-    rect2 Rect = UINextRect(Layout, Layout->Width, Layout->RowHeight);
+    rect2 Rect = UINextRectInLayout(Layout, Layout->Width, Layout->RowHeight);
+
+    if (!UIRectVisible(Layout, Rect))
+    {
+        return;
+    }
 
     UIHandleInteraction(UI, Interaction, Rect, 0.0f);
 
@@ -637,18 +687,18 @@ internal void UIDragReal32_(ui_layout *Layout, const char *Label, real32 *Value,
 
 #define UIDragReal32(Layout, Label, Value, Step) UIDragReal32_(Layout, Label, Value, Step, UIID())
 
-internal void UIScrollList_(ui_layout *Layout,uint32 ItemCount, uint32 VisibleRows, ui_id ID)
+internal ui_layout UIScrollList_(ui_layout *Layout, uint32 VisibleRows, ui_id ID)
 {
     ui_context       *UI    = Layout->UI;
     ui_element_state *State = FindOrAddNewUIElementState(UI, ID);
     mouse_input      *Mouse = UI->Mouse;
 
-    real32 RowHeight  = Layout->RowHeight;
-    real32 ViewHeight = (real32)VisibleRows * RowHeight;
+    real32 RowStep    = Layout->RowHeight + UI->Style.Spacing;
+    real32 ViewHeight = (real32)VisibleRows * RowStep - UI->Style.Spacing + 2.0f * UI->Style.Padding;
 
-    rect2 Rect = UINextRect(Layout, Layout->Width, ViewHeight);
+    rect2 Rect = UINextRectInLayout(Layout, Layout->Width, ViewHeight);
 
-    real32 MaxScroll = Maximum(0.0f, (real32)ItemCount * RowHeight - ViewHeight);
+    real32 MaxScroll = Maximum(0.0f, State->Height - ViewHeight);
 
     if (PointInRect(Mouse->Position, Rect))
     {
@@ -656,17 +706,25 @@ internal void UIScrollList_(ui_layout *Layout,uint32 ItemCount, uint32 VisibleRo
 
         if (Mouse->Wheel)
         {
-            State->Scroll -= (real32)Mouse->Wheel * RowHeight;
+            State->Scroll -= (real32)Mouse->Wheel * RowStep;
         }
     }
 
     State->Scroll = Clamp(0.0f, State->Scroll, MaxScroll);
 
-    UINextRect(Layout, Layout->Width, State->Scroll * Layout->RowHeight);
-
     PushRenderRect(UI->Commands, Rect.Min, Rect.Max, UI->Style.Panel);
 
-    uint32 FirstIndex   = (uint32)(State->Scroll / RowHeight);
+    ui_layout ListLayout = CreateLayout(UI, Vector2(Rect.Min.X, Rect.Min.Y - State->Scroll), Layout->Width - 2.0f * UI->Style.Padding, ID);
+
+    ListLayout.Clipped = true;
+    ListLayout.Clip    = Rect;
+
+    return ListLayout;
 }
 
-#define UIScrollList(Layout, ItemCount, VisibleRows) UIScrollList_(Layout,ItemCount, VisibleRows, UIID())
+internal void UIEndScrollList(ui_layout *ListLayout)
+{
+    UIEndPanel(ListLayout);
+}
+
+#define UIScrollList(Layout, VisibleRows) UIScrollList_(Layout, VisibleRows, UIID())

@@ -39,13 +39,22 @@ internal void UpdateEntityInfoPanel(game_state *GameState, ui_context *UI)
 
     ui_layout Layout = UIBeginPanelAnchored(UI, UIAnchor_BottomLeft, Vector2(20.0f, 20.0f), 180.0f);
     {
-        UIScrollList(&Layout, 5, 3);
+        ui_layout listLayout = UIScrollList(&Layout, 3);
+        {
+            UILabel(&listLayout, Entity->Name);
+            UILabel(&listLayout, EntityTypeName(Entity->SimVariant.Type));
+            UIButton(&listLayout, "ss");
+            UIButton(&listLayout, "ss");
+            UIButton(&listLayout, "ss");
 
-        UILabel(&Layout, Entity->Name);
-        UILabel(&Layout, EntityTypeName(Entity->SimVariant.Type));
+            UILabelVector3(&listLayout, "pos", WorldPositionToMeters(GameState->World, Entity->Position));
+        }
+        UIEndScrollList(&listLayout);
+
         UIButton(&Layout, "ss");
-
-        UILabelVector3(&Layout, "pos", WorldPositionToMeters(GameState->World, Entity->Position));
+        UIButton(&Layout, "ss");
+        UIButton(&Layout, "ss");
+        UIButton(&Layout, "ss");
     }
     UIEndPanel(&Layout);
 }
