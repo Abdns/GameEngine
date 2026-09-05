@@ -1,7 +1,7 @@
 {
     "Version": "1.2",
     "Data": {
-        "Source": "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\vulkanrenderer.cpp",
+        "Source": "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\voxels\\voxelsrenderer.cpp",
         "ProvidedModule": "",
         "Includes": [
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\vulkan.h",
@@ -282,16 +282,7 @@
             "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\um\\ime_cmodes.h",
             "c:\\vulkansdk\\1.4.350.0\\include\\vulkan\\vulkan_win32.h",
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\shaderinterop.h",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\vulkanrender.h",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\vulkandebug.cpp",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\vulkancore.cpp",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\vulkandevice.cpp",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\vulkanresources.cpp",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\voxels\\voxelsresources.cpp",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\vulkanpasses.cpp",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\vulkanpipeline.cpp",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\vulkanframe.cpp",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\voxels\\voxelsrenderer.cpp"
+            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\vulkanrender.h"
         ],
         "ImportedModules": [],
         "ImportedHeaderUnits": []

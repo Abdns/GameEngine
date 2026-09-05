@@ -37,11 +37,14 @@
   <ItemGroup>
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRenderer.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanCore.cpp" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanDebug.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanDevice.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanResources.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanPasses.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanPipeline.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanFrame.cpp" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\Voxels\VoxelsResources.cpp" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\Voxels\VoxelsRenderer.cpp" />
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32FileIO.cpp" />
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32GameCode.cpp" />
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32GDI.cpp" />

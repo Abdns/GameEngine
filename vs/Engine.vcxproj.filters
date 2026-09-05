@@ -34,6 +34,9 @@
     <Filter Include="engine\source\Graphics\Vulkan">
       <UniqueIdentifier>{a1000000-0000-0000-0000-000000000004}</UniqueIdentifier>
     </Filter>
+    <Filter Include="engine\source\Graphics\Vulkan\Voxels">
+      <UniqueIdentifier>{a1000000-0000-0000-0000-0000000000c1}</UniqueIdentifier>
+    </Filter>
     <Filter Include="engine\source\Graphics\Vulkan\shaders">
       <UniqueIdentifier>{a1000000-0000-0000-0000-000000000005}</UniqueIdentifier>
     </Filter>
@@ -71,6 +74,9 @@
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanCore.cpp">
       <Filter>engine\source\Graphics\Vulkan</Filter>
     </ClInclude>
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanDebug.cpp">
+      <Filter>engine\source\Graphics\Vulkan</Filter>
+    </ClInclude>
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanDevice.cpp">
       <Filter>engine\source\Graphics\Vulkan</Filter>
     </ClInclude>
@@ -85,6 +91,12 @@
     </ClInclude>
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanFrame.cpp">
       <Filter>engine\source\Graphics\Vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\Voxels\VoxelsResources.cpp">
+      <Filter>engine\source\Graphics\Vulkan\Voxels</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\Voxels\VoxelsRenderer.cpp">
+      <Filter>engine\source\Graphics\Vulkan\Voxels</Filter>
     </ClInclude>
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32FileIO.cpp">
       <Filter>engine\source\Platform\win32\src</Filter>

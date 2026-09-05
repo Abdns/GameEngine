@@ -93,3 +93,8 @@ internal void GpuBarrier(VkCommandBuffer cmd, VkPipelineStageFlags2 srcStage, Vk
 
     vkCmdPipelineBarrier2(cmd, &dependency);
 }
+
+internal void StorageBarrier(VkCommandBuffer cmd)
+{
+    GpuBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+}
