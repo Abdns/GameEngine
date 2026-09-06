@@ -1,8 +1,14 @@
 #include "Vulkan.h"
 
-global_variable bool32 TimestampReady[MAX_FRAMES_IN_FLIGHT];
-global_variable real64 GpuSectionAccum[8];
-global_variable uint32 GpuSampleCount;
+#define GPU_STAMPS_PER_FRAME 32
+#define MAX_GPU_SECTIONS     (GPU_STAMPS_PER_FRAME / 2)
+#define GPU_SAMPLE_WINDOW    120
+
+global_variable bool32      TimestampReady[MAX_FRAMES_IN_FLIGHT];
+global_variable const char *GpuSectionNames[MAX_GPU_SECTIONS];
+global_variable real64      GpuSectionAccum[MAX_GPU_SECTIONS];
+global_variable uint32      GpuSectionCount;
+global_variable uint32      GpuSampleCount;
 
 internal void CreateTimestampPool(vulkan_context *context)
 {
@@ -14,61 +20,106 @@ internal void CreateTimestampPool(vulkan_context *context)
     VkQueryPoolCreateInfo info{};
     info.sType      = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
     info.queryType  = VK_QUERY_TYPE_TIMESTAMP;
-    info.queryCount = MAX_FRAMES_IN_FLIGHT * 16;
+    info.queryCount = MAX_FRAMES_IN_FLIGHT * GPU_STAMPS_PER_FRAME;
 
     VkResult result = vkCreateQueryPool(context->device, &info, nullptr, &context->timestampPool);
     Assert(result == VK_SUCCESS);
 }
 
-internal void GpuStamp(vulkan_context *context, VkCommandBuffer cmd, uint32 base, uint32 index)
+internal void ReportGpuSections(void)
 {
-    vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, context->timestampPool, base + index);
+    real64 scale = 1.0 / (real64)GpuSampleCount;
+    real64 total = 0.0;
+
+    DebugLog("[gpu]");
+
+    for (uint32 i = 0; i < GpuSectionCount; ++i)
+    {
+        real64 millis = GpuSectionAccum[i] * scale;
+
+        total += millis;
+
+        DebugLog(" %s %.2f", GpuSectionNames[i], millis);
+
+        GpuSectionAccum[i] = 0.0;
+    }
+
+    DebugLog(" | total %.2f ms\n", total);
+
+    GpuSampleCount = 0;
 }
 
-internal void ResetGpuTimestamps(vulkan_context *context, VkCommandBuffer cmd, uint32 stampBase)
+internal void ReadGpuTimestamps(vulkan_context *context, uint32 slot)
 {
-    vkCmdResetQueryPool(cmd, context->timestampPool, stampBase, 16);
-}
-
-internal void ReadGpuTimestamps(vulkan_context *context, uint32 slot, uint32 stampBase)
-{
-    if (!TimestampReady[slot])
+    if (!TimestampReady[slot] || !GpuSectionCount)
     {
         return;
     }
 
-    uint64 stamps[9];
+    uint64 stamps[GPU_STAMPS_PER_FRAME];
 
-    if (vkGetQueryPoolResults(context->device, context->timestampPool, stampBase, 9, sizeof(stamps), stamps, sizeof(uint64), VK_QUERY_RESULT_64_BIT) != VK_SUCCESS)
+    uint32 stampCount = GpuSectionCount * 2;
+
+    if (vkGetQueryPoolResults(context->device, context->timestampPool, slot * GPU_STAMPS_PER_FRAME, stampCount, stampCount * sizeof(uint64), stamps, sizeof(uint64), VK_QUERY_RESULT_64_BIT) != VK_SUCCESS)
     {
         return;
     }
 
-    for (uint32 i = 0; i < 8; ++i)
+    for (uint32 i = 0; i < GpuSectionCount; ++i)
     {
-        GpuSectionAccum[i] += (real64)(stamps[i + 1] - stamps[i]) * (real64)context->timestampPeriod * 1e-6;
+        GpuSectionAccum[i] += (real64)(stamps[i * 2 + 1] - stamps[i * 2]) * (real64)context->timestampPeriod * 1e-6;
     }
 
     ++GpuSampleCount;
 
-    if (GpuSampleCount >= 120)
+    if (GpuSampleCount >= GPU_SAMPLE_WINDOW)
     {
-        real64 scale = 1.0 / (real64)GpuSampleCount;
-        real64 total = 0.0;
-
-        for (uint32 i = 0; i < 8; ++i)
-        {
-            GpuSectionAccum[i] *= scale;
-            total += GpuSectionAccum[i];
-        }
-
-        DebugLog("[gpu] vox %.2f sky %.2f inject %.2f cascades %.2f depth %.2f screen %.2f scene %.2f post %.2f | total %.2f ms\n", GpuSectionAccum[0], GpuSectionAccum[1], GpuSectionAccum[2], GpuSectionAccum[3], GpuSectionAccum[4], GpuSectionAccum[5], GpuSectionAccum[6], GpuSectionAccum[7], total);
-
-        for (uint32 i = 0; i < 8; ++i)
-        {
-            GpuSectionAccum[i] = 0.0;
-        }
-
-        GpuSampleCount = 0;
+        ReportGpuSections();
     }
 }
+
+internal void BeginGpuFrame(vulkan_context *context, vulkan_frame *frame)
+{
+    ReadGpuTimestamps(context, frame->Slot);
+
+    vkCmdResetQueryPool(frame->Cmd, context->timestampPool, frame->Slot * GPU_STAMPS_PER_FRAME, GPU_STAMPS_PER_FRAME);
+
+    GpuSectionCount = 0;
+}
+
+internal void EndGpuFrame(vulkan_frame *frame)
+{
+    TimestampReady[frame->Slot] = true;
+}
+
+struct gpu_section_scope
+{
+    vulkan_context *Context;
+    VkCommandBuffer Cmd;
+    uint32          Query;
+
+    gpu_section_scope(vulkan_context *context, vulkan_frame *frame, const char *name)
+    {
+        Assert(GpuSectionCount < MAX_GPU_SECTIONS);
+
+        Context = context;
+        Cmd     = frame->Cmd;
+        Query   = frame->Slot * GPU_STAMPS_PER_FRAME + GpuSectionCount * 2;
+
+        GpuSectionNames[GpuSectionCount] = name;
+
+        ++GpuSectionCount;
+
+        vkCmdWriteTimestamp(Cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, Context->timestampPool, Query);
+    }
+
+    ~gpu_section_scope()
+    {
+        vkCmdWriteTimestamp(Cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, Context->timestampPool, Query + 1);
+    }
+};
+
+#define GpuSectionName(Line) GpuSectionJoin(GpuSectionScope, Line)
+#define GpuSectionJoin(A, B) A##B
+
+#define GpuSection(Context, Frame, Name) gpu_section_scope GpuSectionName(__LINE__)(Context, Frame, Name)

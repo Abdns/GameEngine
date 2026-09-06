@@ -1,6 +1,111 @@
 #include "Strings.h"
 #include "Vulkan.h"
 
+struct vulkan_shader
+{
+    file_data vert;
+    file_data frag;
+};
+
+struct render_state
+{
+    VkCullModeFlags CullMode;
+    VkBool32        DepthTest;
+    VkBool32        DepthWrite;
+    VkBool32        AlphaBlend;
+    bool32          Valid;
+};
+
+struct pipeline_desc
+{
+    const char *ShaderName;
+
+    VkBool32 DepthTest;
+    VkBool32 DepthWrite;
+    VkBool32 Blend;
+};
+
+struct render_pipeline
+{
+    render_state DefaultState;
+
+    VkShaderEXT Vert;
+    VkShaderEXT Frag;
+};
+
+struct compute_pipeline
+{
+    VkShaderEXT Compute;
+};
+
+enum compute_type
+{
+    Compute_VoxelizeClear = 0,
+    Compute_VoxelizeMesh,
+    Compute_VoxelizeResolve,
+
+    Compute_SkyOcclusionSweep,
+    Compute_SkyOcclusionBlur,
+
+    Compute_RadianceClear,
+    Compute_RadianceInject,
+    Compute_RadianceSmooth,
+
+    Compute_CascadesTrace,
+    Compute_CascadesMerge,
+    Compute_CascadesResolve,
+    Compute_CascadesPrefilter,
+
+    Compute_ScreenGiProbe,
+
+    Compute_Count,
+};
+
+struct compute_desc
+{
+    const char *File;
+    const char *Entry;
+};
+
+global_variable render_pipeline  Pipelines[Pipeline_Count];
+global_variable compute_pipeline ComputePipelines[Compute_Count];
+
+global_variable pipeline_desc PipelineDescs[] =
+{
+    { "unlit",      VK_TRUE,  VK_TRUE,  VK_FALSE },
+    { "lit",        VK_TRUE,  VK_TRUE,  VK_FALSE },
+    { "skybox",     VK_FALSE, VK_FALSE, VK_FALSE },
+    { "post",       VK_FALSE, VK_FALSE, VK_FALSE },
+    { "UI",         VK_FALSE, VK_FALSE, VK_FALSE },
+    { "uirect",     VK_FALSE, VK_FALSE, VK_TRUE  },
+    { "volumeview", VK_FALSE, VK_FALSE, VK_FALSE },
+    { "depth",      VK_TRUE,  VK_TRUE,  VK_FALSE },
+};
+
+global_variable compute_desc ComputeDescs[] =
+{
+    { "voxelize",     "Clear"     },
+    { "voxelize",     "Mesh"      },
+    { "voxelize",     "Resolve"   },
+
+    { "skyocclusion", "Sweep"     },
+    { "skyocclusion", "Blur"      },
+
+    { "radiance",     "Clear"     },
+    { "radiance",     "Inject"    },
+    { "radiance",     "Smooth"    },
+
+    { "cascades",     "Trace"     },
+    { "cascades",     "Merge"     },
+    { "cascades",     "Resolve"   },
+    { "cascades",     "Prefilter" },
+
+    { "screengi",     "Probe"     },
+};
+
+static_assert(ArrayCount(PipelineDescs) == Pipeline_Count, "PipelineDescs must describe every pipeline_type");
+static_assert(ArrayCount(ComputeDescs) == Compute_Count, "ComputeDescs must describe every compute_type");
+
 internal vulkan_shader LoadShader(const char *name)
 {
     vulkan_shader shader = {};
@@ -33,28 +138,30 @@ internal void FreeShader(vulkan_shader *shader)
     *shader = {};
 }
 
-internal file_data LoadComputeShader(const char *name)
+internal file_data LoadComputeShader(compute_desc *desc)
 {
     char path[256];
 
     uint32 n = AppendString(path, ArrayCount(path), 0, "CompiledShaders/");
-    n = AppendString(path, ArrayCount(path), n, name);
+    n = AppendString(path, ArrayCount(path), n, desc->File);
+    n = AppendString(path, ArrayCount(path), n, "_");
+    n = AppendString(path, ArrayCount(path), n, desc->Entry);
     AppendString(path, ArrayCount(path), n, ".comp.spv");
 
     file_data code = Win32ReadEntireFile(path);
 
     Assert(code.Data);
 
-    DebugLog("Compute shader '%s' loaded (%u bytes)\n", name, code.Size);
+    DebugLog("Compute shader '%s.hlsl:%s' loaded (%u bytes)\n", desc->File, desc->Entry, code.Size);
 
     return code;
 }
 
-internal void CreateComputePipeline(vulkan_context *context, vulkan_resources *res, compute_pipeline *pipeline, const char *name)
+internal void CreateComputePipeline(vulkan_context *context, vulkan_resources *res, compute_pipeline *pipeline, compute_desc *desc)
 {
     VkDescriptorSetLayout heapLayout = res->Heap.Layout;
 
-    file_data code = LoadComputeShader(name);
+    file_data code = LoadComputeShader(desc);
 
     VkPushConstantRange pushRange = ParamsPushRange();
 
@@ -64,7 +171,7 @@ internal void CreateComputePipeline(vulkan_context *context, vulkan_resources *r
     createInfo.codeType               = VK_SHADER_CODE_TYPE_SPIRV_EXT;
     createInfo.codeSize               = code.Size;
     createInfo.pCode                  = code.Data;
-    createInfo.pName                  = "CSMain";
+    createInfo.pName                  = desc->Entry;
     createInfo.setLayoutCount         = 1;
     createInfo.pSetLayouts            = &heapLayout;
     createInfo.pushConstantRangeCount = 1;
@@ -131,3 +238,15 @@ internal void CreateRenderPipeline(vulkan_context *context, vulkan_resources *re
     FreeShader(&shader);
 }
 
+internal void CreatePipelines(vulkan_context *context, vulkan_resources *res)
+{
+    for (uint32 i = 0; i < Pipeline_Count; ++i)
+    {
+        CreateRenderPipeline(context, res, &Pipelines[i], &PipelineDescs[i]);
+    }
+
+    for (uint32 i = 0; i < Compute_Count; ++i)
+    {
+        CreateComputePipeline(context, res, &ComputePipelines[i], &ComputeDescs[i]);
+    }
+}

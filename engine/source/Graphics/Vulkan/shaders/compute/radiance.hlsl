@@ -1,15 +1,4 @@
-#include "ShaderInterop.h"
-
-[[vk::image_format("rgba16f")]]
-[[vk::binding(BINDING_STORAGE_VOLUMES, SET_GLOBAL)]] RWTexture3D<float4> VolumesRW[MAX_VOLUMES];
-
-[[vk::binding(BINDING_VOLUMES, SET_GLOBAL)]] Texture3D Volumes[MAX_VOLUMES];
-
-[[vk::binding(BINDING_CUBEMAPS, SET_GLOBAL)]] TextureCube  Sky[MAX_CUBEMAPS];
-[[vk::binding(BINDING_SAMPLER,  SET_GLOBAL)]] SamplerState Samp;
-[[vk::binding(BINDING_VOLUME_SAMPLER, SET_GLOBAL)]] SamplerState VolumeSamp;
-
-[[vk::push_constant]] push_constants pc;
+#include "Compute.hlsl"
 
 float3 SampleBounce(uint slot, float3 local, float3 normal)
 {
@@ -35,7 +24,20 @@ float3 SampleBounce(uint slot, float3 local, float3 normal)
 }
 
 [numthreads(VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE)]
-void CSMain(uint3 id : SV_DispatchThreadID)
+void Clear(uint3 id : SV_DispatchThreadID)
+{
+    volume_params params = LoadVolumeParams(pc.ParamsPtr);
+
+    if (any(id >= params.VolumeSize))
+    {
+        return;
+    }
+
+    VolumesRW[params.VolumeSlot][id] = float4(0.0, 0.0, 0.0, 0.0);
+}
+
+[numthreads(VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE)]
+void Inject(uint3 id : SV_DispatchThreadID)
 {
     rc_inject_params params = LoadRcInjectParams(pc.ParamsPtr);
 
@@ -125,4 +127,33 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float4 current = float4(solid.rgb * (sunlight + skylight + bounced), solid.a);
 
     VolumesRW[params.RadianceSlot][id] = lerp(history, current, LIGHT_BLEND);
+}
+
+[numthreads(VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE)]
+void Smooth(uint3 id : SV_DispatchThreadID)
+{
+    volume_op_params params = LoadVolumeOpParams(pc.ParamsPtr);
+
+    if (any(id >= params.Size))
+    {
+        return;
+    }
+
+    float inv = 1.0 / (float)params.Size;
+
+    float3 uvw = ((float3)id + 0.5) * inv;
+
+    float4 total = float4(0.0, 0.0, 0.0, 0.0);
+
+    for (uint corner = 0; corner < 8; ++corner)
+    {
+        float3 offset = float3(
+            (corner & 1) ? 0.5 : -0.5,
+            (corner & 2) ? 0.5 : -0.5,
+            (corner & 4) ? 0.5 : -0.5) * inv;
+
+        total += Volumes[params.SrcSlot].SampleLevel(VolumeSamp, uvw + offset, 0);
+    }
+
+    VolumesRW[params.DstSlot][id] = total * 0.125;
 }

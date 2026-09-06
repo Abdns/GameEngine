@@ -1,9 +1,4 @@
-#include "ShaderInterop.h"
-
-[[vk::image_format("r32ui")]]
-[[vk::binding(BINDING_UINT_VOLUMES, SET_GLOBAL)]] RWTexture3D<uint> UintVolumesRW[MAX_UINT_VOLUMES];
-
-[[vk::push_constant]] push_constants pc;
+#include "Compute.hlsl"
 
 static const float VOXEL_SAMPLE_DENSITY = 1.5;
 static const uint  VOXEL_MAX_STEPS      = 512;
@@ -22,8 +17,27 @@ uint PackColorKey(float3 color)
     return 0x80000000u | (quantized.x << 16) | (quantized.y << 8) | quantized.z;
 }
 
+float3 UnpackColorKey(uint key)
+{
+    uint3 quantized = uint3((key >> 16) & 0xFF, (key >> 8) & 0xFF, key & 0xFF);
+
+    return (float3)quantized / 255.0;
+}
+
+[numthreads(VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE)]
+void Clear(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id >= VOLUME_GRID_SIZE))
+    {
+        return;
+    }
+
+    UintVolumesRW[UINT_SLOT_ALBEDO][id] = 0;
+    UintVolumesRW[UINT_SLOT_NORMAL][id] = 0;
+}
+
 [numthreads(VOXEL_GROUP_SIZE, 1, 1)]
-void CSMain(uint3 id : SV_DispatchThreadID)
+void Mesh(uint3 id : SV_DispatchThreadID)
 {
     voxelize_params params = LoadVoxelizeParams(pc.ParamsPtr);
 
@@ -81,4 +95,23 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             }
         }
     }
+}
+
+[numthreads(VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE)]
+void Resolve(uint3 id : SV_DispatchThreadID)
+{
+    volume_op_params params = LoadVolumeOpParams(pc.ParamsPtr);
+
+    if (any(id >= params.Size))
+    {
+        return;
+    }
+
+    uint albedoKey = UintVolumesRW[UINT_SLOT_ALBEDO][id];
+    uint normalKey = UintVolumesRW[UINT_SLOT_NORMAL][id];
+
+    float occupancy = albedoKey ? 1.0 : 0.0;
+
+    VolumesRW[params.SrcSlot][id] = float4(UnpackColorKey(albedoKey), occupancy);
+    VolumesRW[params.DstSlot][id] = float4(UnpackColorKey(normalKey), occupancy);
 }

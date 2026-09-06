@@ -1,6 +1,26 @@
 #include "Strings.h"
 #include "Vulkan.h"
 
+#define MAX_SURFACE_FORMATS   64
+#define MAX_PRESENT_MODES     8
+
+struct queue_family_indices
+{
+    uint32 graphicsIndex;
+    uint32 presentIndex;
+    bool32 graphicsSupported;
+    bool32 presentSupported;
+};
+
+struct swapchain_support_details
+{
+    VkSurfaceCapabilitiesKHR capabilities;
+    VkSurfaceFormatKHR formats[MAX_SURFACE_FORMATS];
+    uint32 formatCount;
+    VkPresentModeKHR presentModes[MAX_PRESENT_MODES];
+    uint32 presentModeCount;
+};
+
 global_variable const char *RequiredInstanceExtensions[] =
 {
     VK_KHR_SURFACE_EXTENSION_NAME,

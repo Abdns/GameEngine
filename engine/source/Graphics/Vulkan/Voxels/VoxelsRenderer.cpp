@@ -123,14 +123,14 @@ internal void ResolveVoxels(vulkan_context *context, VkCommandBuffer cmd, vulkan
 
     BindComputePipeline(context, cmd, pipeline);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(downsample_params), 16);
+    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(volume_op_params), 16);
 
-    downsample_params params = {};
-    params.AlbedoSlot = VOLUME_SLOT_ALBEDO;
-    params.NormalSlot = VOLUME_SLOT_NORMAL;
-    params.VoxelSize  = VOLUME_GRID_SIZE;
+    volume_op_params params = {};
+    params.SrcSlot = VOLUME_SLOT_ALBEDO;
+    params.DstSlot = VOLUME_SLOT_NORMAL;
+    params.Size    = VOLUME_GRID_SIZE;
 
-    *(downsample_params *)alloc.Cpu = params;
+    *(volume_op_params *)alloc.Cpu = params;
 
     BindParams(cmd, res->PipelineLayout, alloc.Gpu);
 
@@ -148,14 +148,14 @@ internal void ComputeSkyOcclusion(vulkan_context *context, VkCommandBuffer cmd, 
 
     BindComputePipeline(context, cmd, pipeline);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(downsample_params), 16);
+    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(volume_op_params), 16);
 
-    downsample_params params = {};
-    params.AlbedoSlot = VOLUME_SLOT_ALBEDO;
-    params.NormalSlot = VOLUME_SLOT_SKY_OCCLUSION;
-    params.VoxelSize  = VOLUME_GRID_SIZE;
+    volume_op_params params = {};
+    params.SrcSlot = VOLUME_SLOT_ALBEDO;
+    params.DstSlot = VOLUME_SLOT_SKY_OCCLUSION;
+    params.Size    = VOLUME_GRID_SIZE;
 
-    *(downsample_params *)alloc.Cpu = params;
+    *(volume_op_params *)alloc.Cpu = params;
 
     BindParams(cmd, res->PipelineLayout, alloc.Gpu);
 
@@ -173,14 +173,14 @@ internal void BlurSkyOcclusion(vulkan_context *context, VkCommandBuffer cmd, vul
 
     BindComputePipeline(context, cmd, pipeline);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(downsample_params), 16);
+    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(volume_op_params), 16);
 
-    downsample_params params = {};
-    params.AlbedoSlot = sourceSlot;
-    params.NormalSlot = targetSlot;
-    params.VoxelSize  = VOLUME_GRID_SIZE;
+    volume_op_params params = {};
+    params.SrcSlot = sourceSlot;
+    params.DstSlot = targetSlot;
+    params.Size    = VOLUME_GRID_SIZE;
 
-    *(downsample_params *)alloc.Cpu = params;
+    *(volume_op_params *)alloc.Cpu = params;
 
     BindParams(cmd, res->PipelineLayout, alloc.Gpu);
 
@@ -243,14 +243,14 @@ internal void SmoothRadiance(vulkan_context *context, VkCommandBuffer cmd, vulka
 
     BindComputePipeline(context, cmd, pipeline);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(downsample_params), 16);
+    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(volume_op_params), 16);
 
-    downsample_params params = {};
-    params.AlbedoSlot = VOLUME_SLOT_RADIANCE;
-    params.NormalSlot = VOLUME_SLOT_RADIANCE_SMOOTH;
-    params.VoxelSize  = LIGHT_GRID_SIZE;
+    volume_op_params params = {};
+    params.SrcSlot = VOLUME_SLOT_RADIANCE;
+    params.DstSlot = VOLUME_SLOT_RADIANCE_SMOOTH;
+    params.Size    = LIGHT_GRID_SIZE;
 
-    *(downsample_params *)alloc.Cpu = params;
+    *(volume_op_params *)alloc.Cpu = params;
 
     BindParams(cmd, res->PipelineLayout, alloc.Gpu);
 
@@ -340,24 +340,24 @@ internal void PrefilterHandoff(vulkan_context *context, VkCommandBuffer cmd, vul
 
     BindComputePipeline(context, cmd, pipeline);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(downsample_params), 16);
+    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(volume_op_params), 16);
 
-    downsample_params params = {};
-    params.AlbedoSlot      = VOLUME_SLOT_CASCADE + RC_SCREEN_HANDOFF + 1;
-    params.NormalSlot      = VOLUME_SLOT_HANDOFF;
-    params.SolidSlot       = RC_DIR_RES << (RC_SCREEN_HANDOFF + 1);
-    params.LightNormalSlot = RC_SCREEN_DIR_RES;
-    params.VoxelSize       = RC_PROBE_SIZE >> (RC_SCREEN_HANDOFF + 1);
+    volume_op_params params = {};
+    params.SrcSlot = VOLUME_SLOT_CASCADE + RC_SCREEN_HANDOFF + 1;
+    params.DstSlot = VOLUME_SLOT_HANDOFF;
+    params.SrcRes  = RC_DIR_RES << (RC_SCREEN_HANDOFF + 1);
+    params.DstRes  = RC_SCREEN_DIR_RES;
+    params.Size    = RC_PROBE_SIZE >> (RC_SCREEN_HANDOFF + 1);
 
-    *(downsample_params *)alloc.Cpu = params;
+    *(volume_op_params *)alloc.Cpu = params;
 
     BindParams(cmd, res->PipelineLayout, alloc.Gpu);
 
-    uint32 tile = params.VoxelSize * RC_SCREEN_DIR_RES;
+    uint32 tile = params.Size * RC_SCREEN_DIR_RES;
 
     uint32 groupCount = (tile + RC_GROUP_SIZE - 1) / RC_GROUP_SIZE;
 
-    DispatchCompute(cmd, groupCount, groupCount, params.VoxelSize);
+    DispatchCompute(cmd, groupCount, groupCount, params.Size);
 }
 
 internal void ResolveIrradiance(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, compute_pipeline *pipeline)

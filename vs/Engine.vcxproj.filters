@@ -43,6 +43,9 @@
     <Filter Include="engine\source\Graphics\Vulkan\shaders\compute">
       <UniqueIdentifier>{a1000000-0000-0000-0000-000000000015}</UniqueIdentifier>
     </Filter>
+    <Filter Include="engine\source\Graphics\Vulkan\shaders\interop">
+      <UniqueIdentifier>{a1000000-0000-0000-0000-000000000016}</UniqueIdentifier>
+    </Filter>
     <Filter Include="shared">
       <UniqueIdentifier>{a1000000-0000-0000-0000-000000000006}</UniqueIdentifier>
     </Filter>
@@ -188,6 +191,18 @@
     <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\ShaderInterop.h">
       <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
     </ClInclude>
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderHeap.h">
+      <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderVolumes.h">
+      <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderParams.h">
+      <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderMath.h">
+      <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
+    </ClInclude>
     <ClInclude Include="..\shared\EngaFormat.h">
       <Filter>shared</Filter>
     </ClInclude>
@@ -250,43 +265,22 @@
     <None Include="..\engine\source\Graphics\Vulkan\shaders\depth.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
     </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelclear.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\uintclear.hlsl">
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\Compute.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelize.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelresolve.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\skyocclusion.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\skyocclusionblur.hlsl">
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\radiance.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rcinject.hlsl">
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\cascades.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rctrace.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rcmerge.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rcresolve.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rcscreen.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rcsmooth.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rcprefilter.hlsl">
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\screengi.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
     <None Include="..\EngaAsset\assets.enga">

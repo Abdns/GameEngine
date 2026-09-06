@@ -81,6 +81,10 @@
     <ClInclude Include="..\engine\source\Graphics\Vulkan\Vulkan.h" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRender.h" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\ShaderInterop.h" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderHeap.h" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderVolumes.h" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderParams.h" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderMath.h" />
     <ClInclude Include="..\shared\EngineMath.h" />
     <ClInclude Include="..\shared\Intrinsics.h" />
     <ClInclude Include="..\shared\Memory.h" />
@@ -97,19 +101,12 @@
     <None Include="..\engine\source\Graphics\Vulkan\shaders\uirect.hlsl" />
     <None Include="..\engine\source\Graphics\Vulkan\shaders\volumeview.hlsl" />
     <None Include="..\engine\source\Graphics\Vulkan\shaders\depth.hlsl" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelclear.hlsl" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\uintclear.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\Compute.hlsl" />
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelize.hlsl" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelresolve.hlsl" />
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\skyocclusion.hlsl" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\skyocclusionblur.hlsl" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rcinject.hlsl" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rctrace.hlsl" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rcmerge.hlsl" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rcresolve.hlsl" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rcscreen.hlsl" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rcsmooth.hlsl" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\rcprefilter.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\radiance.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\cascades.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\screengi.hlsl" />
     <None Include="..\EngaAsset\assets.enga" />
     <None Include="..\build.bat" />
   </ItemGroup>

@@ -1,5 +1,12 @@
 #include "Vulkan.h"
 
+enum depth_mode
+{
+    Depth_None = 0,
+    Depth_Clear,
+    Depth_Load,
+};
+
 global_variable gpu_texture DepthTarget;
 global_variable gpu_texture SceneTarget;
 global_variable gpu_texture PostTarget;
@@ -39,7 +46,7 @@ internal gpu_texture CreateRenderTarget(vulkan_context *context, vulkan_resource
     return target;
 }
 
-internal void BeginPass(vulkan_context *context, VkCommandBuffer cmd, VkImageView target, VkAttachmentLoadOp colorLoad, Vector4 clearColor, uint32 depthMode)
+internal void BeginPass(vulkan_context *context, VkCommandBuffer cmd, VkImageView target, VkAttachmentLoadOp colorLoad, Vector4 clearColor, depth_mode depthMode)
 {
     VkRenderingAttachmentInfo color{};
     color.sType       = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;

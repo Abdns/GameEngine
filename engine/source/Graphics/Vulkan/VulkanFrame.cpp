@@ -1,5 +1,8 @@
 #include "Vulkan.h"
 
+#define PIPELINE_TOPOLOGY     VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+#define PIPELINE_FRONT_FACE   VK_FRONT_FACE_CLOCKWISE
+
 internal VkCullModeFlags ToVulkanCullMode(cull_mode mode)
 {
     switch (mode)

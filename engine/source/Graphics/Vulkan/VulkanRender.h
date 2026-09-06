@@ -12,19 +12,6 @@
 #define MAX_SWAPCHAIN_IMAGES  8
 #define MAX_FRAMES_IN_FLIGHT  2
 #define MAX_MESHES            256
-#define FRAME_BUFFER_SIZE     Megabytes(4)
-#define STAGING_MEMORY_SIZE   Megabytes(64)
-
-#define PIPELINE_TOPOLOGY     VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
-#define PIPELINE_FRONT_FACE   VK_FRONT_FACE_CLOCKWISE
-#define PIPELINE_PUSH_STAGES  (VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT)
-#define HEAP_STAGES           (VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT)
-
-struct vulkan_shader
-{
-    file_data vert;
-    file_data frag;
-};
 
 struct gpu_buffer
 {
@@ -62,7 +49,6 @@ struct shared_alloc
     VkDeviceSize    Offset;
 };
 
-
 struct gpu_mesh
 {
     uint32 FirstVertex;
@@ -88,7 +74,6 @@ struct gpu_volume
     uint32         Height;
     uint32         Depth;
 };
-
 
 struct descriptor_heap
 {
@@ -135,64 +120,6 @@ struct vulkan_resources
     gpu_volume     UintVolumes[MAX_UINT_VOLUMES];
     material_state MaterialStates[MAX_MATERIALS];
     uint32         MaterialCount;
-};
-
-struct render_state
-{
-    VkCullModeFlags CullMode;
-    VkBool32        DepthTest;
-    VkBool32        DepthWrite;
-    VkBool32        AlphaBlend;
-    bool32          Valid;
-};
-
-struct pipeline_desc
-{
-    const char *ShaderName;
-
-    VkBool32 DepthTest;
-    VkBool32 DepthWrite;
-    VkBool32 Blend;
-};
-
-struct render_pipeline
-{
-    render_state DefaultState;
-
-    VkShaderEXT Vert;
-    VkShaderEXT Frag;
-};
-
-struct compute_pipeline
-{
-    VkShaderEXT Compute;
-};
-
-enum compute_type
-{
-    Compute_VolumeClear = 0,
-    Compute_Voxelize,
-    Compute_UintClear,
-    Compute_VoxelResolve,
-    Compute_SkyOcclusion,
-    Compute_SkyOcclusionBlur,
-    Compute_RcInject,
-    Compute_RcTrace,
-    Compute_RcMerge,
-    Compute_RcResolve,
-    Compute_RcScreen,
-    Compute_RcSmooth,
-    Compute_RcPrefilter,
-
-    Compute_Count,
-};
-
-
-enum depth_mode
-{
-    Depth_None = 0,
-    Depth_Clear,
-    Depth_Load,
 };
 
 struct vulkan_frame

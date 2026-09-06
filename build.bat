@@ -14,9 +14,23 @@ for %%f in (..\engine\source\Graphics\Vulkan\shaders\*.hlsl) do (
     "%VULKAN_SDK%\Bin\dxc.exe" -spirv -fvk-use-dx-layout -fspv-target-env=vulkan1.3 -T ps_6_0 -E PSMain "%%f" -Fo "CompiledShaders\%%~nf.frag.spv" || goto :failed
 )
 
-for %%f in (..\engine\source\Graphics\Vulkan\shaders\compute\*.hlsl) do (
-    "%VULKAN_SDK%\Bin\dxc.exe" -spirv -fvk-use-dx-layout -fspv-target-env=vulkan1.3 -I ..\engine\source\Graphics\Vulkan\shaders -T cs_6_0 -E CSMain "%%f" -Fo "CompiledShaders\%%~nf.comp.spv" || goto :failed
-)
+call :compute voxelize     Clear     || goto :failed
+call :compute voxelize     Mesh      || goto :failed
+call :compute voxelize     Resolve   || goto :failed
+
+call :compute skyocclusion Sweep     || goto :failed
+call :compute skyocclusion Blur      || goto :failed
+
+call :compute radiance     Clear     || goto :failed
+call :compute radiance     Inject    || goto :failed
+call :compute radiance     Smooth    || goto :failed
+
+call :compute cascades     Trace     || goto :failed
+call :compute cascades     Merge     || goto :failed
+call :compute cascades     Resolve   || goto :failed
+call :compute cascades     Prefilter || goto :failed
+
+call :compute screengi     Probe     || goto :failed
 
 set CommonCompilerFlags=-MTd^
  -nologo^
@@ -103,3 +117,7 @@ echo.
 echo BUILD FAILED
 popd
 exit /b 1
+
+:compute
+"%VULKAN_SDK%\Bin\dxc.exe" -spirv -fvk-use-dx-layout -fspv-target-env=vulkan1.3 -I ..\engine\source\Graphics\Vulkan\shaders -T cs_6_0 -E %2 "..\engine\source\Graphics\Vulkan\shaders\compute\%1.hlsl" -Fo "CompiledShaders\%1_%2.comp.spv"
+exit /b %ERRORLEVEL%
