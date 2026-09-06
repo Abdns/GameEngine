@@ -738,7 +738,7 @@ internal void CreateSwapchainImageViews(vulkan_context *context)
 {
     for (uint32 i = 0; i < context->swapchainImageCount; ++i)
     {
-        context->swapchainImageViews[i] = CreateColorImageView(context->device, context->swapchainImages[i], context->swapchainImageFormat);
+        context->swapchainImageViews[i] = CreateImageView(context->device, context->swapchainImages[i], context->swapchainImageFormat, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1);
     }
 
     DebugLog("Image views created (%u)\n", context->swapchainImageCount);

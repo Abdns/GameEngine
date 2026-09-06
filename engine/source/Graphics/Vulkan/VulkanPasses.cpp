@@ -7,37 +7,24 @@ enum depth_mode
     Depth_Load,
 };
 
-global_variable gpu_texture DepthTarget;
-global_variable gpu_texture SceneTarget;
-global_variable gpu_texture PostTarget;
+global_variable gpu_image DepthTarget;
+global_variable gpu_image SceneTarget;
+global_variable gpu_image PostTarget;
 
 internal void CreateDepthResources(vulkan_context *context, vulkan_resources *res, VkCommandBuffer cmd)
 {
     VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
 
-    DepthTarget.Image = CreateImage(context, context->swapchainExtent.width, context->swapchainExtent.height, depthFormat, 1, 1, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &DepthTarget.Memory);
-    DepthTarget.View = CreateDepthImageView(context->device, DepthTarget.Image, depthFormat);
+    DepthTarget = CreateImage(context, Image_DepthTarget, depthFormat, context->swapchainExtent.width, context->swapchainExtent.height, 1, 1);
 
     CmdImageToGeneral(cmd, DepthTarget.Image, VK_IMAGE_ASPECT_DEPTH_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
 
     WriteImageDescriptor(context, &res->Heap, res->Heap.TextureOffset, TEXTURE_SLOT_DEPTH, DepthTarget.View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
 }
 
-internal gpu_texture CreateRenderTarget(vulkan_context *context, vulkan_resources *res, uint32 textureSlot, VkFormat format, VkCommandBuffer cmd)
+internal gpu_image CreateRenderTarget(vulkan_context *context, vulkan_resources *res, uint32 textureSlot, VkFormat format, VkCommandBuffer cmd)
 {
-    gpu_texture target = {};
-
-    target.Image = CreateImage(
-        context,
-        context->swapchainExtent.width,
-        context->swapchainExtent.height,
-        format, 1, 1,
-        VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        &target.Memory);
-
-    target.View = CreateColorImageView(context->device, target.Image, format);
+    gpu_image target = CreateImage(context, Image_ColorTarget, format, context->swapchainExtent.width, context->swapchainExtent.height, 1, 1);
 
     CmdImageToGeneral(cmd, target.Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
 

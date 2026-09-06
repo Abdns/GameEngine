@@ -130,7 +130,7 @@ internal void DrawFullscreen(vulkan_context *context, VkCommandBuffer cmd, vulka
     render_state wanted  = {};
     BindPipelineState(context, cmd, pipeline, &current, &wanted);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(image_params), 16);
+    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(image_params), 16);
 
     image_params params = {};
     params.TextureSlot = textureSlot;
@@ -180,7 +180,7 @@ internal vulkan_frame BeginFrame(vulkan_context *context, vulkan_resources *res)
 
     ResetFrameRegion(&res->FrameArena, Frame.Slot);
 
-    res->Globals = GetSharedBufferSlot(&res->GlobalsBuffer, Frame.Slot, sizeof(frame_globals));
+    res->Globals = BufferSlot(&res->GlobalsBuffer, Frame.Slot, sizeof(frame_globals));
     *(frame_globals *)res->Globals.Cpu = {};
 
     VkCommandBuffer cmd = context->commandBuffers[Frame.Slot];

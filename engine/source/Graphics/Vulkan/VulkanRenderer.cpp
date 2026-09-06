@@ -21,9 +21,9 @@ internal void ResizeRenderer(vulkan_context *context)
         return;
     }
 
-    DestroyTexture(context, &DepthTarget);
-    DestroyTexture(context, &SceneTarget);
-    DestroyTexture(context, &PostTarget);
+    DestroyImage(context, &DepthTarget);
+    DestroyImage(context, &SceneTarget);
+    DestroyImage(context, &PostTarget);
 
     VkCommandBuffer setup = BeginSingleTimeCommands(context);
     {
@@ -128,12 +128,12 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
     Assert(commands->VertexCount && commands->IndexCount);
     Assert(commands->MaterialCount && commands->MaterialCount <= MAX_MATERIALS);
 
-    res->VertexBuffer   = CreateDeviceBuffer(context, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(vertex) * commands->VertexCount);
-    res->IndexBuffer    = CreateDeviceBuffer(context, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,   sizeof(uint32) * commands->IndexCount);
-    res->MaterialBuffer = CreateDeviceBuffer(context, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(gpu_material) * commands->MaterialCount);
+    res->VertexBuffer   = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(vertex) * commands->VertexCount);
+    res->IndexBuffer    = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,   sizeof(uint32) * commands->IndexCount);
+    res->MaterialBuffer = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(gpu_material) * commands->MaterialCount);
     res->MaterialCount  = commands->MaterialCount;
 
-    shared_buffer staging = CreateUploadBuffer(context, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, STAGING_MEMORY_SIZE);
+    gpu_buffer staging = CreateBuffer(context, Buffer_Upload, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, STAGING_MEMORY_SIZE);
 
     VkCommandBuffer cmd = BeginSingleTimeCommands(context); 
     {
@@ -144,8 +144,8 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
             {
                 command_load_mesh *entry = (command_load_mesh *)header;
 
-                shared_alloc vertices = SharedBufferWrite(&res->VertexBuffer, entry->Vertices, entry->VertexCount * sizeof(vertex), 4);
-                shared_alloc indices  = SharedBufferWrite(&res->IndexBuffer,  entry->Indices,  entry->IndexCount  * sizeof(uint32), sizeof(uint32));
+                gpu_alloc vertices = BufferWrite(&res->VertexBuffer, entry->Vertices, entry->VertexCount * sizeof(vertex), 4);
+                gpu_alloc indices  = BufferWrite(&res->IndexBuffer,  entry->Indices,  entry->IndexCount  * sizeof(uint32), sizeof(uint32));
 
                 Assert(entry->MeshHandle < MAX_MESHES);
 
@@ -160,8 +160,8 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
 
                 VkDeviceSize imageSize = (VkDeviceSize)entry->Width * entry->Height * TextureFormatBytes(entry->Format);
 
-                shared_alloc upload  = SharedBufferWrite(&staging, entry->Pixels, imageSize, 16);
-                gpu_texture *texture = CreateTexture(context, res, entry->TextureHandle, entry->Width, entry->Height, entry->SRGB, entry->Format);
+                gpu_alloc upload  = BufferWrite(&staging, entry->Pixels, imageSize, 16);
+                gpu_image *texture = CreateTexture(context, res, entry->TextureHandle, entry->Width, entry->Height, entry->SRGB, entry->Format);
 
                 CmdUploadImage(cmd, staging.Buffer, upload.Offset, texture->Image, entry->Width, entry->Height, 1);
                 WriteImageDescriptor(context, &res->Heap, res->Heap.TextureOffset, entry->TextureHandle, texture->View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
@@ -172,8 +172,8 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
 
                 VkDeviceSize imageSize = (VkDeviceSize)entry->FaceSize * entry->FaceSize * 6 * TextureFormatBytes(entry->Format);
 
-                shared_alloc upload = SharedBufferWrite(&staging, entry->Pixels, imageSize, 16);
-                gpu_texture *cube = CreateCubemap(context, res, entry->CubemapHandle, entry->FaceSize, entry->Format);
+                gpu_alloc upload = BufferWrite(&staging, entry->Pixels, imageSize, 16);
+                gpu_image *cube = CreateCubemap(context, res, entry->CubemapHandle, entry->FaceSize, entry->Format);
 
                 CmdUploadImage(cmd, staging.Buffer, upload.Offset, cube->Image, entry->FaceSize, entry->FaceSize, 6);
                 CmdGenerateMips(cmd, cube->Image, entry->FaceSize, entry->FaceSize, 6, cube->MipLevels);
@@ -192,7 +192,7 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
                 Assert(entry->MaterialHandle < res->MaterialCount);
 
                 material_state *state    = res->MaterialStates + entry->MaterialHandle;
-                shared_alloc material = GetSharedBufferSlot(&res->MaterialBuffer, entry->MaterialHandle, sizeof(gpu_material));
+                gpu_alloc material = BufferSlot(&res->MaterialBuffer, entry->MaterialHandle, sizeof(gpu_material));
 
                 *state = CreateMaterialState(entry);
                 *(gpu_material *)material.Cpu = CreateMaterial(entry);
@@ -201,7 +201,7 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
     }
     EndSingleTimeCommands(context, cmd);
 
-    DestroySharedBuffer(context, &staging);
+    DestroyBuffer(context, &staging);
 
     commands->LoadCount = 0;
 }
@@ -306,7 +306,7 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
                     BindPipelineState(context, cmd, pipeline, &current, &wanted);
                     ApplyRenderState(context, cmd, &current, &wanted);
 
-                    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(skybox_params), 16);
+                    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(skybox_params), 16);
 
                     skybox_params params = {};
                     params.Tint         = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -357,7 +357,7 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
 
                     ApplyRenderState(context, cmd, &current, &wanted);
 
-                    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(draw_params), 16);
+                    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(draw_params), 16);
 
                     draw_params params = {};
                     params.Model         = meshCmd->Transform;
@@ -394,7 +394,7 @@ internal void ExecuteUICommands(vulkan_context *context, VkCommandBuffer cmd, vu
     real32 width  = (real32)context->swapchainExtent.width;
     real32 height = (real32)context->swapchainExtent.height;
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, rectCount * sizeof(rect_params), 16);
+    gpu_alloc alloc = BufferAlloc(&res->FrameArena, rectCount * sizeof(rect_params), 16);
 
     rect_params *params = (rect_params *)alloc.Cpu;
     uint32       index  = 0;
@@ -471,7 +471,7 @@ internal void RenderDepthPrepass(vulkan_context *context, VkCommandBuffer cmd, v
 
         ApplyRenderState(context, cmd, &current, &wanted);
 
-        shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(draw_params), 16);
+        gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(draw_params), 16);
 
         draw_params params = {};
         params.Model        = meshCmd->Transform;

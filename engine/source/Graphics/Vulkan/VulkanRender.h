@@ -13,36 +13,32 @@
 #define MAX_FRAMES_IN_FLIGHT  2
 #define MAX_MESHES            256
 
+enum buffer_memory
+{
+    Buffer_GpuOnly = 0,
+    Buffer_GpuShared,
+    Buffer_Upload,
+
+    Buffer_MemoryCount,
+};
+
 struct gpu_buffer
 {
     VkBuffer        Buffer;
     VkDeviceMemory  Memory;
-    VkDeviceSize    Size;
-    VkDeviceSize    Used;
-    VkDeviceSize    Limit;
-
     VkDeviceAddress Address;
-};
-
-struct shared_buffer
-{
-    VkBuffer        Buffer;
-    VkDeviceMemory  Memory;
-    VkDeviceSize    Size;
-    VkDeviceSize    Used;
-    VkDeviceSize    Limit;
-
     void           *Mapped;
-    VkDeviceAddress Address;
+
+    VkDeviceSize Size;
+    VkDeviceSize Allocated;
+    VkDeviceSize Used;
+    VkDeviceSize Limit;
+
+    uint32                MemoryType;
+    VkMemoryPropertyFlags MemoryFlags;
 };
 
 struct gpu_alloc
-{
-    VkDeviceAddress Gpu;
-    VkDeviceSize    Offset;
-};
-
-struct shared_alloc
 {
     void           *Cpu;
     VkDeviceAddress Gpu;
@@ -57,28 +53,36 @@ struct gpu_mesh
     uint32 IndexCount;
 };
 
-struct gpu_texture
+enum image_kind
 {
-    VkImage        Image;
-    VkImageView    View;
-    uint32         MipLevels;
-    VkDeviceMemory Memory;
+    Image_Texture = 0,
+    Image_Cubemap,
+    Image_ColorTarget,
+    Image_DepthTarget,
+    Image_Volume,
+
+    Image_KindCount,
 };
 
-struct gpu_volume
+struct gpu_image
 {
     VkImage        Image;
     VkImageView    View;
     VkDeviceMemory Memory;
-    uint32         Width;
-    uint32         Height;
-    uint32         Depth;
+
+    uint32 Width;
+    uint32 Height;
+    uint32 Depth;
+    uint32 MipLevels;
+
+    VkFormat   Format;
+    image_kind Kind;
 };
 
 struct descriptor_heap
 {
     VkDescriptorSetLayout Layout;
-    shared_buffer         Buffer;
+    gpu_buffer         Buffer;
 
     VkDeviceSize TextureOffset;
     VkDeviceSize SamplerOffset;
@@ -106,18 +110,18 @@ struct vulkan_resources
     VkSampler        Sampler;
     VkSampler        VolumeSampler;
 
-    shared_buffer VertexBuffer;
-    shared_buffer IndexBuffer;
-    shared_buffer MaterialBuffer;
-    shared_buffer FrameArena;
-    shared_buffer GlobalsBuffer;
-    shared_alloc  Globals;
+    gpu_buffer VertexBuffer;
+    gpu_buffer IndexBuffer;
+    gpu_buffer MaterialBuffer;
+    gpu_buffer FrameArena;
+    gpu_buffer GlobalsBuffer;
+    gpu_alloc  Globals;
 
     gpu_mesh       Meshes[MAX_MESHES];
-    gpu_texture    Textures[MAX_TEXTURES];
-    gpu_texture    Cubemaps[MAX_CUBEMAPS];
-    gpu_volume     Volumes[MAX_VOLUMES];
-    gpu_volume     UintVolumes[MAX_UINT_VOLUMES];
+    gpu_image      Textures[MAX_TEXTURES];
+    gpu_image      Cubemaps[MAX_CUBEMAPS];
+    gpu_image      Volumes[MAX_VOLUMES];
+    gpu_image      UintVolumes[MAX_UINT_VOLUMES];
     material_state MaterialStates[MAX_MATERIALS];
     uint32         MaterialCount;
 };

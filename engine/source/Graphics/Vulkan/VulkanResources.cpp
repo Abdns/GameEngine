@@ -139,7 +139,7 @@ internal void CreateDescriptorHeap(vulkan_context *context, vulkan_resources *re
 
     VkBufferUsageFlags heapUsage = VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT | VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT;
 
-    res->Heap.Buffer = CreateDeviceBuffer(context, heapUsage, heapSize);
+    res->Heap.Buffer = CreateBuffer(context, Buffer_GpuShared, heapUsage, heapSize);
 }
 
 internal VkPushConstantRange ParamsPushRange()
@@ -173,8 +173,8 @@ internal VkPipelineLayout CreatePipelineLayout(vulkan_context *context, VkDescri
 
 internal void CreateResources(vulkan_context *context, vulkan_resources *res)
 {
-    res->FrameArena    = CreateDeviceBuffer(context, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, FRAME_BUFFER_SIZE);
-    res->GlobalsBuffer = CreateDeviceBuffer(context, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(frame_globals) * MAX_FRAMES_IN_FLIGHT);
+    res->FrameArena    = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, FRAME_BUFFER_SIZE);
+    res->GlobalsBuffer = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(frame_globals) * MAX_FRAMES_IN_FLIGHT);
     res->Sampler       = CreateTextureSampler(context, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT);
     res->VolumeSampler = CreateTextureSampler(context, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
 
@@ -224,34 +224,31 @@ internal VkFormat TextureVkFormat(texture_format Format, uint32 SRGB)
     return SRGB ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
 }
 
-internal gpu_texture *CreateTexture(vulkan_context *context, vulkan_resources *res, uint32 TextureHandle, uint32 Width, uint32 Height, uint32 SRGB, texture_format TextureFormat)
+internal gpu_image *CreateTexture(vulkan_context *context, vulkan_resources *res, uint32 TextureHandle, uint32 Width, uint32 Height, uint32 SRGB, texture_format TextureFormat)
 {
     Assert(TextureHandle < MAX_TEXTURES);
 
-    gpu_texture *texture = &res->Textures[TextureHandle];
+    gpu_image *texture = &res->Textures[TextureHandle];
     Assert(texture->Image == VK_NULL_HANDLE);
 
     VkFormat format = TextureVkFormat(TextureFormat, SRGB);
 
-    texture->Image = CreateTextureImage(context, Width, Height, format, 1, 1, &texture->Memory);
-    texture->View  = CreateColorImageView(context->device, texture->Image, format);
+    *texture = CreateImage(context, Image_Texture, format, Width, Height, 1, 1);
 
     return texture;
 }
 
-internal gpu_texture *CreateCubemap(vulkan_context *context, vulkan_resources *res, uint32 CubemapHandle, uint32 FaceSize, texture_format TextureFormat)
+internal gpu_image *CreateCubemap(vulkan_context *context, vulkan_resources *res, uint32 CubemapHandle, uint32 FaceSize, texture_format TextureFormat)
 {
     Assert(CubemapHandle < MAX_CUBEMAPS);
 
-    gpu_texture *cube = &res->Cubemaps[CubemapHandle];
+    gpu_image *cube = &res->Cubemaps[CubemapHandle];
     Assert(cube->Image == VK_NULL_HANDLE);
 
     VkFormat format    = TextureVkFormat(TextureFormat, 0);
     uint32   mipLevels = MipLevelCount(FaceSize);
 
-    cube->MipLevels = mipLevels;
-    cube->Image     = CreateTextureImage(context, FaceSize, FaceSize, format, 6, mipLevels, &cube->Memory);
-    cube->View      = CreateCubeImageView(context->device, cube->Image, format, mipLevels);
+    *cube = CreateImage(context, Image_Cubemap, format, FaceSize, FaceSize, 1, mipLevels);
 
     return cube;
 }

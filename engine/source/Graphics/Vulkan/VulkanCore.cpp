@@ -1,21 +1,48 @@
 #include "Vulkan.h"
 
-#define INVALID_MEMORY_TYPE 0xFFFFFFFF
+#define MEMORY_DEVICE VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+#define MEMORY_HOST   (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
 
-internal uint32 FindMemoryType(vulkan_context *context, uint32 typeFilter, VkMemoryPropertyFlags properties)
+#define IMAGE_TRANSFER (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
+
+struct buffer_memory_desc
 {
-    VkPhysicalDeviceMemoryProperties *memProps = &context->MemoryProps;
+    VkMemoryPropertyFlags Wanted;
+    VkMemoryPropertyFlags Accepted;
 
-    for (uint32 i = 0; i < memProps->memoryTypeCount; ++i)
-    {
-        if ((typeFilter & (1u << i)) && (memProps->memoryTypes[i].propertyFlags & properties) == properties)
-        {
-            return i;
-        }
-    }
+    bool32 Mapped;
+};
 
-    return INVALID_MEMORY_TYPE;
-}
+global_variable buffer_memory_desc BufferMemoryDescs[] =
+{
+    { MEMORY_DEVICE,               MEMORY_DEVICE, false },
+    { MEMORY_DEVICE | MEMORY_HOST, MEMORY_HOST,   true  },
+    { MEMORY_HOST,                 MEMORY_HOST,   true  },
+};
+
+static_assert(ArrayCount(BufferMemoryDescs) == Buffer_MemoryCount, "BufferMemoryDescs must describe every buffer_memory");
+
+struct image_kind_desc
+{
+    VkImageType        Type;
+    VkImageViewType    ViewType;
+    VkImageCreateFlags Flags;
+    VkImageUsageFlags  Usage;
+    VkImageAspectFlags Aspect;
+
+    uint32 Layers;
+};
+
+global_variable image_kind_desc ImageKindDescs[] =
+{
+    { VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D,   0,                                       IMAGE_TRANSFER | VK_IMAGE_USAGE_SAMPLED_BIT,                              VK_IMAGE_ASPECT_COLOR_BIT, 1 },
+    { VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_CUBE, VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,     IMAGE_TRANSFER | VK_IMAGE_USAGE_SAMPLED_BIT,                              VK_IMAGE_ASPECT_COLOR_BIT, 6 },
+    { VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D,   0,                                       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,         VK_IMAGE_ASPECT_COLOR_BIT, 1 },
+    { VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D,   0,                                       VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, 1 },
+    { VK_IMAGE_TYPE_3D, VK_IMAGE_VIEW_TYPE_3D,   0,                                       VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,                  VK_IMAGE_ASPECT_COLOR_BIT, 1 },
+};
+
+static_assert(ArrayCount(ImageKindDescs) == Image_KindCount, "ImageKindDescs must describe every image_kind");
 
 internal VkCommandBuffer BeginSingleTimeCommands(vulkan_context *context)
 {
@@ -51,39 +78,40 @@ internal void EndSingleTimeCommands(vulkan_context *context, VkCommandBuffer cmd
     vkFreeCommandBuffers(context->device, context->commandPool, 1, &cmd);
 }
 
-internal VkDeviceMemory AllocateBufferMemory(vulkan_context *context, VkBuffer buffer, VkMemoryPropertyFlags preferred, VkMemoryPropertyFlags required, uint32 *outMemoryType)
+internal bool32 AllocateMemory(vulkan_context *context, VkMemoryRequirements *memReq, VkMemoryPropertyFlags properties, bool32 deviceAddress, VkDeviceMemory *outMemory, uint32 *outMemoryType)
 {
-    VkMemoryRequirements memReq;
-    vkGetBufferMemoryRequirements(context->device, buffer, &memReq);
-
-    uint32 memoryType = FindMemoryType(context, memReq.memoryTypeBits, preferred);
-    if (memoryType == INVALID_MEMORY_TYPE && preferred != required)
-    {
-        memoryType = FindMemoryType(context, memReq.memoryTypeBits, required);
-    }
-
-    Assert(memoryType != INVALID_MEMORY_TYPE);
+    VkPhysicalDeviceMemoryProperties *memProps = &context->MemoryProps;
 
     VkMemoryAllocateFlagsInfo flagsInfo{};
     flagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
     flagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
 
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize  = memReq.size;
-    allocInfo.memoryTypeIndex = memoryType;
-    allocInfo.pNext           = &flagsInfo;
+    for (uint32 i = 0; i < memProps->memoryTypeCount; ++i)
+    {
+        if ((memReq->memoryTypeBits & (1u << i)) == 0)
+        {
+            continue;
+        }
 
-    VkDeviceMemory memory = VK_NULL_HANDLE;
+        if ((memProps->memoryTypes[i].propertyFlags & properties) != properties)
+        {
+            continue;
+        }
 
-    VkResult allocated = vkAllocateMemory(context->device, &allocInfo, nullptr, &memory);
-    Assert(allocated == VK_SUCCESS);
+        VkMemoryAllocateInfo allocInfo{};
+        allocInfo.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize  = memReq->size;
+        allocInfo.memoryTypeIndex = i;
+        allocInfo.pNext           = deviceAddress ? &flagsInfo : nullptr;
 
-    VkResult bound = vkBindBufferMemory(context->device, buffer, memory, 0);
-    Assert(bound == VK_SUCCESS);
+        if (vkAllocateMemory(context->device, &allocInfo, nullptr, outMemory) == VK_SUCCESS)
+        {
+            *outMemoryType = i;
+            return true;
+        }
+    }
 
-    *outMemoryType = memoryType;
-    return memory;
+    return false;
 }
 
 internal VkBuffer CreateBufferObject(vulkan_context *context, VkBufferUsageFlags usage, VkDeviceSize size)
@@ -111,36 +139,73 @@ internal VkDeviceAddress BufferAddress(vulkan_context *context, VkBuffer buffer)
     return vkGetBufferDeviceAddress(context->device, &addressInfo);
 }
 
-internal gpu_buffer CreateGpuBuffer(vulkan_context *context, VkBufferUsageFlags usage, VkDeviceSize size)
+internal gpu_buffer CreateBuffer(vulkan_context *context, buffer_memory kind, VkBufferUsageFlags usage, VkDeviceSize size)
 {
+    Assert(kind < Buffer_MemoryCount);
+
+    buffer_memory_desc *desc = &BufferMemoryDescs[kind];
+
     gpu_buffer buffer = {};
+    buffer.Buffer = CreateBufferObject(context, usage, size);
+    buffer.Size   = size;
+    buffer.Limit  = size;
+
+    VkMemoryRequirements memReq;
+    vkGetBufferMemoryRequirements(context->device, buffer.Buffer, &memReq);
 
     uint32 memoryType = 0;
 
-    buffer.Buffer  = CreateBufferObject(context, usage, size);
-    buffer.Memory  = AllocateBufferMemory(context, buffer.Buffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memoryType);
-    buffer.Address = BufferAddress(context, buffer.Buffer);
-    buffer.Size    = size;
-    buffer.Limit   = size;
+    bool32 allocated = AllocateMemory(context, &memReq, desc->Wanted, true, &buffer.Memory, &memoryType);
+
+    if (!allocated && desc->Accepted != desc->Wanted)
+    {
+        allocated = AllocateMemory(context, &memReq, desc->Accepted, true, &buffer.Memory, &memoryType);
+    }
+
+    Assert(allocated);
+
+    VkResult bound = vkBindBufferMemory(context->device, buffer.Buffer, buffer.Memory, 0);
+    Assert(bound == VK_SUCCESS);
+
+    buffer.Allocated   = memReq.size;
+    buffer.MemoryType  = memoryType;
+    buffer.MemoryFlags = context->MemoryProps.memoryTypes[memoryType].propertyFlags;
+    buffer.Address     = BufferAddress(context, buffer.Buffer);
+
+    if (desc->Mapped)
+    {
+        Assert((buffer.MemoryFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0);
+
+        VkResult mapped = vkMapMemory(context->device, buffer.Memory, 0, size, 0, &buffer.Mapped);
+        Assert(mapped == VK_SUCCESS);
+    }
+
+    DebugLog("Buffer %llu bytes: memory type %u, device-local %u, host-visible %u\n", (uint64)size, memoryType, (buffer.MemoryFlags & MEMORY_DEVICE) != 0, (buffer.MemoryFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0);
 
     return buffer;
 }
 
-internal void DestroyGpuBuffer(vulkan_context *context, gpu_buffer *buffer)
+internal void DestroyBuffer(vulkan_context *context, gpu_buffer *buffer)
 {
+    if (buffer->Mapped)
+    {
+        vkUnmapMemory(context->device, buffer->Memory);
+    }
+
     vkDestroyBuffer(context->device, buffer->Buffer, nullptr);
     vkFreeMemory(context->device, buffer->Memory, nullptr);
 
     *buffer = {};
 }
 
-internal gpu_alloc GpuBufferAlloc(gpu_buffer *buffer, VkDeviceSize size, VkDeviceSize alignment)
+internal gpu_alloc BufferAlloc(gpu_buffer *buffer, VkDeviceSize size, VkDeviceSize alignment)
 {
     VkDeviceSize offset = AlignPow2(buffer->Used, alignment);
 
     Assert(offset + size <= buffer->Limit);
 
     gpu_alloc result;
+    result.Cpu    = buffer->Mapped ? (uint8 *)buffer->Mapped + offset : nullptr;
     result.Gpu    = buffer->Address + offset;
     result.Offset = offset;
 
@@ -149,86 +214,32 @@ internal gpu_alloc GpuBufferAlloc(gpu_buffer *buffer, VkDeviceSize size, VkDevic
     return result;
 }
 
-internal shared_buffer CreateSharedBuffer(vulkan_context *context, VkBufferUsageFlags usage, VkDeviceSize size, VkMemoryPropertyFlags preferred)
+internal gpu_alloc BufferWrite(gpu_buffer *buffer, const void *data, VkDeviceSize size, VkDeviceSize alignment)
 {
-    VkMemoryPropertyFlags required = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    gpu_alloc result = BufferAlloc(buffer, size, alignment);
 
-    shared_buffer buffer = {};
-
-    uint32 memoryType = 0;
-
-    buffer.Buffer  = CreateBufferObject(context, usage, size);
-    buffer.Memory  = AllocateBufferMemory(context, buffer.Buffer, preferred | required, required, &memoryType);
-    buffer.Address = BufferAddress(context, buffer.Buffer);
-    buffer.Size    = size;
-    buffer.Limit   = size;
-
-    VkResult mapped = vkMapMemory(context->device, buffer.Memory, 0, size, 0, &buffer.Mapped);
-    Assert(mapped == VK_SUCCESS);
-
-    return buffer;
-}
-
-internal shared_buffer CreateDeviceBuffer(vulkan_context *context, VkBufferUsageFlags usage, VkDeviceSize size)
-{
-    return CreateSharedBuffer(context, usage, size, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-}
-
-internal shared_buffer CreateUploadBuffer(vulkan_context *context, VkBufferUsageFlags usage, VkDeviceSize size)
-{
-    return CreateSharedBuffer(context, usage, size, 0);
-}
-
-internal void DestroySharedBuffer(vulkan_context *context, shared_buffer *buffer)
-{
-    vkUnmapMemory(context->device, buffer->Memory);
-
-    vkDestroyBuffer(context->device, buffer->Buffer, nullptr);
-    vkFreeMemory(context->device, buffer->Memory, nullptr);
-
-    *buffer = {};
-}
-
-internal shared_alloc SharedBufferAlloc(shared_buffer *buffer, VkDeviceSize size, VkDeviceSize alignment)
-{
-    VkDeviceSize offset = AlignPow2(buffer->Used, alignment);
-
-    Assert(offset + size <= buffer->Limit);
-
-    shared_alloc result;
-    result.Cpu    = (uint8 *)buffer->Mapped + offset;
-    result.Gpu    = buffer->Address + offset;
-    result.Offset = offset;
-
-    buffer->Used = offset + size;
-
-    return result;
-}
-
-internal shared_alloc SharedBufferWrite(shared_buffer *buffer, const void *data, VkDeviceSize size, VkDeviceSize alignment)
-{
-    shared_alloc result = SharedBufferAlloc(buffer, size, alignment);
+    Assert(result.Cpu);
 
     CopySize(size, (void *)data, result.Cpu);
 
     return result;
 }
 
-internal shared_alloc GetSharedBufferSlot(shared_buffer *buffer, uint32 slot, VkDeviceSize size)
+internal gpu_alloc BufferSlot(gpu_buffer *buffer, uint32 slot, VkDeviceSize size)
 {
     VkDeviceSize offset = (VkDeviceSize)slot * size;
 
     Assert(offset + size <= buffer->Size);
 
-    shared_alloc result;
-    result.Cpu    = (uint8 *)buffer->Mapped + offset;
+    gpu_alloc result;
+    result.Cpu    = buffer->Mapped ? (uint8 *)buffer->Mapped + offset : nullptr;
     result.Gpu    = buffer->Address + offset;
     result.Offset = offset;
 
     return result;
 }
 
-internal void ResetFrameRegion(shared_buffer *buffer, uint32 frameSlot)
+internal void ResetFrameRegion(gpu_buffer *buffer, uint32 frameSlot)
 {
     VkDeviceSize regionSize = buffer->Size / MAX_FRAMES_IN_FLIGHT;
 
@@ -236,121 +247,19 @@ internal void ResetFrameRegion(shared_buffer *buffer, uint32 frameSlot)
     buffer->Limit = buffer->Used + regionSize;
 }
 
-internal VkImageCreateInfo ImageInfo(uint32 width, uint32 height, VkFormat format, uint32 layers, uint32 mipLevels, VkImageTiling tiling, VkImageUsageFlags usage)
-{
-    VkImageCreateInfo imageInfo{};
-    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageInfo.extent.width  = width;
-    imageInfo.extent.height = height;
-    imageInfo.extent.depth  = 1;
-    imageInfo.mipLevels = mipLevels;
-    imageInfo.arrayLayers = layers;
-    imageInfo.format = format;
-    imageInfo.tiling = tiling;
-    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.usage = usage;
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    if (layers == 6)
-    {
-        imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-    }
-
-    return imageInfo;
-}
-
-internal VkImageCreateInfo VolumeImageInfo(uint32 width, uint32 height, uint32 depth, VkFormat format, VkImageUsageFlags usage)
-{
-    VkImageCreateInfo imageInfo{};
-    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.imageType = VK_IMAGE_TYPE_3D;
-    imageInfo.extent.width  = width;
-    imageInfo.extent.height = height;
-    imageInfo.extent.depth  = depth;
-    imageInfo.mipLevels = 1;
-    imageInfo.arrayLayers = 1;
-    imageInfo.format = format;
-    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.usage = usage;
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    return imageInfo;
-}
-
-internal VkImage CreateImageFromInfo(vulkan_context *context, VkImageCreateInfo *imageInfo, VkMemoryPropertyFlags memoryProperties, VkDeviceMemory *outMemory)
-{
-    VkImage image = VK_NULL_HANDLE;
-
-    VkResult created = vkCreateImage(context->device, imageInfo, nullptr, &image);
-    Assert(created == VK_SUCCESS);
-
-    VkMemoryRequirements memReq;
-    vkGetImageMemoryRequirements(context->device, image, &memReq);
-
-    uint32 memoryType = FindMemoryType(context, memReq.memoryTypeBits, memoryProperties);
-    Assert(memoryType != INVALID_MEMORY_TYPE);
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memReq.size;
-    allocInfo.memoryTypeIndex = memoryType;
-
-    VkResult allocated = vkAllocateMemory(context->device, &allocInfo, nullptr, outMemory);
-    Assert(allocated == VK_SUCCESS);
-
-    VkResult bound = vkBindImageMemory(context->device, image, *outMemory, 0);
-    Assert(bound == VK_SUCCESS);
-
-    return image;
-}
-
-internal VkImage CreateImage(vulkan_context *context, uint32 width, uint32 height, VkFormat format, uint32 layers, uint32 mipLevels, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags memoryProperties, VkDeviceMemory *outMemory)
-{
-    VkImageCreateInfo imageInfo = ImageInfo(width, height, format, layers, mipLevels, tiling, usage);
-
-    return CreateImageFromInfo(context, &imageInfo, memoryProperties, outMemory);
-}
-
-internal VkImage CreateVolumeImage(vulkan_context *context, uint32 width, uint32 height, uint32 depth, VkFormat format, VkDeviceMemory *outMemory)
-{
-    VkImageUsageFlags usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    VkImageCreateInfo imageInfo = VolumeImageInfo(width, height, depth, format, usage);
-
-    return CreateImageFromInfo(context, &imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, outMemory);
-}
-
-internal VkImage CreateStorageImage(vulkan_context *context, uint32 width, uint32 height, VkFormat format, VkDeviceMemory *outMemory)
-{
-    return CreateImage(context, width, height, format, 1, 1, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, outMemory);
-}
-
-internal VkImage CreateTextureImage(vulkan_context *context, uint32 width, uint32 height, VkFormat format, uint32 layers, uint32 mipLevels, VkDeviceMemory *outMemory)
-{
-    return CreateImage(context, width, height, format, layers, mipLevels, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, outMemory);
-}
-
-internal VkImageView CreateImageView(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspectMask, VkImageViewType viewType, uint32 layers, uint32 mipLevels)
+internal VkImageView CreateImageView(VkDevice device, VkImage image, VkFormat format, VkImageViewType viewType, VkImageAspectFlags aspect, uint32 layers, uint32 mipLevels)
 {
     VkImageViewCreateInfo viewInfo{};
-    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    viewInfo.image = image;
+    viewInfo.sType    = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image    = image;
     viewInfo.viewType = viewType;
-    viewInfo.format = format;
+    viewInfo.format   = format;
 
-    viewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-    viewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-    viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-    viewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-
-    viewInfo.subresourceRange.aspectMask = aspectMask;
-    viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = mipLevels;
+    viewInfo.subresourceRange.aspectMask     = aspect;
+    viewInfo.subresourceRange.baseMipLevel   = 0;
+    viewInfo.subresourceRange.levelCount     = mipLevels;
     viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount = layers;
+    viewInfo.subresourceRange.layerCount     = layers;
 
     VkImageView view = VK_NULL_HANDLE;
 
@@ -360,51 +269,90 @@ internal VkImageView CreateImageView(VkDevice device, VkImage image, VkFormat fo
     return view;
 }
 
-internal VkImageView CreateColorImageView(VkDevice device, VkImage image, VkFormat format)
+internal gpu_image CreateImage(vulkan_context *context, image_kind kind, VkFormat format, uint32 width, uint32 height, uint32 depth, uint32 mipLevels)
 {
-    return CreateImageView(device, image, format, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D, 1, 1);
+    Assert(kind < Image_KindCount);
+
+    image_kind_desc *desc = &ImageKindDescs[kind];
+
+    gpu_image image = {};
+    image.Width     = width;
+    image.Height    = height;
+    image.Depth     = depth;
+    image.MipLevels = mipLevels;
+    image.Format    = format;
+    image.Kind      = kind;
+
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.flags         = desc->Flags;
+    imageInfo.imageType     = desc->Type;
+    imageInfo.extent.width  = width;
+    imageInfo.extent.height = height;
+    imageInfo.extent.depth  = depth;
+    imageInfo.mipLevels     = mipLevels;
+    imageInfo.arrayLayers   = desc->Layers;
+    imageInfo.format        = format;
+    imageInfo.tiling        = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage         = desc->Usage;
+    imageInfo.samples       = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+
+    VkResult created = vkCreateImage(context->device, &imageInfo, nullptr, &image.Image);
+    Assert(created == VK_SUCCESS);
+
+    VkMemoryRequirements memReq;
+    vkGetImageMemoryRequirements(context->device, image.Image, &memReq);
+
+    uint32 memoryType = 0;
+
+    bool32 allocated = AllocateMemory(context, &memReq, MEMORY_DEVICE, false, &image.Memory, &memoryType);
+    Assert(allocated);
+
+    VkResult bound = vkBindImageMemory(context->device, image.Image, image.Memory, 0);
+    Assert(bound == VK_SUCCESS);
+
+    image.View = CreateImageView(context->device, image.Image, format, desc->ViewType, desc->Aspect, desc->Layers, mipLevels);
+
+    return image;
 }
 
-internal VkImageView CreateCubeImageView(VkDevice device, VkImage image, VkFormat format, uint32 mipLevels)
+internal void DestroyImage(vulkan_context *context, gpu_image *image)
 {
-    return CreateImageView(device, image, format, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_CUBE, 6, mipLevels);
+    vkDestroyImageView(context->device, image->View, nullptr);
+    vkDestroyImage(context->device, image->Image, nullptr);
+    vkFreeMemory(context->device, image->Memory, nullptr);
+
+    *image = {};
 }
 
-internal VkImageView CreateVolumeImageView(VkDevice device, VkImage image, VkFormat format)
+internal VkImageSubresourceRange ImageRange(VkImageAspectFlags aspect, uint32 baseMipLevel, uint32 levelCount, uint32 layers)
 {
-    return CreateImageView(device, image, format, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_3D, 1, 1);
+    VkImageSubresourceRange range{};
+    range.aspectMask     = aspect;
+    range.baseMipLevel   = baseMipLevel;
+    range.levelCount     = levelCount;
+    range.baseArrayLayer = 0;
+    range.layerCount     = layers;
+
+    return range;
 }
 
-internal VkImageView CreateDepthImageView(VkDevice device, VkImage image, VkFormat format)
-{
-    return CreateImageView(device, image, format, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D, 1, 1);
-}
-
-internal void DestroyTexture(vulkan_context *context, gpu_texture *texture)
-{
-    vkDestroyImageView(context->device, texture->View, nullptr);
-    vkDestroyImage(context->device, texture->Image, nullptr);
-    vkFreeMemory(context->device, texture->Memory, nullptr);
-
-    *texture = {};
-}
-
-internal void CmdImageToGeneral(VkCommandBuffer cmd, VkImage image, VkImageAspectFlags aspect, uint32 layers, VkPipelineStageFlags2 dstStage, VkAccessFlags2 dstAccess)
+internal void CmdImageBarrier(VkCommandBuffer cmd, VkImage image, VkImageSubresourceRange range, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 srcStage, VkAccessFlags2 srcAccess, VkPipelineStageFlags2 dstStage, VkAccessFlags2 dstAccess)
 {
     VkImageMemoryBarrier2 barrier{};
-    barrier.sType                       = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-    barrier.srcStageMask                = VK_PIPELINE_STAGE_2_NONE;
-    barrier.srcAccessMask               = 0;
-    barrier.dstStageMask                = dstStage;
-    barrier.dstAccessMask               = dstAccess;
-    barrier.oldLayout                   = VK_IMAGE_LAYOUT_UNDEFINED;
-    barrier.newLayout                   = VK_IMAGE_LAYOUT_GENERAL;
-    barrier.srcQueueFamilyIndex         = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex         = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image                       = image;
-    barrier.subresourceRange.aspectMask = aspect;
-    barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-    barrier.subresourceRange.layerCount = layers;
+    barrier.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+    barrier.srcStageMask        = srcStage;
+    barrier.srcAccessMask       = srcAccess;
+    barrier.dstStageMask        = dstStage;
+    barrier.dstAccessMask       = dstAccess;
+    barrier.oldLayout           = oldLayout;
+    barrier.newLayout           = newLayout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image               = image;
+    barrier.subresourceRange    = range;
 
     VkDependencyInfo dependency{};
     dependency.sType                   = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
@@ -412,6 +360,20 @@ internal void CmdImageToGeneral(VkCommandBuffer cmd, VkImage image, VkImageAspec
     dependency.pImageMemoryBarriers    = &barrier;
 
     vkCmdPipelineBarrier2(cmd, &dependency);
+}
+
+internal void CmdImageToGeneral(VkCommandBuffer cmd, VkImage image, VkImageAspectFlags aspect, uint32 layers, VkPipelineStageFlags2 dstStage, VkAccessFlags2 dstAccess)
+{
+    VkImageSubresourceRange range = ImageRange(aspect, 0, VK_REMAINING_MIP_LEVELS, layers);
+
+    CmdImageBarrier(cmd, image, range, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_NONE, 0, dstStage, dstAccess);
+}
+
+internal void CmdImageToPresent(VkCommandBuffer cmd, VkImage image)
+{
+    VkImageSubresourceRange range = ImageRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 1);
+
+    CmdImageBarrier(cmd, image, range, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_NONE, 0);
 }
 
 internal void CmdCopyBufferToImage(VkCommandBuffer cmd, VkBuffer buffer, VkDeviceSize bufferOffset, VkImage image, uint32 width, uint32 height, uint32 layers)
@@ -433,8 +395,12 @@ internal void CmdCopyBufferToImage(VkCommandBuffer cmd, VkBuffer buffer, VkDevic
 
 internal void CmdUploadImage(VkCommandBuffer cmd, VkBuffer staging, VkDeviceSize stagingOffset, VkImage image, uint32 width, uint32 height, uint32 layers)
 {
+    VkImageSubresourceRange range = ImageRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, layers);
+
     CmdImageToGeneral(cmd, image, VK_IMAGE_ASPECT_COLOR_BIT, layers, VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
     CmdCopyBufferToImage(cmd, staging, stagingOffset, image, width, height, layers);
+
+    CmdImageBarrier(cmd, image, range, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 }
 
 internal uint32 MipLevelCount(uint32 size)
@@ -449,37 +415,13 @@ internal uint32 MipLevelCount(uint32 size)
     return levels;
 }
 
-internal void CmdMipBarrier(VkCommandBuffer cmd, VkImage image, uint32 baseMipLevel, uint32 levelCount, uint32 layers, VkAccessFlags2 srcAccess, VkPipelineStageFlags2 dstStage, VkAccessFlags2 dstAccess)
-{
-    VkImageMemoryBarrier2 barrier{};
-    barrier.sType                         = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-    barrier.srcStageMask                  = VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT;
-    barrier.srcAccessMask                 = srcAccess;
-    barrier.dstStageMask                  = dstStage;
-    barrier.dstAccessMask                 = dstAccess;
-    barrier.oldLayout                     = VK_IMAGE_LAYOUT_GENERAL;
-    barrier.newLayout                     = VK_IMAGE_LAYOUT_GENERAL;
-    barrier.srcQueueFamilyIndex           = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex           = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image                         = image;
-    barrier.subresourceRange.aspectMask   = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier.subresourceRange.baseMipLevel = baseMipLevel;
-    barrier.subresourceRange.levelCount   = levelCount;
-    barrier.subresourceRange.layerCount   = layers;
-
-    VkDependencyInfo dependency{};
-    dependency.sType                   = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-    dependency.imageMemoryBarrierCount = 1;
-    dependency.pImageMemoryBarriers    = &barrier;
-
-    vkCmdPipelineBarrier2(cmd, &dependency);
-}
-
 internal void CmdGenerateMips(VkCommandBuffer cmd, VkImage image, uint32 width, uint32 height, uint32 layers, uint32 mipLevels)
 {
     for (uint32 level = 1; level < mipLevels; ++level)
     {
-        CmdMipBarrier(cmd, image, level - 1, 1, layers, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_BLIT_BIT, VK_ACCESS_2_TRANSFER_READ_BIT);
+        VkImageSubresourceRange source = ImageRange(VK_IMAGE_ASPECT_COLOR_BIT, level - 1, 1, layers);
+
+        CmdImageBarrier(cmd, image, source, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_BLIT_BIT, VK_ACCESS_2_TRANSFER_READ_BIT);
 
         uint32 srcWidth  = width  >> (level - 1);
         uint32 srcHeight = height >> (level - 1);
@@ -505,30 +447,7 @@ internal void CmdGenerateMips(VkCommandBuffer cmd, VkImage image, uint32 width, 
         vkCmdBlitImage(cmd, image, VK_IMAGE_LAYOUT_GENERAL, image, VK_IMAGE_LAYOUT_GENERAL, 1, &blit, VK_FILTER_LINEAR);
     }
 
-    CmdMipBarrier(cmd, image, 0, VK_REMAINING_MIP_LEVELS, layers, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
-}
+    VkImageSubresourceRange all = ImageRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, layers);
 
-internal void CmdImageToPresent(VkCommandBuffer cmd, VkImage image)
-{
-    VkImageMemoryBarrier2 barrier{};
-    barrier.sType                       = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-    barrier.srcStageMask                = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-    barrier.srcAccessMask               = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-    barrier.dstStageMask                = VK_PIPELINE_STAGE_2_NONE;
-    barrier.dstAccessMask               = 0;
-    barrier.oldLayout                   = VK_IMAGE_LAYOUT_GENERAL;
-    barrier.newLayout                   = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    barrier.srcQueueFamilyIndex         = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex         = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image                       = image;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier.subresourceRange.levelCount = 1;
-    barrier.subresourceRange.layerCount = 1;
-
-    VkDependencyInfo dependency{};
-    dependency.sType                   = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-    dependency.imageMemoryBarrierCount = 1;
-    dependency.pImageMemoryBarriers    = &barrier;
-
-    vkCmdPipelineBarrier2(cmd, &dependency);
+    CmdImageBarrier(cmd, image, all, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 }

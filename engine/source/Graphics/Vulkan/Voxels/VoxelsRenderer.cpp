@@ -4,7 +4,7 @@ global_variable bool32 IrradianceReady;
 
 internal void ClearVolume(VkCommandBuffer cmd, vulkan_resources *res, uint32 volumeSlot, uint32 volumeSize)
 {
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(volume_params), 16);
+    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(volume_params), 16);
 
     volume_params params = {};
     params.VolumeSlot = volumeSlot;
@@ -85,7 +85,7 @@ internal void VoxelizeMeshes(vulkan_context *context, VkCommandBuffer cmd, vulka
             continue;
         }
 
-        shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(voxelize_params), 16);
+        gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(voxelize_params), 16);
 
         voxelize_params params = {};
         params.Model         = meshCmd->Transform;
@@ -123,7 +123,7 @@ internal void ResolveVoxels(vulkan_context *context, VkCommandBuffer cmd, vulkan
 
     BindComputePipeline(context, cmd, pipeline);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(volume_op_params), 16);
+    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(volume_op_params), 16);
 
     volume_op_params params = {};
     params.SrcSlot = VOLUME_SLOT_ALBEDO;
@@ -148,7 +148,7 @@ internal void ComputeSkyOcclusion(vulkan_context *context, VkCommandBuffer cmd, 
 
     BindComputePipeline(context, cmd, pipeline);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(volume_op_params), 16);
+    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(volume_op_params), 16);
 
     volume_op_params params = {};
     params.SrcSlot = VOLUME_SLOT_ALBEDO;
@@ -173,7 +173,7 @@ internal void BlurSkyOcclusion(vulkan_context *context, VkCommandBuffer cmd, vul
 
     BindComputePipeline(context, cmd, pipeline);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(volume_op_params), 16);
+    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(volume_op_params), 16);
 
     volume_op_params params = {};
     params.SrcSlot = sourceSlot;
@@ -215,7 +215,7 @@ internal void InjectRadiance(vulkan_context *context, VkCommandBuffer cmd, vulka
 
     BindComputePipeline(context, cmd, pipeline);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(rc_inject_params), 16);
+    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(rc_inject_params), 16);
 
     rc_inject_params params = {};
     params.SolidSlot      = VOLUME_SLOT_ALBEDO;
@@ -243,7 +243,7 @@ internal void SmoothRadiance(vulkan_context *context, VkCommandBuffer cmd, vulka
 
     BindComputePipeline(context, cmd, pipeline);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(volume_op_params), 16);
+    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(volume_op_params), 16);
 
     volume_op_params params = {};
     params.SrcSlot = VOLUME_SLOT_RADIANCE;
@@ -277,7 +277,7 @@ internal void TraceCascades(vulkan_context *context, VkCommandBuffer cmd, vulkan
 
         RcCascadeInterval(cascade, &start, &length);
 
-        shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(rc_trace_params), 16);
+        gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(rc_trace_params), 16);
 
         rc_trace_params params = {};
         params.RadianceSlot   = VOLUME_SLOT_RADIANCE_SMOOTH;
@@ -313,7 +313,7 @@ internal void MergeCascades(vulkan_context *context, VkCommandBuffer cmd, vulkan
 
         StorageBarrier(cmd);
 
-        shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(rc_merge_params), 16);
+        gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(rc_merge_params), 16);
 
         rc_merge_params params = {};
         params.ParentSlot      = VOLUME_SLOT_CASCADE + parent;
@@ -340,7 +340,7 @@ internal void PrefilterHandoff(vulkan_context *context, VkCommandBuffer cmd, vul
 
     BindComputePipeline(context, cmd, pipeline);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(volume_op_params), 16);
+    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(volume_op_params), 16);
 
     volume_op_params params = {};
     params.SrcSlot = VOLUME_SLOT_CASCADE + RC_SCREEN_HANDOFF + 1;
@@ -369,7 +369,7 @@ internal void ResolveIrradiance(vulkan_context *context, VkCommandBuffer cmd, vu
 
     BindComputePipeline(context, cmd, pipeline);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(rc_resolve_params), 16);
+    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(rc_resolve_params), 16);
 
     rc_resolve_params params = {};
     params.CascadeSlot    = VOLUME_SLOT_CASCADE + RC_SCREEN_HANDOFF;
@@ -415,7 +415,7 @@ internal void ComputeScreenGI(vulkan_context *context, VkCommandBuffer cmd, vulk
 
     RcCascadeInterval(RC_SCREEN_HANDOFF + 1, &start, &length);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(rc_screen_params), 16);
+    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(rc_screen_params), 16);
 
     rc_screen_params params = {};
     params.RadianceSlot   = VOLUME_SLOT_RADIANCE_SMOOTH;
@@ -461,7 +461,7 @@ internal void DrawVolumeDebug(vulkan_context *context, VkCommandBuffer cmd, vulk
     inset.maxDepth = 1.0f;
     vkCmdSetViewportWithCount(cmd, 1, &inset);
 
-    shared_alloc alloc = SharedBufferAlloc(&res->FrameArena, sizeof(volume_params), 16);
+    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(volume_params), 16);
 
     volume_params params = {};
     params.VolumeSlot      = volumeSlot;

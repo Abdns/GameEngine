@@ -1,17 +1,13 @@
 #include "Vulkan.h"
 
-internal gpu_volume *CreateVolume(vulkan_context *context, vulkan_resources *res, uint32 VolumeSlot, uint32 Width, uint32 Height, uint32 Depth, VkCommandBuffer cmd)
+internal gpu_image *CreateVolume(vulkan_context *context, vulkan_resources *res, uint32 VolumeSlot, uint32 Width, uint32 Height, uint32 Depth, VkCommandBuffer cmd)
 {
     Assert(VolumeSlot < MAX_VOLUMES);
 
-    gpu_volume *volume = &res->Volumes[VolumeSlot];
+    gpu_image *volume = &res->Volumes[VolumeSlot];
     Assert(volume->Image == VK_NULL_HANDLE);
 
-    volume->Width  = Width;
-    volume->Height = Height;
-    volume->Depth  = Depth;
-    volume->Image  = CreateVolumeImage(context, Width, Height, Depth, VK_FORMAT_R16G16B16A16_SFLOAT, &volume->Memory);
-    volume->View   = CreateVolumeImageView(context->device, volume->Image, VK_FORMAT_R16G16B16A16_SFLOAT);
+    *volume = CreateImage(context, Image_Volume, VK_FORMAT_R16G16B16A16_SFLOAT, Width, Height, Depth, 1);
 
     WriteImageDescriptor(context, &res->Heap, res->Heap.VolumeOffset, VolumeSlot, volume->View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
     WriteImageDescriptor(context, &res->Heap, res->Heap.StorageVolumeOffset, VolumeSlot, volume->View, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
@@ -21,18 +17,14 @@ internal gpu_volume *CreateVolume(vulkan_context *context, vulkan_resources *res
     return volume;
 }
 
-internal gpu_volume *CreateUintVolume(vulkan_context *context, vulkan_resources *res, uint32 slot, uint32 size, VkCommandBuffer cmd)
+internal gpu_image *CreateUintVolume(vulkan_context *context, vulkan_resources *res, uint32 slot, uint32 size, VkCommandBuffer cmd)
 {
     Assert(slot < MAX_UINT_VOLUMES);
 
-    gpu_volume *volume = &res->UintVolumes[slot];
+    gpu_image *volume = &res->UintVolumes[slot];
     Assert(volume->Image == VK_NULL_HANDLE);
 
-    volume->Width  = size;
-    volume->Height = size;
-    volume->Depth  = size;
-    volume->Image  = CreateVolumeImage(context, size, size, size, VK_FORMAT_R32_UINT, &volume->Memory);
-    volume->View   = CreateVolumeImageView(context->device, volume->Image, VK_FORMAT_R32_UINT);
+    *volume = CreateImage(context, Image_Volume, VK_FORMAT_R32_UINT, size, size, size, 1);
 
     WriteImageDescriptor(context, &res->Heap, res->Heap.UintVolumeOffset, slot, volume->View, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
