@@ -62,8 +62,6 @@ global_variable const char *RequiredDeviceExtensions[] =
 #define PREFERRED_PRESENT_MODE   VK_PRESENT_MODE_MAILBOX_KHR
 #define FALLBACK_PRESENT_MODE    VK_PRESENT_MODE_FIFO_KHR
 
-global_variable vulkan_context GlobalVulkan;
-
 internal uint32 GetExtensions(VkExtensionProperties *props, uint32 maxCount)
 {
     uint32 extensionCount = 0;

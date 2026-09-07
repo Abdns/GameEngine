@@ -79,6 +79,64 @@ struct gpu_image
     image_kind Kind;
 };
 
+struct frame_targets
+{
+    gpu_image Depth;
+    gpu_image Scene;
+    gpu_image Post;
+};
+
+struct render_state
+{
+    VkCullModeFlags CullMode;
+    VkBool32        DepthTest;
+    VkBool32        DepthWrite;
+    VkBool32        AlphaBlend;
+    bool32          Valid;
+};
+
+struct render_pipeline
+{
+    render_state DefaultState;
+
+    VkShaderEXT Vert;
+    VkShaderEXT Frag;
+};
+
+struct compute_pipeline
+{
+    VkShaderEXT Compute;
+};
+
+enum compute_type
+{
+    Compute_VoxelizeClear = 0,
+    Compute_VoxelizeMesh,
+    Compute_VoxelizeResolve,
+
+    Compute_SkyOcclusionSweep,
+    Compute_SkyOcclusionBlur,
+
+    Compute_RadianceClear,
+    Compute_RadianceInject,
+    Compute_RadianceSmooth,
+
+    Compute_CascadesTrace,
+    Compute_CascadesMerge,
+    Compute_CascadesResolve,
+    Compute_CascadesPrefilter,
+
+    Compute_ScreenGiProbe,
+
+    Compute_Count,
+};
+
+struct vulkan_pipelines
+{
+    render_pipeline  Render[Pipeline_Count];
+    compute_pipeline Compute[Compute_Count];
+};
+
 struct descriptor_heap
 {
     VkDescriptorSetLayout Layout;

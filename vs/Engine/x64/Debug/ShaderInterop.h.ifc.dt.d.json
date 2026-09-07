@@ -3,7 +3,12 @@
     "Data": {
         "Source": "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\shaderinterop.h",
         "ProvidedModule": "",
-        "Includes": [],
+        "Includes": [
+            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\interop\\shaderheap.h",
+            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\interop\\shadervolumes.h",
+            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\interop\\shaderparams.h",
+            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\interop\\shadermath.h"
+        ],
         "ImportedModules": [],
         "ImportedHeaderUnits": []
     }

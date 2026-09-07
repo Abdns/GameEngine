@@ -33,9 +33,9 @@
   <ItemGroup>
     <ClCompile Include="..\engine\source\Game\src\Game.cpp" />
     <ClCompile Include="..\engine\source\Platform\win32\Program.cpp" />
+    <ClCompile Include="..\engine\source\Graphics\Vulkan\VulkanRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRenderer.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanCore.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanDebug.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanDevice.cpp" />

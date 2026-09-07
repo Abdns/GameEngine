@@ -15,8 +15,13 @@ struct buffer_memory_desc
 
 global_variable buffer_memory_desc BufferMemoryDescs[] =
 {
+    // Локальная память GPU: быстрая для GPU, недоступна CPU.
     { MEMORY_DEVICE,               MEMORY_DEVICE, false },
+
+    // Предпочтительно BAR-память GPU, отображённая в адресное пространство CPU; иначе память хоста.
     { MEMORY_DEVICE | MEMORY_HOST, MEMORY_HOST,   true  },
+
+    // Когерентная память хоста: staging для загрузки с CPU с последующим копированием в ресурсы GPU.
     { MEMORY_HOST,                 MEMORY_HOST,   true  },
 };
 
@@ -35,10 +40,19 @@ struct image_kind_desc
 
 global_variable image_kind_desc ImageKindDescs[] =
 {
+    // Обычная 2D-текстура: загрузка через transfer и чтение в шейдере.
     { VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D,   0,                                       IMAGE_TRANSFER | VK_IMAGE_USAGE_SAMPLED_BIT,                              VK_IMAGE_ASPECT_COLOR_BIT, 1 },
+
+    // Cubemap из шести 2D-слоёв: загрузка, mip-уровни и чтение в шейдере.
     { VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_CUBE, VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,     IMAGE_TRANSFER | VK_IMAGE_USAGE_SAMPLED_BIT,                              VK_IMAGE_ASPECT_COLOR_BIT, 6 },
+
+    // Цветовой target рендера: запись как attachment и последующее чтение в шейдере.
     { VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D,   0,                                       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,         VK_IMAGE_ASPECT_COLOR_BIT, 1 },
+
+    // Depth target: depth-test при рендеринге и чтение глубины в шейдере.
     { VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D,   0,                                       VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, 1 },
+
+    // 3D volume: прямое чтение и запись из шейдеров через sampled/storage descriptors.
     { VK_IMAGE_TYPE_3D, VK_IMAGE_VIEW_TYPE_3D,   0,                                       VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,                  VK_IMAGE_ASPECT_COLOR_BIT, 1 },
 };
 

@@ -82,4 +82,12 @@ struct vulkan_context
     VkPhysicalDeviceMemoryProperties              MemoryProps;
 };
 
+struct vulkan_renderer
+{
+    vulkan_context   Context;
+    vulkan_resources Resources;
+    frame_targets    Targets;
+    vulkan_pipelines Pipelines;
+};
+
 #endif

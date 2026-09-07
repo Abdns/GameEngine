@@ -5,8 +5,6 @@
 #define PIPELINE_PUSH_STAGES  (VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT)
 #define HEAP_STAGES           (VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT)
 
-global_variable vulkan_resources GlobalResources;
-
 internal VkSampler CreateTextureSampler(vulkan_context *context, VkFilter filter, VkSamplerAddressMode addressMode)
 {
     VkSamplerCreateInfo samplerInfo{};
@@ -78,8 +76,10 @@ internal void WriteSamplerDescriptor(vulkan_context *context, descriptor_heap *h
     context->GetDescriptorEXT(context->device, &getInfo, descriptorSize, destination);
 }
 
-internal void CreateDescriptorHeap(vulkan_context *context, vulkan_resources *res)
+internal descriptor_heap CreateDescriptorHeap(vulkan_context *context)
 {
+    descriptor_heap heap = {};
+
     VkDescriptorSetLayoutBinding bindings[7] = {};
     bindings[0].binding         = BINDING_TEXTURES;
     bindings[0].descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
@@ -122,24 +122,26 @@ internal void CreateDescriptorHeap(vulkan_context *context, vulkan_resources *re
     layoutInfo.bindingCount = (uint32)ArrayCount(bindings);
     layoutInfo.pBindings    = bindings;
 
-    VkResult result = vkCreateDescriptorSetLayout(context->device, &layoutInfo, nullptr, &res->Heap.Layout);
+    VkResult result = vkCreateDescriptorSetLayout(context->device, &layoutInfo, nullptr, &heap.Layout);
     Assert(result == VK_SUCCESS);
 
     VkDeviceSize heapSize = 0;
-    context->GetDescriptorSetLayoutSizeEXT(context->device, res->Heap.Layout, &heapSize);
+    context->GetDescriptorSetLayoutSizeEXT(context->device, heap.Layout, &heapSize);
     heapSize = AlignPow2(heapSize, context->DescriptorProps.descriptorBufferOffsetAlignment);
 
-    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_TEXTURES, &res->Heap.TextureOffset);
-    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_SAMPLER,  &res->Heap.SamplerOffset);
-    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_CUBEMAPS, &res->Heap.CubemapOffset);
-    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_VOLUMES,  &res->Heap.VolumeOffset);
-    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_STORAGE_VOLUMES, &res->Heap.StorageVolumeOffset);
-    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_UINT_VOLUMES, &res->Heap.UintVolumeOffset);
-    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, res->Heap.Layout, BINDING_VOLUME_SAMPLER, &res->Heap.VolumeSamplerOffset);
+    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, heap.Layout, BINDING_TEXTURES, &heap.TextureOffset);
+    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, heap.Layout, BINDING_SAMPLER,  &heap.SamplerOffset);
+    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, heap.Layout, BINDING_CUBEMAPS, &heap.CubemapOffset);
+    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, heap.Layout, BINDING_VOLUMES,  &heap.VolumeOffset);
+    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, heap.Layout, BINDING_STORAGE_VOLUMES, &heap.StorageVolumeOffset);
+    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, heap.Layout, BINDING_UINT_VOLUMES, &heap.UintVolumeOffset);
+    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, heap.Layout, BINDING_VOLUME_SAMPLER, &heap.VolumeSamplerOffset);
 
     VkBufferUsageFlags heapUsage = VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT | VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT;
 
-    res->Heap.Buffer = CreateBuffer(context, Buffer_GpuShared, heapUsage, heapSize);
+    heap.Buffer = CreateBuffer(context, Buffer_GpuShared, heapUsage, heapSize);
+
+    return heap;
 }
 
 internal VkPushConstantRange ParamsPushRange()
@@ -171,18 +173,22 @@ internal VkPipelineLayout CreatePipelineLayout(vulkan_context *context, VkDescri
     return layout;
 }
 
-internal void CreateResources(vulkan_context *context, vulkan_resources *res)
+internal vulkan_resources CreateResources(vulkan_context *context)
 {
-    res->FrameArena    = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, FRAME_BUFFER_SIZE);
-    res->GlobalsBuffer = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(frame_globals) * MAX_FRAMES_IN_FLIGHT);
-    res->Sampler       = CreateTextureSampler(context, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT);
-    res->VolumeSampler = CreateTextureSampler(context, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
+    vulkan_resources res = {};
 
-    CreateDescriptorHeap(context, res);
-    res->PipelineLayout = CreatePipelineLayout(context, res->Heap.Layout);
+    res.FrameArena    = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, FRAME_BUFFER_SIZE);
+    res.GlobalsBuffer = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(frame_globals) * MAX_FRAMES_IN_FLIGHT);
+    res.Sampler       = CreateTextureSampler(context, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT);
+    res.VolumeSampler = CreateTextureSampler(context, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
 
-    WriteSamplerDescriptor(context, &res->Heap, res->Heap.SamplerOffset, res->Sampler);
-    WriteSamplerDescriptor(context, &res->Heap, res->Heap.VolumeSamplerOffset, res->VolumeSampler);
+    res.Heap = CreateDescriptorHeap(context);
+    res.PipelineLayout = CreatePipelineLayout(context, res.Heap.Layout);
+
+    WriteSamplerDescriptor(context, &res.Heap, res.Heap.SamplerOffset, res.Sampler);
+    WriteSamplerDescriptor(context, &res.Heap, res.Heap.VolumeSamplerOffset, res.VolumeSampler);
+
+    return res;
 }
 
 internal void BindDescriptorHeap(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, VkPipelineLayout layout)
@@ -251,6 +257,30 @@ internal gpu_image *CreateCubemap(vulkan_context *context, vulkan_resources *res
     *cube = CreateImage(context, Image_Cubemap, format, FaceSize, FaceSize, 1, mipLevels);
 
     return cube;
+}
+
+internal gpu_image *CreateVolume(vulkan_context *context, vulkan_resources *res, uint32 volumeSlot, uint32 width, uint32 height, uint32 depth)
+{
+    Assert(volumeSlot < MAX_VOLUMES);
+
+    gpu_image *volume = &res->Volumes[volumeSlot];
+    Assert(volume->Image == VK_NULL_HANDLE);
+
+    *volume = CreateImage(context, Image_Volume, VK_FORMAT_R16G16B16A16_SFLOAT, width, height, depth, 1);
+
+    return volume;
+}
+
+internal gpu_image *CreateUintVolume(vulkan_context *context, vulkan_resources *res, uint32 volumeSlot, uint32 width, uint32 height, uint32 depth)
+{
+    Assert(volumeSlot < MAX_UINT_VOLUMES);
+
+    gpu_image *volume = &res->UintVolumes[volumeSlot];
+    Assert(volume->Image == VK_NULL_HANDLE);
+
+    *volume = CreateImage(context, Image_Volume, VK_FORMAT_R32_UINT, width, height, depth, 1);
+
+    return volume;
 }
 
 internal material_state CreateMaterialState(command_load_material *Description)

@@ -7,15 +7,6 @@ struct vulkan_shader
     file_data frag;
 };
 
-struct render_state
-{
-    VkCullModeFlags CullMode;
-    VkBool32        DepthTest;
-    VkBool32        DepthWrite;
-    VkBool32        AlphaBlend;
-    bool32          Valid;
-};
-
 struct pipeline_desc
 {
     const char *ShaderName;
@@ -25,50 +16,11 @@ struct pipeline_desc
     VkBool32 Blend;
 };
 
-struct render_pipeline
-{
-    render_state DefaultState;
-
-    VkShaderEXT Vert;
-    VkShaderEXT Frag;
-};
-
-struct compute_pipeline
-{
-    VkShaderEXT Compute;
-};
-
-enum compute_type
-{
-    Compute_VoxelizeClear = 0,
-    Compute_VoxelizeMesh,
-    Compute_VoxelizeResolve,
-
-    Compute_SkyOcclusionSweep,
-    Compute_SkyOcclusionBlur,
-
-    Compute_RadianceClear,
-    Compute_RadianceInject,
-    Compute_RadianceSmooth,
-
-    Compute_CascadesTrace,
-    Compute_CascadesMerge,
-    Compute_CascadesResolve,
-    Compute_CascadesPrefilter,
-
-    Compute_ScreenGiProbe,
-
-    Compute_Count,
-};
-
 struct compute_desc
 {
     const char *File;
     const char *Entry;
 };
-
-global_variable render_pipeline  Pipelines[Pipeline_Count];
-global_variable compute_pipeline ComputePipelines[Compute_Count];
 
 global_variable pipeline_desc PipelineDescs[] =
 {
@@ -157,8 +109,9 @@ internal file_data LoadComputeShader(compute_desc *desc)
     return code;
 }
 
-internal void CreateComputePipeline(vulkan_context *context, vulkan_resources *res, compute_pipeline *pipeline, compute_desc *desc)
+internal compute_pipeline CreateComputePipeline(vulkan_context *context, vulkan_resources *res, compute_desc *desc)
 {
+    compute_pipeline pipeline = {};
     VkDescriptorSetLayout heapLayout = res->Heap.Layout;
 
     file_data code = LoadComputeShader(desc);
@@ -182,17 +135,20 @@ internal void CreateComputePipeline(vulkan_context *context, vulkan_resources *r
     VkResult result = context->CreateShadersEXT(context->device, 1, &createInfo, nullptr, &shader);
     Assert(result == VK_SUCCESS);
 
-    pipeline->Compute = shader;
+    pipeline.Compute = shader;
 
     Win32FreeFileMemory(code.Data);
+
+    return pipeline;
 }
 
-internal void CreateRenderPipeline(vulkan_context *context, vulkan_resources *res, render_pipeline *pipeline, pipeline_desc *desc)
+internal render_pipeline CreateRenderPipeline(vulkan_context *context, vulkan_resources *res, pipeline_desc *desc)
 {
-    pipeline->DefaultState.CullMode   = VK_CULL_MODE_NONE;
-    pipeline->DefaultState.DepthTest  = desc->DepthTest;
-    pipeline->DefaultState.DepthWrite = desc->DepthWrite;
-    pipeline->DefaultState.AlphaBlend = desc->Blend;
+    render_pipeline pipeline = {};
+    pipeline.DefaultState.CullMode   = VK_CULL_MODE_NONE;
+    pipeline.DefaultState.DepthTest  = desc->DepthTest;
+    pipeline.DefaultState.DepthWrite = desc->DepthWrite;
+    pipeline.DefaultState.AlphaBlend = desc->Blend;
 
     VkDescriptorSetLayout heapLayout = res->Heap.Layout;
 
@@ -232,21 +188,27 @@ internal void CreateRenderPipeline(vulkan_context *context, vulkan_resources *re
     VkResult result = context->CreateShadersEXT(context->device, 2, createInfos, nullptr, shaders);
     Assert(result == VK_SUCCESS);
 
-    pipeline->Vert = shaders[0];
-    pipeline->Frag = shaders[1];
+    pipeline.Vert = shaders[0];
+    pipeline.Frag = shaders[1];
 
     FreeShader(&shader);
+
+    return pipeline;
 }
 
-internal void CreatePipelines(vulkan_context *context, vulkan_resources *res)
+internal vulkan_pipelines CreatePipelines(vulkan_context *context, vulkan_resources *res)
 {
+    vulkan_pipelines pipelines = {};
+
     for (uint32 i = 0; i < Pipeline_Count; ++i)
     {
-        CreateRenderPipeline(context, res, &Pipelines[i], &PipelineDescs[i]);
+        pipelines.Render[i] = CreateRenderPipeline(context, res, &PipelineDescs[i]);
     }
 
     for (uint32 i = 0; i < Compute_Count; ++i)
     {
-        CreateComputePipeline(context, res, &ComputePipelines[i], &ComputeDescs[i]);
+        pipelines.Compute[i] = CreateComputePipeline(context, res, &ComputeDescs[i]);
     }
+
+    return pipelines;
 }
