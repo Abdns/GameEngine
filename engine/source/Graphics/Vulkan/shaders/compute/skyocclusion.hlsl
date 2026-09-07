@@ -14,16 +14,16 @@ void Sweep(uint3 id : SV_DispatchThreadID)
     {
         uint3 coord = uint3(id.x, (uint)y, id.z);
 
-        VolumesRW[VOLUME_SLOT_SKY_OCCLUSION][coord] = float4(visibility, 0.0, 0.0, 1.0);
+        GiSkyOcclusionRW[coord] = float4(visibility, 0.0, 0.0, 1.0);
 
-        visibility *= saturate(1.0 - VolumesRW[VOLUME_SLOT_ALBEDO][coord].a);
+        visibility *= saturate(1.0 - GiAlbedoRW[coord].a);
     }
 }
 
 [numthreads(VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE)]
 void Blur(uint3 id : SV_DispatchThreadID)
 {
-    volume_op_params params = LoadVolumeOpParams(pc.ParamsPtr);
+    volume_op_params params = LoadPassParams(volume_op_params);
 
     if (any(id >= VOLUME_GRID_SIZE))
     {

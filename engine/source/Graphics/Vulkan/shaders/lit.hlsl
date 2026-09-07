@@ -99,7 +99,7 @@ float3 SampleCascadeProbes(float3 uvw, float3 direction, out float skyVisibility
     {
         float weight = max(dot(direction, LightAxis[axis]), 0.0);
 
-        float4 stored = Volumes[VOLUME_SLOT_IRRADIANCE + axis].SampleLevel(VolumeSamp, SmoothUVW(uvw, (float)RC_IRRADIANCE_SIZE), 0);
+        float4 stored = GiIrradiance(axis).SampleLevel(VolumeSamp, SmoothUVW(uvw, (float)RC_IRRADIANCE_SIZE), 0);
 
         total       += stored.rgb * weight;
         skyTotal    += stored.a * weight;
@@ -136,7 +136,7 @@ float3 SampleScreenBounce(float2 pixel, float viewDepth, float3 normal, uint2 pr
             continue;
         }
 
-        float4 meta = Volumes[VOLUME_SLOT_SCREEN_META].Load(int4(probe, 0, 0));
+        float4 meta = GiScreenMeta.Load(int4(probe, 0, 0));
 
         if (meta.a <= 0.0)
         {
@@ -165,7 +165,7 @@ float3 SampleScreenBounce(float2 pixel, float viewDepth, float3 normal, uint2 pr
         {
             float aligned = max(dot(normal, LightAxis[lobe]), 0.0);
 
-            float4 stored = Volumes[VOLUME_SLOT_SCREEN_GI + lobe].Load(int4(probe, 0, 0));
+            float4 stored = GiScreen(lobe).Load(int4(probe, 0, 0));
 
             value       += stored.rgb * aligned;
             valueSky    += stored.a * aligned;
@@ -207,7 +207,7 @@ float3 SampleIrradiance(float3 worldPos, float3 normal, float3 center, float3 sk
         return skyIrradiance;
     }
 
-    float columnVisibility = Volumes[VOLUME_SLOT_SKY_OCCLUSION].SampleLevel(VolumeSamp, SmoothUVW(LocalToUVW(local + normal * voxelSize), (float)VOLUME_GRID_SIZE), 0).r;
+    float columnVisibility = GiSkyOcclusion.SampleLevel(VolumeSamp, SmoothUVW(LocalToUVW(local + normal * voxelSize), (float)VOLUME_GRID_SIZE), 0).r;
 
     float  cascadeSkyVisibility = 1.0;
     float3 cascadeBounce        = SampleCascadeProbes(uvw, normal, cascadeSkyVisibility);

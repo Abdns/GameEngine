@@ -17,6 +17,7 @@ static_assert(sizeof(vertex) == sizeof(enga_vertex), "vertex must match the pack
 static_assert(sizeof(vertex) == VERTEX_STRIDE, "vertex stride must match the shader stride");
 static_assert(sizeof(gpu_material) == MATERIAL_STRIDE, "material stride must match the shader stride");
 static_assert(sizeof(rect_params) == RECT_PARAMS_STRIDE, "rect params stride must match the shader stride");
+static_assert(sizeof(push_constants) == 16, "push constants contain only two GPU addresses");
 static_assert(sizeof(volume_params) == 32, "volume params must match the shader layout");
 static_assert(sizeof(voxelize_params) == 112, "voxelize params must match the shader layout");
 static_assert(sizeof(volume_op_params) == 16, "volume op params must match the shader layout");

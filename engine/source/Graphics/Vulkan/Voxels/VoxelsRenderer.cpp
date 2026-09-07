@@ -106,15 +106,11 @@ internal void BlurSkyOcclusion(vulkan_context *context, VkCommandBuffer cmd, vul
 
     BindComputePipeline(context, cmd, pipeline);
 
-    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(volume_op_params), 16);
-
     volume_op_params params = {};
     params.SrcSlot = sourceSlot;
     params.DstSlot = targetSlot;
 
-    *(volume_op_params *)alloc.Cpu = params;
-
-    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+    PushPassParams(cmd, res, params);
 
     uint32 groupCount = VOLUME_GRID_SIZE / VOLUME_GROUP_SIZE;
 
@@ -148,14 +144,10 @@ internal void TraceCascades(vulkan_context *context, VkCommandBuffer cmd, vulkan
 
     for (uint32 cascade = RC_SCREEN_HANDOFF; cascade < RC_CASCADE_COUNT; ++cascade)
     {
-        gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(rc_cascade_params), 16);
-
         rc_cascade_params params = {};
         params.Cascade = cascade;
 
-        *(rc_cascade_params *)alloc.Cpu = params;
-
-        BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+        PushPassParams(cmd, res, params);
 
         DispatchCompute(cmd, tileGroups, tileGroups, RC_CASCADE_PROBE_SIZE(cascade));
     }
@@ -176,14 +168,10 @@ internal void MergeCascades(vulkan_context *context, VkCommandBuffer cmd, vulkan
     {
         StorageBarrier(cmd);
 
-        gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(rc_cascade_params), 16);
-
         rc_cascade_params params = {};
         params.Cascade = cascade;
 
-        *(rc_cascade_params *)alloc.Cpu = params;
-
-        BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+        PushPassParams(cmd, res, params);
 
         DispatchCompute(cmd, tileGroups, tileGroups, RC_CASCADE_PROBE_SIZE(cascade - 1));
     }
@@ -235,8 +223,6 @@ internal void DrawVolumeDebug(vulkan_context *context, VkCommandBuffer cmd, vulk
     inset.maxDepth = 1.0f;
     vkCmdSetViewportWithCount(cmd, 1, &inset);
 
-    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(volume_params), 16);
-
     volume_params params = {};
     params.VolumeSlot      = volumeSlot;
     params.VolumeSize      = volumeSize;
@@ -244,9 +230,7 @@ internal void DrawVolumeDebug(vulkan_context *context, VkCommandBuffer cmd, vulk
     params.VolumeMode      = mode;
     params.VolumeLightSlot = VOLUME_SLOT_IRRADIANCE;
 
-    *(volume_params *)alloc.Cpu = params;
-
-    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+    PushPassParams(cmd, res, params);
 
     vkCmdDraw(cmd, 3, 1, 0, 0);
 

@@ -16,7 +16,7 @@ float3 SampleBounce(float3 local, float3 normal)
     {
         float weight = max(dot(normal, LightAxis[axis]), 0.0);
 
-        total       += Volumes[VOLUME_SLOT_IRRADIANCE + axis].SampleLevel(VolumeSamp, SmoothUVW(uvw, (float)RC_IRRADIANCE_SIZE), 0).rgb * weight;
+        total       += GiIrradiance(axis).SampleLevel(VolumeSamp, SmoothUVW(uvw, (float)RC_IRRADIANCE_SIZE), 0).rgb * weight;
         totalWeight += weight;
     }
 
@@ -31,13 +31,13 @@ void Inject(uint3 id : SV_DispatchThreadID)
         return;
     }
 
-    float4 history = VolumesRW[VOLUME_SLOT_RADIANCE][id];
+    float4 history = GiRadianceRW[id];
 
-    float4 solid = VolumesRW[VOLUME_SLOT_ALBEDO][id];
+    float4 solid = GiAlbedoRW[id];
 
     if (solid.a <= 0.0)
     {
-        VolumesRW[VOLUME_SLOT_RADIANCE][id] = lerp(history, float4(0.0, 0.0, 0.0, 0.0), LIGHT_BLEND);
+        GiRadianceRW[id] = lerp(history, float4(0.0, 0.0, 0.0, 0.0), LIGHT_BLEND);
         return;
     }
 
@@ -45,7 +45,7 @@ void Inject(uint3 id : SV_DispatchThreadID)
 
     float3 normal = float3(0.0, 1.0, 0.0);
 
-    float3 packed  = VolumesRW[VOLUME_SLOT_NORMAL][id].rgb * 2.0 - 1.0;
+    float3 packed  = GiNormalRW[id].rgb * 2.0 - 1.0;
     float  length2 = dot(packed, packed);
 
     if (length2 > 1e-6)
@@ -53,7 +53,7 @@ void Inject(uint3 id : SV_DispatchThreadID)
         normal = packed * rsqrt(length2);
     }
 
-    float skyVisibility = VolumesRW[VOLUME_SLOT_SKY_OCCLUSION][id].r;
+    float skyVisibility = GiSkyOcclusionRW[id].r;
 
     uint  skyIndex = min(globals.SkyCubemap, (uint)(MAX_CUBEMAPS - 1));
     float lastMip  = max((float)globals.SkyMipCount - 1.0, 0.0);
@@ -85,7 +85,7 @@ void Inject(uint3 id : SV_DispatchThreadID)
                 break;
             }
 
-            float fringe = Volumes[VOLUME_SLOT_ALBEDO].SampleLevel(VolumeSamp, uvw, 0).a;
+            float fringe = GiAlbedo.SampleLevel(VolumeSamp, uvw, 0).a;
 
             float blocker = saturate((fringe - RC_SUN_FRINGE) / (1.0 - RC_SUN_FRINGE));
 
@@ -111,7 +111,7 @@ void Inject(uint3 id : SV_DispatchThreadID)
 
     float4 current = float4(solid.rgb * (sunlight + skylight + bounced), solid.a);
 
-    VolumesRW[VOLUME_SLOT_RADIANCE][id] = lerp(history, current, LIGHT_BLEND);
+    GiRadianceRW[id] = lerp(history, current, LIGHT_BLEND);
 }
 
 [numthreads(VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE)]
@@ -135,8 +135,8 @@ void Smooth(uint3 id : SV_DispatchThreadID)
             (corner & 2) ? 0.5 : -0.5,
             (corner & 4) ? 0.5 : -0.5) * inv;
 
-        total += Volumes[VOLUME_SLOT_RADIANCE].SampleLevel(VolumeSamp, uvw + offset, 0);
+        total += GiRadiance.SampleLevel(VolumeSamp, uvw + offset, 0);
     }
 
-    VolumesRW[VOLUME_SLOT_RADIANCE_SMOOTH][id] = total * 0.125;
+    GiRadianceSmoothRW[id] = total * 0.125;
 }

@@ -140,10 +140,7 @@ struct voxelize_params
     typedef vk::BufferPointer<frame_globals, 16>     frame_globals_ptr;
     typedef vk::BufferPointer<draw_params, 16>       draw_params_ptr;
     typedef vk::BufferPointer<image_params, 16>      image_params_ptr;
-    typedef vk::BufferPointer<volume_params, 16>     volume_params_ptr;
     typedef vk::BufferPointer<voxelize_params, 16>   voxelize_params_ptr;
-    typedef vk::BufferPointer<volume_op_params, 16>  volume_op_params_ptr;
-    typedef vk::BufferPointer<rc_cascade_params, 16> rc_cascade_params_ptr;
     typedef vk::BufferPointer<skybox_params, 16>     skybox_params_ptr;
     typedef vk::BufferPointer<rect_params, 16>       rect_params_ptr;
 
@@ -187,25 +184,13 @@ struct voxelize_params
         return image_params_ptr(address).Get();
     }
 
-    volume_params LoadVolumeParams(uint64_t address)
-    {
-        return volume_params_ptr(address).Get();
-    }
+    #define LoadPassParams(Type) vk::BufferPointer<Type, 16>(pc.ParamsPtr).Get()
 
     voxelize_params LoadVoxelizeParams(uint64_t address)
     {
         return voxelize_params_ptr(address).Get();
     }
 
-    volume_op_params LoadVolumeOpParams(uint64_t address)
-    {
-        return volume_op_params_ptr(address).Get();
-    }
-
-    rc_cascade_params LoadRcCascadeParams(uint64_t address)
-    {
-        return rc_cascade_params_ptr(address).Get();
-    }
 #endif
 
 #endif

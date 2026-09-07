@@ -91,6 +91,14 @@ internal void BindGlobals(VkCommandBuffer cmd, VkPipelineLayout layout, VkDevice
     vkCmdPushConstants(cmd, layout, PIPELINE_PUSH_STAGES, (uint32)offsetof(push_constants, GlobalsPtr), (uint32)sizeof(address), &address);
 }
 
+template <typename params_type>
+internal void PushPassParams(VkCommandBuffer cmd, vulkan_resources *res, const params_type &params)
+{
+    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(params), 16);
+    *(params_type *)alloc.Cpu = params;
+    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+}
+
 internal void BindPipelineState(vulkan_context *context, VkCommandBuffer cmd, render_pipeline *pipeline, render_state *current, render_state *wanted)
 {
     VkShaderStageFlagBits stages[2] = { VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT };

@@ -19,13 +19,13 @@ void AccumulateProbe(uint cascadeSlot, uint dirRes, uint3 probe, float probeWeig
 
 float ProbeOccupancy(uint3 probe, uint probeSize)
 {
-    return Volumes[VOLUME_SLOT_RADIANCE_SMOOTH].SampleLevel(VolumeSamp, LocalToUVW(RcProbeLocal(probe, probeSize)), 0).a;
+    return GiRadianceSmooth.SampleLevel(VolumeSamp, LocalToUVW(RcProbeLocal(probe, probeSize)), 0).a;
 }
 
 [numthreads(RC_GROUP_SIZE, RC_GROUP_SIZE, 1)]
 void Trace(uint3 id : SV_DispatchThreadID)
 {
-    rc_cascade_params params = LoadRcCascadeParams(pc.ParamsPtr);
+    rc_cascade_params params = LoadPassParams(rc_cascade_params);
 
     uint cascade   = params.Cascade;
     uint probeSize = RC_CASCADE_PROBE_SIZE(cascade);
@@ -47,13 +47,13 @@ void Trace(uint3 id : SV_DispatchThreadID)
 
     RcCascadeInterval(cascade, start, span);
 
-    VolumesRW[VOLUME_SLOT_CASCADE + cascade][id] = TraceVolume(VOLUME_SLOT_RADIANCE_SMOOTH, origin, direction, start, span, RC_CASCADE_STEPS(cascade));
+    GiCascadeRW(cascade)[id] = TraceVolume(VOLUME_SLOT_RADIANCE_SMOOTH, origin, direction, start, span, RC_CASCADE_STEPS(cascade));
 }
 
 [numthreads(RC_GROUP_SIZE, RC_GROUP_SIZE, 1)]
 void Merge(uint3 id : SV_DispatchThreadID)
 {
-    rc_cascade_params params = LoadRcCascadeParams(pc.ParamsPtr);
+    rc_cascade_params params = LoadPassParams(rc_cascade_params);
 
     uint child  = params.Cascade;
     uint parent = child - 1;
@@ -67,7 +67,7 @@ void Merge(uint3 id : SV_DispatchThreadID)
         return;
     }
 
-    float4 nearField = VolumesRW[VOLUME_SLOT_CASCADE + parent][id];
+    float4 nearField = GiCascadeRW(parent)[id];
 
     if (nearField.a <= 0.0)
     {
@@ -104,14 +104,14 @@ void Merge(uint3 id : SV_DispatchThreadID)
             {
                 uint3 coord = uint3(gather.Corner[tap].xy * childDirRes + childDir, gather.Corner[tap].z);
 
-                farField += VolumesRW[VOLUME_SLOT_CASCADE + child][coord] * gather.Weight[tap];
+                farField += GiCascadeRW(child)[coord] * gather.Weight[tap];
             }
         }
     }
 
     farField *= ProbeNorm(gather) * 0.25;
 
-    VolumesRW[VOLUME_SLOT_CASCADE + parent][id] = float4(nearField.rgb + nearField.a * farField.rgb, nearField.a * farField.a);
+    GiCascadeRW(parent)[id] = float4(nearField.rgb + nearField.a * farField.rgb, nearField.a * farField.a);
 }
 
 [numthreads(VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE)]
@@ -164,7 +164,7 @@ void Resolve(uint3 id : SV_DispatchThreadID)
 
     for (uint store = 0; store < LIGHT_DIRECTIONS; ++store)
     {
-        VolumesRW[VOLUME_SLOT_IRRADIANCE + store][id] = AxisResolve(light, store);
+        GiIrradianceRW(store)[id] = AxisResolve(light, store);
     }
 }
 
@@ -192,9 +192,9 @@ void Prefilter(uint3 id : SV_DispatchThreadID)
         {
             uint2 src = probeXY * srcRes + dirUV * ratio + uint2(u, v);
 
-            total += VolumesRW[VOLUME_SLOT_CASCADE + RC_HANDOFF_CASCADE][uint3(src, id.z)];
+            total += GiCascadeRW(RC_HANDOFF_CASCADE)[uint3(src, id.z)];
         }
     }
 
-    VolumesRW[VOLUME_SLOT_HANDOFF][id] = total / (float)(ratio * ratio);
+    GiHandoffRW[id] = total / (float)(ratio * ratio);
 }

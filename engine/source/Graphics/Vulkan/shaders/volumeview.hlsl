@@ -162,7 +162,7 @@ float4 SampleLight(volume_params params, float3 origin, float3 direction)
 
     float3 normal = float3(0.0, 1.0, 0.0);
 
-    float3 packed  = Volumes[VOLUME_SLOT_NORMAL].Load(int4(coord, 0)).rgb * 2.0 - 1.0;
+    float3 packed  = GiNormal.Load(int4(coord, 0)).rgb * 2.0 - 1.0;
     float  length2 = dot(packed, packed);
 
     if (length2 > 1e-6)
@@ -193,7 +193,7 @@ float4 SampleLight(volume_params params, float3 origin, float3 direction)
 
 float4 PSMain(vs_output input) : SV_Target
 {
-    volume_params params = LoadVolumeParams(pc.ParamsPtr);
+    volume_params params = LoadPassParams(volume_params);
 
     frame_globals globals = LoadGlobals(pc.GlobalsPtr);
 

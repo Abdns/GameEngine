@@ -71,10 +71,10 @@ void Probe(uint3 id : SV_DispatchThreadID)
     {
         for (uint sky = 0; sky < LIGHT_DIRECTIONS; ++sky)
         {
-            VolumesRW[VOLUME_SLOT_SCREEN_GI + sky][uint3(id.xy, 0)] = float4(0.0, 0.0, 0.0, 1.0);
+            GiScreenRW(sky)[uint3(id.xy, 0)] = float4(0.0, 0.0, 0.0, 1.0);
         }
 
-        VolumesRW[VOLUME_SLOT_SCREEN_META][uint3(id.xy, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+        GiScreenMetaRW[uint3(id.xy, 0)] = float4(0.0, 0.0, 0.0, 0.0);
 
         return;
     }
@@ -132,7 +132,7 @@ void Probe(uint3 id : SV_DispatchThreadID)
             {
                 uint3 coord = uint3(gather.Corner[tap].xy * RC_SCREEN_DIR_RES + uint2(u, v), gather.Corner[tap].z);
 
-                farField += VolumesRW[VOLUME_SLOT_HANDOFF][coord] * gather.Weight[tap];
+                farField += GiHandoffRW[coord] * gather.Weight[tap];
             }
 
             farField *= cascadeNorm;
@@ -146,10 +146,10 @@ void Probe(uint3 id : SV_DispatchThreadID)
 
     float viewDepth = ViewDistance(globals, depth);
 
-    VolumesRW[VOLUME_SLOT_SCREEN_META][uint3(id.xy, 0)] = float4(normal, viewDepth);
+    GiScreenMetaRW[uint3(id.xy, 0)] = float4(normal, viewDepth);
 
     for (uint store = 0; store < LIGHT_DIRECTIONS; ++store)
     {
-        VolumesRW[VOLUME_SLOT_SCREEN_GI + store][uint3(id.xy, 0)] = AxisResolve(light, store);
+        GiScreenRW(store)[uint3(id.xy, 0)] = AxisResolve(light, store);
     }
 }

@@ -80,8 +80,8 @@ void Mesh(uint3 id : SV_DispatchThreadID)
 
             if (all(coord >= 0) && all(coord < (int)VOLUME_GRID_SIZE))
             {
-                InterlockedMax(UintVolumesRW[UINT_SLOT_ALBEDO][uint3(coord)], albedoKey);
-                InterlockedMax(UintVolumesRW[UINT_SLOT_NORMAL][uint3(coord)], normalKey);
+                InterlockedMax(GiAlbedoUintRW[uint3(coord)], albedoKey);
+                InterlockedMax(GiNormalUintRW[uint3(coord)], normalKey);
             }
         }
     }
@@ -95,11 +95,11 @@ void Resolve(uint3 id : SV_DispatchThreadID)
         return;
     }
 
-    uint albedoKey = UintVolumesRW[UINT_SLOT_ALBEDO][id];
-    uint normalKey = UintVolumesRW[UINT_SLOT_NORMAL][id];
+    uint albedoKey = GiAlbedoUintRW[id];
+    uint normalKey = GiNormalUintRW[id];
 
     float occupancy = albedoKey ? 1.0 : 0.0;
 
-    VolumesRW[VOLUME_SLOT_ALBEDO][id] = float4(UnpackColorKey(albedoKey), occupancy);
-    VolumesRW[VOLUME_SLOT_NORMAL][id] = float4(UnpackColorKey(normalKey), occupancy);
+    GiAlbedoRW[id] = float4(UnpackColorKey(albedoKey), occupancy);
+    GiNormalRW[id] = float4(UnpackColorKey(normalKey), occupancy);
 }

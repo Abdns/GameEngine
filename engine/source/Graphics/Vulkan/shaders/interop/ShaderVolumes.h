@@ -73,4 +73,30 @@
 
 #define VOLUME_MARCH_STEPS 512
 
+#ifndef __cplusplus
+// GI code names resources by purpose; descriptor slot arithmetic stays here.
+#define GiAlbedo              Volumes[VOLUME_SLOT_ALBEDO]
+#define GiAlbedoRW            VolumesRW[VOLUME_SLOT_ALBEDO]
+#define GiNormal              Volumes[VOLUME_SLOT_NORMAL]
+#define GiNormalRW            VolumesRW[VOLUME_SLOT_NORMAL]
+#define GiSkyOcclusion        Volumes[VOLUME_SLOT_SKY_OCCLUSION]
+#define GiSkyOcclusionRW      VolumesRW[VOLUME_SLOT_SKY_OCCLUSION]
+#define GiRadiance            Volumes[VOLUME_SLOT_RADIANCE]
+#define GiRadianceRW          VolumesRW[VOLUME_SLOT_RADIANCE]
+#define GiRadianceSmooth      Volumes[VOLUME_SLOT_RADIANCE_SMOOTH]
+#define GiRadianceSmoothRW    VolumesRW[VOLUME_SLOT_RADIANCE_SMOOTH]
+#define GiCascade(Index)      Volumes[VOLUME_SLOT_CASCADE + (Index)]
+#define GiCascadeRW(Index)    VolumesRW[VOLUME_SLOT_CASCADE + (Index)]
+#define GiIrradiance(Index)   Volumes[VOLUME_SLOT_IRRADIANCE + (Index)]
+#define GiIrradianceRW(Index) VolumesRW[VOLUME_SLOT_IRRADIANCE + (Index)]
+#define GiScreen(Index)       Volumes[VOLUME_SLOT_SCREEN_GI + (Index)]
+#define GiScreenRW(Index)     VolumesRW[VOLUME_SLOT_SCREEN_GI + (Index)]
+#define GiHandoff             Volumes[VOLUME_SLOT_HANDOFF]
+#define GiHandoffRW           VolumesRW[VOLUME_SLOT_HANDOFF]
+#define GiScreenMeta          Volumes[VOLUME_SLOT_SCREEN_META]
+#define GiScreenMetaRW        VolumesRW[VOLUME_SLOT_SCREEN_META]
+#define GiAlbedoUintRW        UintVolumesRW[UINT_SLOT_ALBEDO]
+#define GiNormalUintRW        UintVolumesRW[UINT_SLOT_NORMAL]
+#endif
+
 #endif
