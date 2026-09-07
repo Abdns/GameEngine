@@ -52,6 +52,22 @@
     {
         return (((float3)probe + 0.5) / (float)probeSize - 0.5) * (2.0 * VOLUME_WORLD_EXTENT);
     }
+
+    void RcCascadeInterval(uint cascade, out float start, out float span)
+    {
+        float base  = (2.0 * VOLUME_WORLD_EXTENT) / (float)RC_PROBE_SIZE;
+        float scale = 1.0;
+        float begin = 0.0;
+
+        for (uint i = 0; i < cascade; ++i)
+        {
+            begin += base * scale;
+            scale *= RC_INTERVAL_SCALE;
+        }
+
+        start = begin;
+        span  = base * scale;
+    }
 #endif
 
 #endif

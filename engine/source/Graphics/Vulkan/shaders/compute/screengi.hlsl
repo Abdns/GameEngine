@@ -14,26 +14,26 @@ float3 ReconstructWorld(frame_globals globals, uint2 pixel, float depth)
     return globals.CameraPos + ray * ViewDistance(globals, depth);
 }
 
-float3 SampleWorld(frame_globals globals, uint depthSlot, int2 pixel, out float depth)
+float3 SampleWorld(frame_globals globals, int2 pixel, out float depth)
 {
     int2 clamped = clamp(pixel, int2(0, 0), int2((int)globals.ScreenWidth - 1, (int)globals.ScreenHeight - 1));
 
-    depth = Tex[depthSlot].Load(int3(clamped, 0)).r;
+    depth = Tex[TEXTURE_SLOT_DEPTH].Load(int3(clamped, 0)).r;
 
     return ReconstructWorld(globals, (uint2)clamped, depth);
 }
 
-float3 ReconstructNormal(frame_globals globals, uint depthSlot, uint2 pixel, float depth, float3 center)
+float3 ReconstructNormal(frame_globals globals, uint2 pixel, float depth, float3 center)
 {
     float depthRight = 0.0;
     float depthLeft  = 0.0;
     float depthDown  = 0.0;
     float depthUp    = 0.0;
 
-    float3 worldRight = SampleWorld(globals, depthSlot, (int2)pixel + int2(RC_SCREEN_NORMAL_TAP, 0), depthRight);
-    float3 worldLeft  = SampleWorld(globals, depthSlot, (int2)pixel - int2(RC_SCREEN_NORMAL_TAP, 0), depthLeft);
-    float3 worldDown  = SampleWorld(globals, depthSlot, (int2)pixel + int2(0, RC_SCREEN_NORMAL_TAP), depthDown);
-    float3 worldUp    = SampleWorld(globals, depthSlot, (int2)pixel - int2(0, RC_SCREEN_NORMAL_TAP), depthUp);
+    float3 worldRight = SampleWorld(globals, (int2)pixel + int2(RC_SCREEN_NORMAL_TAP, 0), depthRight);
+    float3 worldLeft  = SampleWorld(globals, (int2)pixel - int2(RC_SCREEN_NORMAL_TAP, 0), depthLeft);
+    float3 worldDown  = SampleWorld(globals, (int2)pixel + int2(0, RC_SCREEN_NORMAL_TAP), depthDown);
+    float3 worldUp    = SampleWorld(globals, (int2)pixel - int2(0, RC_SCREEN_NORMAL_TAP), depthUp);
 
     float3 alongX = (abs(depthRight - depth) < abs(depthLeft - depth)) ? (worldRight - center) : (center - worldLeft);
     float3 alongY = (abs(depthDown - depth) < abs(depthUp - depth)) ? (worldDown - center) : (center - worldUp);
@@ -56,50 +56,48 @@ float3 ReconstructNormal(frame_globals globals, uint depthSlot, uint2 pixel, flo
 [numthreads(RC_SCREEN_GROUP, RC_SCREEN_GROUP, 1)]
 void Probe(uint3 id : SV_DispatchThreadID)
 {
-    rc_screen_params params = LoadRcScreenParams(pc.ParamsPtr);
+    frame_globals globals = LoadGlobals(pc.GlobalsPtr);
 
-    if (id.x >= params.ProbeCountX || id.y >= params.ProbeCountY)
+    if (id.x >= RC_SCREEN_PROBES_X(globals.ScreenWidth) || id.y >= RC_SCREEN_PROBES_Y(globals.ScreenHeight))
     {
         return;
     }
 
-    frame_globals globals = LoadGlobals(pc.GlobalsPtr);
-
     uint2 pixel = id.xy * RC_SCREEN_TILE + RC_SCREEN_TILE / 2;
 
-    float depth = Tex[params.DepthSlot].Load(int3((int2)pixel, 0)).r;
+    float depth = Tex[TEXTURE_SLOT_DEPTH].Load(int3((int2)pixel, 0)).r;
 
     if (depth >= 1.0)
     {
         for (uint sky = 0; sky < LIGHT_DIRECTIONS; ++sky)
         {
-            VolumesRW[params.ScreenSlot + sky][uint3(id.xy, 0)] = float4(0.0, 0.0, 0.0, 1.0);
+            VolumesRW[VOLUME_SLOT_SCREEN_GI + sky][uint3(id.xy, 0)] = float4(0.0, 0.0, 0.0, 1.0);
         }
 
-        VolumesRW[params.MetaSlot][uint3(id.xy, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+        VolumesRW[VOLUME_SLOT_SCREEN_META][uint3(id.xy, 0)] = float4(0.0, 0.0, 0.0, 0.0);
 
         return;
     }
 
     float3 center = ReconstructWorld(globals, pixel, depth);
 
-    float3 normal = ReconstructNormal(globals, params.DepthSlot, pixel, depth, center);
+    float3 normal = ReconstructNormal(globals, pixel, depth, center);
 
     float cellSize = (2.0 * VOLUME_WORLD_EXTENT) / (float)LIGHT_GRID_SIZE;
 
     float3 local = center - globals.VolumeCenter + normal * cellSize * 1.5;
 
-    float3 grid = LocalToUVW(local) * (float)params.ProbeSize - 0.5;
+    float3 grid = LocalToUVW(local) * (float)RC_HANDOFF_PROBE_SIZE - 0.5;
 
-    probe_gather gather = ProbeCorners(grid, params.ProbeSize);
+    probe_gather gather = ProbeCorners(grid, RC_HANDOFF_PROBE_SIZE);
 
-    float handoffCell = (2.0 * VOLUME_WORLD_EXTENT) / (float)params.ProbeSize;
+    float handoffCell = (2.0 * VOLUME_WORLD_EXTENT) / (float)RC_HANDOFF_PROBE_SIZE;
 
     float side[8];
 
     for (uint c = 0; c < 8; ++c)
     {
-        float3 probeLocal = RcProbeLocal(gather.Corner[c], params.ProbeSize);
+        float3 probeLocal = RcProbeLocal(gather.Corner[c], RC_HANDOFF_PROBE_SIZE);
 
         side[c] = saturate(dot(probeLocal - local, normal) / (0.25 * handoffCell) + 0.5);
     }
@@ -110,7 +108,10 @@ void Probe(uint3 id : SV_DispatchThreadID)
 
     axis_light light = AxisLightZero();
 
-    uint ratio = params.DirRes / RC_SCREEN_DIR_RES;
+    float intervalStart = 0.0;
+    float intervalSpan  = 0.0;
+
+    RcCascadeInterval(RC_HANDOFF_CASCADE, intervalStart, intervalSpan);
 
     for (uint v = 0; v < RC_SCREEN_DIR_RES; ++v)
     {
@@ -123,26 +124,18 @@ void Probe(uint3 id : SV_DispatchThreadID)
                 continue;
             }
 
-            float4 nearField = TraceVolume(params.RadianceSlot, local, direction, 0.0, params.IntervalLength, params.Steps);
+            float4 nearField = TraceVolume(VOLUME_SLOT_RADIANCE_SMOOTH, local, direction, 0.0, intervalStart, RC_CASCADE_STEPS(RC_HANDOFF_CASCADE));
 
             float4 farField = float4(0.0, 0.0, 0.0, 0.0);
 
-            for (uint dv = 0; dv < ratio; ++dv)
+            for (uint tap = 0; tap < 8; ++tap)
             {
-                for (uint du = 0; du < ratio; ++du)
-                {
-                    uint2 dirUV = uint2(u, v) * ratio + uint2(du, dv);
+                uint3 coord = uint3(gather.Corner[tap].xy * RC_SCREEN_DIR_RES + uint2(u, v), gather.Corner[tap].z);
 
-                    for (uint tap = 0; tap < 8; ++tap)
-                    {
-                        uint3 coord = uint3(gather.Corner[tap].xy * params.DirRes + dirUV, gather.Corner[tap].z);
-
-                        farField += VolumesRW[params.CascadeSlot][coord] * gather.Weight[tap];
-                    }
-                }
+                farField += VolumesRW[VOLUME_SLOT_HANDOFF][coord] * gather.Weight[tap];
             }
 
-            farField *= cascadeNorm / (float)(ratio * ratio);
+            farField *= cascadeNorm;
 
             float3 merged   = nearField.rgb + nearField.a * farField.rgb;
             float  skyReach = nearField.a * farField.a;
@@ -153,10 +146,10 @@ void Probe(uint3 id : SV_DispatchThreadID)
 
     float viewDepth = ViewDistance(globals, depth);
 
-    VolumesRW[params.MetaSlot][uint3(id.xy, 0)] = float4(normal, viewDepth);
+    VolumesRW[VOLUME_SLOT_SCREEN_META][uint3(id.xy, 0)] = float4(normal, viewDepth);
 
     for (uint store = 0; store < LIGHT_DIRECTIONS; ++store)
     {
-        VolumesRW[params.ScreenSlot + store][uint3(id.xy, 0)] = AxisResolve(light, store);
+        VolumesRW[VOLUME_SLOT_SCREEN_GI + store][uint3(id.xy, 0)] = AxisResolve(light, store);
     }
 }

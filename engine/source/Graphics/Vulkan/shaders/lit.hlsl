@@ -1,12 +1,5 @@
 #include "ShaderInterop.h"
 
-[[vk::binding(BINDING_CUBEMAPS, SET_GLOBAL)]] TextureCube  Sky[MAX_CUBEMAPS];
-[[vk::binding(BINDING_VOLUMES,  SET_GLOBAL)]] Texture3D    Volumes[MAX_VOLUMES];
-[[vk::binding(BINDING_SAMPLER,        SET_GLOBAL)]] SamplerState Samp;
-[[vk::binding(BINDING_VOLUME_SAMPLER, SET_GLOBAL)]] SamplerState VolumeSamp;
-
-[[vk::push_constant]] push_constants pc;
-
 static const float PI            = 3.14159265;
 static const float GSAA_MAX_BIAS = 0.2;
 

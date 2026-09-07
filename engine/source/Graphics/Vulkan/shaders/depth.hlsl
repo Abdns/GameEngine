@@ -1,7 +1,5 @@
 #include "ShaderInterop.h"
 
-[[vk::push_constant]] push_constants pc;
-
 struct vs_output
 {
     float4 Position : SV_Position;

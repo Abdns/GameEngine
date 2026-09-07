@@ -1,10 +1,5 @@
 #include "ShaderInterop.h"
 
-[[vk::binding(BINDING_TEXTURES, SET_GLOBAL)]] Texture2D    Tex[TEXTURE_HEAP_SIZE];
-[[vk::binding(BINDING_SAMPLER,  SET_GLOBAL)]] SamplerState Samp;
-
-[[vk::push_constant]] push_constants pc;
-
 struct vs_output
 {
     float4 Position : SV_Position;

@@ -107,13 +107,16 @@ struct volume_op_params
 {
     uint SrcSlot;
     uint DstSlot;
-    uint SrcRes;
-    uint DstRes;
-
-    uint Size;
     uint VolumeOpPad0;
     uint VolumeOpPad1;
-    uint VolumeOpPad2;
+};
+
+struct rc_cascade_params
+{
+    uint Cascade;
+    uint CascadePad0;
+    uint CascadePad1;
+    uint CascadePad2;
 };
 
 struct voxelize_params
@@ -127,88 +130,10 @@ struct voxelize_params
     uint    FirstIndex;
     uint    TriangleCount;
 
-    float3 GridCenter;
-    float  GridExtent;
-
     uint FirstVertex;
     uint MaterialSlot;
-    uint VolumeSlot;
-    uint GridSize;
-
-    uint NormalSlot;
     uint VoxelizePad0;
     uint VoxelizePad1;
-    uint VoxelizePad2;
-};
-
-struct rc_inject_params
-{
-    uint SolidSlot;
-    uint NormalSlot;
-    uint RadianceSlot;
-    uint IrradianceSlot;
-
-    uint LightSize;
-    uint SkySlot;
-    uint InjectPad1;
-    uint InjectPad2;
-};
-
-struct rc_trace_params
-{
-    uint RadianceSlot;
-    uint CascadeSlot;
-    uint ProbeSize;
-    uint DirRes;
-
-    uint  Steps;
-    uint  TracePad0;
-    float IntervalStart;
-    float IntervalLength;
-};
-
-struct rc_merge_params
-{
-    uint ParentSlot;
-    uint ChildSlot;
-    uint ParentProbeSize;
-    uint ParentDirRes;
-
-    uint ChildProbeSize;
-    uint RadianceSlot;
-    uint MergePad1;
-    uint MergePad2;
-};
-
-struct rc_resolve_params
-{
-    uint CascadeSlot;
-    uint IrradianceSlot;
-    uint ProbeSize;
-    uint DirRes;
-
-    uint RadianceSlot;
-    uint ResolvePad0;
-    uint ResolvePad1;
-    uint ResolvePad2;
-};
-
-struct rc_screen_params
-{
-    uint RadianceSlot;
-    uint CascadeSlot;
-    uint ScreenSlot;
-    uint DepthSlot;
-
-    uint  ProbeSize;
-    uint  DirRes;
-    uint  Steps;
-    float IntervalLength;
-
-    uint ProbeCountX;
-    uint ProbeCountY;
-    uint ScreenPad0;
-    uint MetaSlot;
 };
 
 #ifndef __cplusplus
@@ -218,11 +143,7 @@ struct rc_screen_params
     typedef vk::BufferPointer<volume_params, 16>     volume_params_ptr;
     typedef vk::BufferPointer<voxelize_params, 16>   voxelize_params_ptr;
     typedef vk::BufferPointer<volume_op_params, 16>  volume_op_params_ptr;
-    typedef vk::BufferPointer<rc_inject_params, 16>  rc_inject_params_ptr;
-    typedef vk::BufferPointer<rc_trace_params, 16>   rc_trace_params_ptr;
-    typedef vk::BufferPointer<rc_merge_params, 16>   rc_merge_params_ptr;
-    typedef vk::BufferPointer<rc_resolve_params, 16> rc_resolve_params_ptr;
-    typedef vk::BufferPointer<rc_screen_params, 16>  rc_screen_params_ptr;
+    typedef vk::BufferPointer<rc_cascade_params, 16> rc_cascade_params_ptr;
     typedef vk::BufferPointer<skybox_params, 16>     skybox_params_ptr;
     typedef vk::BufferPointer<rect_params, 16>       rect_params_ptr;
 
@@ -281,29 +202,9 @@ struct rc_screen_params
         return volume_op_params_ptr(address).Get();
     }
 
-    rc_inject_params LoadRcInjectParams(uint64_t address)
+    rc_cascade_params LoadRcCascadeParams(uint64_t address)
     {
-        return rc_inject_params_ptr(address).Get();
-    }
-
-    rc_trace_params LoadRcTraceParams(uint64_t address)
-    {
-        return rc_trace_params_ptr(address).Get();
-    }
-
-    rc_merge_params LoadRcMergeParams(uint64_t address)
-    {
-        return rc_merge_params_ptr(address).Get();
-    }
-
-    rc_resolve_params LoadRcResolveParams(uint64_t address)
-    {
-        return rc_resolve_params_ptr(address).Get();
-    }
-
-    rc_screen_params LoadRcScreenParams(uint64_t address)
-    {
-        return rc_screen_params_ptr(address).Get();
+        return rc_cascade_params_ptr(address).Get();
     }
 #endif
 

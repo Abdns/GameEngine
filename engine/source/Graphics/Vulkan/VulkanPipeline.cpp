@@ -36,14 +36,12 @@ global_variable pipeline_desc PipelineDescs[] =
 
 global_variable compute_desc ComputeDescs[] =
 {
-    { "voxelize",     "Clear"     },
     { "voxelize",     "Mesh"      },
     { "voxelize",     "Resolve"   },
 
     { "skyocclusion", "Sweep"     },
     { "skyocclusion", "Blur"      },
 
-    { "radiance",     "Clear"     },
     { "radiance",     "Inject"    },
     { "radiance",     "Smooth"    },
 

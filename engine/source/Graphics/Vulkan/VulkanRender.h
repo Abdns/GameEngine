@@ -110,14 +110,12 @@ struct compute_pipeline
 
 enum compute_type
 {
-    Compute_VoxelizeClear = 0,
-    Compute_VoxelizeMesh,
+    Compute_VoxelizeMesh = 0,
     Compute_VoxelizeResolve,
 
     Compute_SkyOcclusionSweep,
     Compute_SkyOcclusionBlur,
 
-    Compute_RadianceClear,
     Compute_RadianceInject,
     Compute_RadianceSmooth,
 
@@ -142,13 +140,7 @@ struct descriptor_heap
     VkDescriptorSetLayout Layout;
     gpu_buffer         Buffer;
 
-    VkDeviceSize TextureOffset;
-    VkDeviceSize SamplerOffset;
-    VkDeviceSize CubemapOffset;
-    VkDeviceSize VolumeOffset;
-    VkDeviceSize StorageVolumeOffset;
-    VkDeviceSize UintVolumeOffset;
-    VkDeviceSize VolumeSamplerOffset;
+    VkDeviceSize Offsets[BINDING_COUNT];
 };
 
 struct material_state

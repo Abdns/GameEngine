@@ -18,13 +18,9 @@ static_assert(sizeof(vertex) == VERTEX_STRIDE, "vertex stride must match the sha
 static_assert(sizeof(gpu_material) == MATERIAL_STRIDE, "material stride must match the shader stride");
 static_assert(sizeof(rect_params) == RECT_PARAMS_STRIDE, "rect params stride must match the shader stride");
 static_assert(sizeof(volume_params) == 32, "volume params must match the shader layout");
-static_assert(sizeof(voxelize_params) == 144, "voxelize params must match the shader layout");
-static_assert(sizeof(volume_op_params) == 32, "volume op params must match the shader layout");
-static_assert(sizeof(rc_inject_params) == 32, "rc inject params must match the shader layout");
-static_assert(sizeof(rc_trace_params) == 32, "rc trace params must match the shader layout");
-static_assert(sizeof(rc_merge_params) == 32, "rc merge params must match the shader layout");
-static_assert(sizeof(rc_resolve_params) == 32, "rc resolve params must match the shader layout");
-static_assert(sizeof(rc_screen_params) == 48, "rc screen params must match the shader layout");
+static_assert(sizeof(voxelize_params) == 112, "voxelize params must match the shader layout");
+static_assert(sizeof(volume_op_params) == 16, "volume op params must match the shader layout");
+static_assert(sizeof(rc_cascade_params) == 16, "rc cascade params must match the shader layout");
 static_assert(LIGHT_GRID_SIZE == VOLUME_GRID_SIZE, "inject reads voxel volumes directly, the grids must match");
 
 struct vulkan_context

@@ -1,11 +1,5 @@
 #include "ShaderInterop.h"
 
-[[vk::binding(BINDING_VOLUMES, SET_GLOBAL)]] Texture3D    Volumes[MAX_VOLUMES];
-[[vk::binding(BINDING_SAMPLER,        SET_GLOBAL)]] SamplerState Samp;
-[[vk::binding(BINDING_VOLUME_SAMPLER, SET_GLOBAL)]] SamplerState VolumeSamp;
-
-[[vk::push_constant]] push_constants pc;
-
 static const float2 Positions[3] =
 {
     float2(-1.0, -1.0),

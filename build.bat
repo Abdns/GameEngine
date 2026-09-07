@@ -14,14 +14,12 @@ for %%f in (..\engine\source\Graphics\Vulkan\shaders\*.hlsl) do (
     "%VULKAN_SDK%\Bin\dxc.exe" -spirv -fvk-use-dx-layout -fspv-target-env=vulkan1.3 -T ps_6_0 -E PSMain "%%f" -Fo "CompiledShaders\%%~nf.frag.spv" || goto :failed
 )
 
-call :compute voxelize     Clear     || goto :failed
 call :compute voxelize     Mesh      || goto :failed
 call :compute voxelize     Resolve   || goto :failed
 
 call :compute skyocclusion Sweep     || goto :failed
 call :compute skyocclusion Blur      || goto :failed
 
-call :compute radiance     Clear     || goto :failed
 call :compute radiance     Inject    || goto :failed
 call :compute radiance     Smooth    || goto :failed
 

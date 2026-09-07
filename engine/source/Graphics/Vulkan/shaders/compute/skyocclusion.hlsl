@@ -3,22 +3,20 @@
 [numthreads(8, 1, 8)]
 void Sweep(uint3 id : SV_DispatchThreadID)
 {
-    volume_op_params params = LoadVolumeOpParams(pc.ParamsPtr);
-
-    if (id.x >= params.Size || id.z >= params.Size)
+    if (id.x >= VOLUME_GRID_SIZE || id.z >= VOLUME_GRID_SIZE)
     {
         return;
     }
 
     float visibility = 1.0;
 
-    for (int y = (int)params.Size - 1; y >= 0; --y)
+    for (int y = (int)VOLUME_GRID_SIZE - 1; y >= 0; --y)
     {
         uint3 coord = uint3(id.x, (uint)y, id.z);
 
-        VolumesRW[params.DstSlot][coord] = float4(visibility, 0.0, 0.0, 1.0);
+        VolumesRW[VOLUME_SLOT_SKY_OCCLUSION][coord] = float4(visibility, 0.0, 0.0, 1.0);
 
-        visibility *= saturate(1.0 - VolumesRW[params.SrcSlot][coord].a);
+        visibility *= saturate(1.0 - VolumesRW[VOLUME_SLOT_ALBEDO][coord].a);
     }
 }
 
@@ -27,12 +25,12 @@ void Blur(uint3 id : SV_DispatchThreadID)
 {
     volume_op_params params = LoadVolumeOpParams(pc.ParamsPtr);
 
-    if (any(id >= params.Size))
+    if (any(id >= VOLUME_GRID_SIZE))
     {
         return;
     }
 
-    int size = (int)params.Size;
+    int size = (int)VOLUME_GRID_SIZE;
 
     float total  = 0.0;
     float weight = 0.0;

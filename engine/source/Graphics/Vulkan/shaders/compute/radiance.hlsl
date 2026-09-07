@@ -1,6 +1,6 @@
 #include "Compute.hlsl"
 
-float3 SampleBounce(uint slot, float3 local, float3 normal)
+float3 SampleBounce(float3 local, float3 normal)
 {
     float3 uvw = LocalToUVW(local);
 
@@ -16,7 +16,7 @@ float3 SampleBounce(uint slot, float3 local, float3 normal)
     {
         float weight = max(dot(normal, LightAxis[axis]), 0.0);
 
-        total       += Volumes[slot + axis].SampleLevel(VolumeSamp, SmoothUVW(uvw, (float)RC_IRRADIANCE_SIZE), 0).rgb * weight;
+        total       += Volumes[VOLUME_SLOT_IRRADIANCE + axis].SampleLevel(VolumeSamp, SmoothUVW(uvw, (float)RC_IRRADIANCE_SIZE), 0).rgb * weight;
         totalWeight += weight;
     }
 
@@ -24,35 +24,20 @@ float3 SampleBounce(uint slot, float3 local, float3 normal)
 }
 
 [numthreads(VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE)]
-void Clear(uint3 id : SV_DispatchThreadID)
-{
-    volume_params params = LoadVolumeParams(pc.ParamsPtr);
-
-    if (any(id >= params.VolumeSize))
-    {
-        return;
-    }
-
-    VolumesRW[params.VolumeSlot][id] = float4(0.0, 0.0, 0.0, 0.0);
-}
-
-[numthreads(VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE)]
 void Inject(uint3 id : SV_DispatchThreadID)
 {
-    rc_inject_params params = LoadRcInjectParams(pc.ParamsPtr);
-
-    if (any(id >= params.LightSize))
+    if (any(id >= LIGHT_GRID_SIZE))
     {
         return;
     }
 
-    float4 history = VolumesRW[params.RadianceSlot][id];
+    float4 history = VolumesRW[VOLUME_SLOT_RADIANCE][id];
 
-    float4 solid = VolumesRW[params.SolidSlot][id];
+    float4 solid = VolumesRW[VOLUME_SLOT_ALBEDO][id];
 
     if (solid.a <= 0.0)
     {
-        VolumesRW[params.RadianceSlot][id] = lerp(history, float4(0.0, 0.0, 0.0, 0.0), LIGHT_BLEND);
+        VolumesRW[VOLUME_SLOT_RADIANCE][id] = lerp(history, float4(0.0, 0.0, 0.0, 0.0), LIGHT_BLEND);
         return;
     }
 
@@ -60,7 +45,7 @@ void Inject(uint3 id : SV_DispatchThreadID)
 
     float3 normal = float3(0.0, 1.0, 0.0);
 
-    float3 packed  = VolumesRW[params.NormalSlot][id].rgb * 2.0 - 1.0;
+    float3 packed  = VolumesRW[VOLUME_SLOT_NORMAL][id].rgb * 2.0 - 1.0;
     float  length2 = dot(packed, packed);
 
     if (length2 > 1e-6)
@@ -68,7 +53,7 @@ void Inject(uint3 id : SV_DispatchThreadID)
         normal = packed * rsqrt(length2);
     }
 
-    float skyVisibility = VolumesRW[params.SkySlot][id].r;
+    float skyVisibility = VolumesRW[VOLUME_SLOT_SKY_OCCLUSION][id].r;
 
     uint  skyIndex = min(globals.SkyCubemap, (uint)(MAX_CUBEMAPS - 1));
     float lastMip  = max((float)globals.SkyMipCount - 1.0, 0.0);
@@ -79,9 +64,9 @@ void Inject(uint3 id : SV_DispatchThreadID)
 
     float ndotl = max(dot(normal, toLight), 0.0);
 
-    float voxelSize = (2.0 * VOLUME_WORLD_EXTENT) / (float)params.LightSize;
+    float voxelSize = (2.0 * VOLUME_WORLD_EXTENT) / (float)LIGHT_GRID_SIZE;
 
-    float3 position = RcProbeLocal(id, params.LightSize);
+    float3 position = RcProbeLocal(id, LIGHT_GRID_SIZE);
 
     float sunVisibility = 1.0;
 
@@ -100,7 +85,7 @@ void Inject(uint3 id : SV_DispatchThreadID)
                 break;
             }
 
-            float fringe = Volumes[params.SolidSlot].SampleLevel(VolumeSamp, uvw, 0).a;
+            float fringe = Volumes[VOLUME_SLOT_ALBEDO].SampleLevel(VolumeSamp, uvw, 0).a;
 
             float blocker = saturate((fringe - RC_SUN_FRINGE) / (1.0 - RC_SUN_FRINGE));
 
@@ -122,24 +107,22 @@ void Inject(uint3 id : SV_DispatchThreadID)
 
     float3 local = position + normal * voxelSize;
 
-    float3 bounced = SampleBounce(params.IrradianceSlot, local, normal) * LIGHT_BOUNCE_STRENGTH;
+    float3 bounced = SampleBounce(local, normal) * LIGHT_BOUNCE_STRENGTH;
 
     float4 current = float4(solid.rgb * (sunlight + skylight + bounced), solid.a);
 
-    VolumesRW[params.RadianceSlot][id] = lerp(history, current, LIGHT_BLEND);
+    VolumesRW[VOLUME_SLOT_RADIANCE][id] = lerp(history, current, LIGHT_BLEND);
 }
 
 [numthreads(VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE)]
 void Smooth(uint3 id : SV_DispatchThreadID)
 {
-    volume_op_params params = LoadVolumeOpParams(pc.ParamsPtr);
-
-    if (any(id >= params.Size))
+    if (any(id >= LIGHT_GRID_SIZE))
     {
         return;
     }
 
-    float inv = 1.0 / (float)params.Size;
+    float inv = 1.0 / (float)LIGHT_GRID_SIZE;
 
     float3 uvw = ((float3)id + 0.5) * inv;
 
@@ -152,8 +135,8 @@ void Smooth(uint3 id : SV_DispatchThreadID)
             (corner & 2) ? 0.5 : -0.5,
             (corner & 4) ? 0.5 : -0.5) * inv;
 
-        total += Volumes[params.SrcSlot].SampleLevel(VolumeSamp, uvw + offset, 0);
+        total += Volumes[VOLUME_SLOT_RADIANCE].SampleLevel(VolumeSamp, uvw + offset, 0);
     }
 
-    VolumesRW[params.DstSlot][id] = total * 0.125;
+    VolumesRW[VOLUME_SLOT_RADIANCE_SMOOTH][id] = total * 0.125;
 }

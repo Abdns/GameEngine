@@ -1,10 +1,5 @@
 #include "ShaderInterop.h"
 
-[[vk::binding(BINDING_CUBEMAPS, SET_GLOBAL)]] TextureCube   Sky[MAX_CUBEMAPS];
-[[vk::binding(BINDING_SAMPLER,  SET_GLOBAL)]] SamplerState  Samp;
-
-[[vk::push_constant]] push_constants pc;
-
 static const float2 Positions[3] =
 {
     float2(-1.0, -1.0),

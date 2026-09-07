@@ -15,7 +15,7 @@ internal gpu_image CreateDepthTarget(vulkan_context *context, descriptor_heap *h
 
     CmdImageToGeneral(cmd, target.Image, VK_IMAGE_ASPECT_DEPTH_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
 
-    WriteImageDescriptor(context, heap, heap->TextureOffset, TEXTURE_SLOT_DEPTH, target.View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+    WriteHeapImage(context, heap, BINDING_TEXTURES, TEXTURE_SLOT_DEPTH, target.View);
 
     return target;
 }
@@ -26,7 +26,7 @@ internal gpu_image CreateRenderTarget(vulkan_context *context, descriptor_heap *
 
     CmdImageToGeneral(cmd, target.Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
 
-    WriteImageDescriptor(context, heap, heap->TextureOffset, textureSlot, target.View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+    WriteHeapImage(context, heap, BINDING_TEXTURES, textureSlot, target.View);
 
     return target;
 }

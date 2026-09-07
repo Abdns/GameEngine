@@ -4,6 +4,27 @@
 
 #define PIPELINE_PUSH_STAGES  (VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT)
 #define HEAP_STAGES           (VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT)
+#define HEAP_BUFFER_USAGE     (VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT | VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT)
+
+struct heap_binding_desc
+{
+    uint32           Binding;
+    VkDescriptorType Type;
+    uint32           Count;
+};
+
+global_variable heap_binding_desc HeapBindingDescs[] =
+{
+    { BINDING_TEXTURES,        VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, TEXTURE_HEAP_SIZE },
+    { BINDING_SAMPLER,         VK_DESCRIPTOR_TYPE_SAMPLER,       1                 },
+    { BINDING_CUBEMAPS,        VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, MAX_CUBEMAPS      },
+    { BINDING_VOLUMES,         VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, MAX_VOLUMES       },
+    { BINDING_STORAGE_VOLUMES, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, MAX_VOLUMES       },
+    { BINDING_UINT_VOLUMES,    VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, MAX_UINT_VOLUMES  },
+    { BINDING_VOLUME_SAMPLER,  VK_DESCRIPTOR_TYPE_SAMPLER,       1                 },
+};
+
+static_assert(ArrayCount(HeapBindingDescs) == BINDING_COUNT, "HeapBindingDescs must describe every heap binding");
 
 internal VkSampler CreateTextureSampler(vulkan_context *context, VkFilter filter, VkSamplerAddressMode addressMode)
 {
@@ -33,11 +54,36 @@ internal VkSampler CreateTextureSampler(vulkan_context *context, VkFilter filter
     return sampler;
 }
 
-internal void WriteImageDescriptor(vulkan_context *context, descriptor_heap *heap, VkDeviceSize bindingOffset, uint32 arrayElement, VkImageView view, VkDescriptorType type)
+internal memory_size HeapDescriptorSize(vulkan_context *context, VkDescriptorType type)
 {
-    Assert(type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE || type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    if (type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
+    {
+        return context->DescriptorProps.storageImageDescriptorSize;
+    }
 
-    bool32 storage = (type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    if (type == VK_DESCRIPTOR_TYPE_SAMPLER)
+    {
+        return context->DescriptorProps.samplerDescriptorSize;
+    }
+
+    return context->DescriptorProps.sampledImageDescriptorSize;
+}
+
+internal uint8 *HeapSlotAddress(vulkan_context *context, descriptor_heap *heap, uint32 binding, uint32 arrayElement)
+{
+    Assert(binding < BINDING_COUNT);
+    Assert(arrayElement < HeapBindingDescs[binding].Count);
+
+    memory_size descriptorSize = HeapDescriptorSize(context, HeapBindingDescs[binding].Type);
+
+    return (uint8 *)heap->Buffer.Mapped + heap->Offsets[binding] + arrayElement * descriptorSize;
+}
+
+internal void WriteHeapImage(vulkan_context *context, descriptor_heap *heap, uint32 binding, uint32 arrayElement, VkImageView view)
+{
+    VkDescriptorType type = HeapBindingDescs[binding].Type;
+
+    Assert(type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE || type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
@@ -47,7 +93,7 @@ internal void WriteImageDescriptor(vulkan_context *context, descriptor_heap *hea
     getInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT;
     getInfo.type  = type;
 
-    if (storage)
+    if (type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
     {
         getInfo.data.pStorageImage = &imageInfo;
     }
@@ -56,65 +102,40 @@ internal void WriteImageDescriptor(vulkan_context *context, descriptor_heap *hea
         getInfo.data.pSampledImage = &imageInfo;
     }
 
-    memory_size descriptorSize = storage ? context->DescriptorProps.storageImageDescriptorSize : context->DescriptorProps.sampledImageDescriptorSize;
+    uint8 *destination = HeapSlotAddress(context, heap, binding, arrayElement);
 
-    uint8 *destination = (uint8 *)heap->Buffer.Mapped + bindingOffset + arrayElement * descriptorSize;
-
-    context->GetDescriptorEXT(context->device, &getInfo, descriptorSize, destination);
+    context->GetDescriptorEXT(context->device, &getInfo, HeapDescriptorSize(context, type), destination);
 }
 
-internal void WriteSamplerDescriptor(vulkan_context *context, descriptor_heap *heap, VkDeviceSize bindingOffset, VkSampler sampler)
+internal void WriteHeapSampler(vulkan_context *context, descriptor_heap *heap, uint32 binding, uint32 arrayElement, VkSampler sampler)
 {
+    Assert(HeapBindingDescs[binding].Type == VK_DESCRIPTOR_TYPE_SAMPLER);
+
     VkDescriptorGetInfoEXT getInfo{};
     getInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT;
     getInfo.type          = VK_DESCRIPTOR_TYPE_SAMPLER;
     getInfo.data.pSampler = &sampler;
 
-    memory_size descriptorSize = context->DescriptorProps.samplerDescriptorSize;
-    uint8      *destination    = (uint8 *)heap->Buffer.Mapped + bindingOffset;
+    uint8 *destination = HeapSlotAddress(context, heap, binding, arrayElement);
 
-    context->GetDescriptorEXT(context->device, &getInfo, descriptorSize, destination);
+    context->GetDescriptorEXT(context->device, &getInfo, context->DescriptorProps.samplerDescriptorSize, destination);
 }
 
 internal descriptor_heap CreateDescriptorHeap(vulkan_context *context)
 {
     descriptor_heap heap = {};
 
-    VkDescriptorSetLayoutBinding bindings[7] = {};
-    bindings[0].binding         = BINDING_TEXTURES;
-    bindings[0].descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    bindings[0].descriptorCount = TEXTURE_HEAP_SIZE;
-    bindings[0].stageFlags      = HEAP_STAGES;
+    VkDescriptorSetLayoutBinding bindings[BINDING_COUNT] = {};
 
-    bindings[1].binding         = BINDING_SAMPLER;
-    bindings[1].descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLER;
-    bindings[1].descriptorCount = 1;
-    bindings[1].stageFlags      = HEAP_STAGES;
+    for (uint32 i = 0; i < BINDING_COUNT; ++i)
+    {
+        Assert(HeapBindingDescs[i].Binding == i);
 
-    bindings[2].binding         = BINDING_CUBEMAPS;
-    bindings[2].descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    bindings[2].descriptorCount = MAX_CUBEMAPS;
-    bindings[2].stageFlags      = HEAP_STAGES;
-
-    bindings[3].binding         = BINDING_VOLUMES;
-    bindings[3].descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    bindings[3].descriptorCount = MAX_VOLUMES;
-    bindings[3].stageFlags      = HEAP_STAGES;
-
-    bindings[4].binding         = BINDING_STORAGE_VOLUMES;
-    bindings[4].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    bindings[4].descriptorCount = MAX_VOLUMES;
-    bindings[4].stageFlags      = HEAP_STAGES;
-
-    bindings[5].binding         = BINDING_UINT_VOLUMES;
-    bindings[5].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    bindings[5].descriptorCount = MAX_UINT_VOLUMES;
-    bindings[5].stageFlags      = HEAP_STAGES;
-
-    bindings[6].binding         = BINDING_VOLUME_SAMPLER;
-    bindings[6].descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLER;
-    bindings[6].descriptorCount = 1;
-    bindings[6].stageFlags      = HEAP_STAGES;
+        bindings[i].binding         = HeapBindingDescs[i].Binding;
+        bindings[i].descriptorType  = HeapBindingDescs[i].Type;
+        bindings[i].descriptorCount = HeapBindingDescs[i].Count;
+        bindings[i].stageFlags      = HEAP_STAGES;
+    }
 
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -129,17 +150,12 @@ internal descriptor_heap CreateDescriptorHeap(vulkan_context *context)
     context->GetDescriptorSetLayoutSizeEXT(context->device, heap.Layout, &heapSize);
     heapSize = AlignPow2(heapSize, context->DescriptorProps.descriptorBufferOffsetAlignment);
 
-    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, heap.Layout, BINDING_TEXTURES, &heap.TextureOffset);
-    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, heap.Layout, BINDING_SAMPLER,  &heap.SamplerOffset);
-    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, heap.Layout, BINDING_CUBEMAPS, &heap.CubemapOffset);
-    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, heap.Layout, BINDING_VOLUMES,  &heap.VolumeOffset);
-    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, heap.Layout, BINDING_STORAGE_VOLUMES, &heap.StorageVolumeOffset);
-    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, heap.Layout, BINDING_UINT_VOLUMES, &heap.UintVolumeOffset);
-    context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, heap.Layout, BINDING_VOLUME_SAMPLER, &heap.VolumeSamplerOffset);
+    for (uint32 i = 0; i < BINDING_COUNT; ++i)
+    {
+        context->GetDescriptorSetLayoutBindingOffsetEXT(context->device, heap.Layout, HeapBindingDescs[i].Binding, &heap.Offsets[i]);
+    }
 
-    VkBufferUsageFlags heapUsage = VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT | VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT;
-
-    heap.Buffer = CreateBuffer(context, Buffer_GpuShared, heapUsage, heapSize);
+    heap.Buffer = CreateBuffer(context, Buffer_GpuShared, HEAP_BUFFER_USAGE, heapSize);
 
     return heap;
 }
@@ -185,8 +201,8 @@ internal vulkan_resources CreateResources(vulkan_context *context)
     res.Heap = CreateDescriptorHeap(context);
     res.PipelineLayout = CreatePipelineLayout(context, res.Heap.Layout);
 
-    WriteSamplerDescriptor(context, &res.Heap, res.Heap.SamplerOffset, res.Sampler);
-    WriteSamplerDescriptor(context, &res.Heap, res.Heap.VolumeSamplerOffset, res.VolumeSampler);
+    WriteHeapSampler(context, &res.Heap, BINDING_SAMPLER,        0, res.Sampler);
+    WriteHeapSampler(context, &res.Heap, BINDING_VOLUME_SAMPLER, 0, res.VolumeSampler);
 
     return res;
 }
@@ -196,15 +212,15 @@ internal void BindDescriptorHeap(vulkan_context *context, VkCommandBuffer cmd, v
     VkDescriptorBufferBindingInfoEXT binding{};
     binding.sType   = VK_STRUCTURE_TYPE_DESCRIPTOR_BUFFER_BINDING_INFO_EXT;
     binding.address = res->Heap.Buffer.Address;
-    binding.usage   = VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT | VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT;
+    binding.usage = HEAP_BUFFER_USAGE;
 
     context->CmdBindDescriptorBuffersEXT(cmd, 1, &binding);
 
     uint32       bufferIndex = 0;
     VkDeviceSize setOffset   = 0;
 
-    context->CmdSetDescriptorBufferOffsetsEXT(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &bufferIndex, &setOffset);
-    context->CmdSetDescriptorBufferOffsetsEXT(cmd, VK_PIPELINE_BIND_POINT_COMPUTE,  layout, 0, 1, &bufferIndex, &setOffset);
+    context->CmdSetDescriptorBufferOffsetsEXT(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, SET_GLOBAL, 1, &bufferIndex, &setOffset);
+    context->CmdSetDescriptorBufferOffsetsEXT(cmd, VK_PIPELINE_BIND_POINT_COMPUTE,  layout, SET_GLOBAL, 1, &bufferIndex, &setOffset);
 }
 
 internal gpu_mesh CreateMesh(VkDeviceSize vertexOffset, uint32 VertexCount, VkDeviceSize indexOffset, uint32 IndexCount)

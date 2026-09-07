@@ -164,7 +164,7 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
                 gpu_image *texture = CreateTexture(context, res, entry->TextureHandle, entry->Width, entry->Height, entry->SRGB, entry->Format);
 
                 CmdUploadImage(cmd, staging.Buffer, upload.Offset, texture->Image, entry->Width, entry->Height, 1);
-                WriteImageDescriptor(context, &res->Heap, res->Heap.TextureOffset, entry->TextureHandle, texture->View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+                WriteHeapImage(context, &res->Heap, BINDING_TEXTURES, entry->TextureHandle, texture->View);
             }
             else if (*header == Load_Cubemap)
             {
@@ -177,27 +177,30 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
 
                 CmdUploadImage(cmd, staging.Buffer, upload.Offset, cube->Image, entry->FaceSize, entry->FaceSize, 6);
                 CmdGenerateMips(cmd, cube->Image, entry->FaceSize, entry->FaceSize, 6, cube->MipLevels);
-                WriteImageDescriptor(context, &res->Heap, res->Heap.CubemapOffset, entry->CubemapHandle, cube->View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+                WriteHeapImage(context, &res->Heap, BINDING_CUBEMAPS, entry->CubemapHandle, cube->View);
             }
             else if (*header == Load_Volume)
             {
                 command_load_volume *entry = (command_load_volume *)header;
 
+                gpu_image *volume = 0;
+
                 if (entry->Format == VolumeFormat_R32U)
                 {
-                    gpu_image *volume = CreateUintVolume(context, res, entry->VolumeHandle, entry->Width, entry->Height, entry->Depth);
+                    volume = CreateUintVolume(context, res, entry->VolumeHandle, entry->Width, entry->Height, entry->Depth);
 
-                    WriteImageDescriptor(context, &res->Heap, res->Heap.UintVolumeOffset, entry->VolumeHandle, volume->View, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-                    CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+                    WriteHeapImage(context, &res->Heap, BINDING_UINT_VOLUMES, entry->VolumeHandle, volume->View);
                 }
                 else
                 {
-                    gpu_image *volume = CreateVolume(context, res, entry->VolumeHandle, entry->Width, entry->Height, entry->Depth);
+                    volume = CreateVolume(context, res, entry->VolumeHandle, entry->Width, entry->Height, entry->Depth);
 
-                    WriteImageDescriptor(context, &res->Heap, res->Heap.VolumeOffset,        entry->VolumeHandle, volume->View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
-                    WriteImageDescriptor(context, &res->Heap, res->Heap.StorageVolumeOffset, entry->VolumeHandle, volume->View, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-                    CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
+                    WriteHeapImage(context, &res->Heap, BINDING_VOLUMES,         entry->VolumeHandle, volume->View);
+                    WriteHeapImage(context, &res->Heap, BINDING_STORAGE_VOLUMES, entry->VolumeHandle, volume->View);
                 }
+
+                CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_CLEAR_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+                CmdClearImage(cmd, volume->Image);
             }
         }
 
@@ -550,16 +553,16 @@ internal void RenderVulkanFrame(render_commands *Commands)
     {
         GpuSection(context, &Frame, "vox");
 
-        ClearVoxelGrids(context, Frame.Cmd, res, &pipelines->Compute[Compute_RadianceClear], &pipelines->Compute[Compute_VoxelizeClear]);
+        ClearVoxelGrids(Frame.Cmd, res);
         VoxelizeMeshes(context, Frame.Cmd, res, &pipelines->Compute[Compute_VoxelizeMesh], Commands);
-        ResolveVoxels(context, Frame.Cmd, res, &pipelines->Compute[Compute_VoxelizeResolve]);
+        ResolveVoxels(context, Frame.Cmd, &pipelines->Compute[Compute_VoxelizeResolve]);
     }
 
     {
         GpuSection(context, &Frame, "sky");
 
         StorageBarrier(Frame.Cmd);
-        ComputeSkyOcclusion(context, Frame.Cmd, res, &pipelines->Compute[Compute_SkyOcclusionSweep]);
+        ComputeSkyOcclusion(context, Frame.Cmd, &pipelines->Compute[Compute_SkyOcclusionSweep]);
         StorageBarrier(Frame.Cmd);
         BlurSkyOcclusion(context, Frame.Cmd, res, &pipelines->Compute[Compute_SkyOcclusionBlur], VOLUME_SLOT_SKY_OCCLUSION, VOLUME_SLOT_SKY_OCCLUSION_SCRATCH);
         StorageBarrier(Frame.Cmd);
@@ -570,9 +573,9 @@ internal void RenderVulkanFrame(render_commands *Commands)
         GpuSection(context, &Frame, "inject");
 
         StorageBarrier(Frame.Cmd);
-        InjectRadiance(context, Frame.Cmd, res, &pipelines->Compute[Compute_RadianceInject]);
+        InjectRadiance(context, Frame.Cmd, &pipelines->Compute[Compute_RadianceInject]);
         StorageBarrier(Frame.Cmd);
-        SmoothRadiance(context, Frame.Cmd, res, &pipelines->Compute[Compute_RadianceSmooth]);
+        SmoothRadiance(context, Frame.Cmd, &pipelines->Compute[Compute_RadianceSmooth]);
     }
 
     {
@@ -582,8 +585,8 @@ internal void RenderVulkanFrame(render_commands *Commands)
         TraceCascades(context, Frame.Cmd, res, &pipelines->Compute[Compute_CascadesTrace]);
         MergeCascades(context, Frame.Cmd, res, &pipelines->Compute[Compute_CascadesMerge]);
         StorageBarrier(Frame.Cmd);
-        ResolveIrradiance(context, Frame.Cmd, res, &pipelines->Compute[Compute_CascadesResolve]);
-        PrefilterHandoff(context, Frame.Cmd, res, &pipelines->Compute[Compute_CascadesPrefilter]);
+        ResolveIrradiance(context, Frame.Cmd, &pipelines->Compute[Compute_CascadesResolve]);
+        PrefilterHandoff(context, Frame.Cmd, &pipelines->Compute[Compute_CascadesPrefilter]);
     }
 
     {
@@ -599,7 +602,7 @@ internal void RenderVulkanFrame(render_commands *Commands)
         GpuSection(context, &Frame, "screen");
 
         GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
-        ComputeScreenGI(context, Frame.Cmd, res, &pipelines->Compute[Compute_ScreenGiProbe]);
+        ComputeScreenGI(context, Frame.Cmd, &pipelines->Compute[Compute_ScreenGiProbe]);
     }
 
     {

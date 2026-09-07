@@ -3,11 +3,11 @@
 static const float VOXEL_SAMPLE_DENSITY = 1.5;
 static const uint  VOXEL_MAX_STEPS      = 512;
 
-float3 WorldToVoxel(float3 world, float3 center, float extent, uint gridSize)
+float3 WorldToVoxel(float3 world, float3 center)
 {
-    float3 local = (world - center) / (2.0 * extent) + 0.5;
+    float3 local = (world - center) / (2.0 * VOLUME_WORLD_EXTENT) + 0.5;
 
-    return local * (float)gridSize;
+    return local * (float)VOLUME_GRID_SIZE;
 }
 
 uint PackColorKey(float3 color)
@@ -24,18 +24,6 @@ float3 UnpackColorKey(uint key)
     return (float3)quantized / 255.0;
 }
 
-[numthreads(VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE)]
-void Clear(uint3 id : SV_DispatchThreadID)
-{
-    if (any(id >= VOLUME_GRID_SIZE))
-    {
-        return;
-    }
-
-    UintVolumesRW[UINT_SLOT_ALBEDO][id] = 0;
-    UintVolumesRW[UINT_SLOT_NORMAL][id] = 0;
-}
-
 [numthreads(VOXEL_GROUP_SIZE, 1, 1)]
 void Mesh(uint3 id : SV_DispatchThreadID)
 {
@@ -45,6 +33,8 @@ void Mesh(uint3 id : SV_DispatchThreadID)
     {
         return;
     }
+
+    frame_globals globals = LoadGlobals(pc.GlobalsPtr);
 
     uint base = params.FirstIndex + id.x * 3;
 
@@ -62,9 +52,9 @@ void Mesh(uint3 id : SV_DispatchThreadID)
 
     float3 normal = normalize(mul((float3x3)params.Model, a.Normal + b.Normal + c.Normal));
 
-    float3 v0 = WorldToVoxel(w0, params.GridCenter, params.GridExtent, params.GridSize);
-    float3 v1 = WorldToVoxel(w1, params.GridCenter, params.GridExtent, params.GridSize);
-    float3 v2 = WorldToVoxel(w2, params.GridCenter, params.GridExtent, params.GridSize);
+    float3 v0 = WorldToVoxel(w0, globals.VolumeCenter);
+    float3 v1 = WorldToVoxel(w1, globals.VolumeCenter);
+    float3 v2 = WorldToVoxel(w2, globals.VolumeCenter);
 
     float longest = max(length(v1 - v0), max(length(v2 - v0), length(v2 - v1)));
 
@@ -88,7 +78,7 @@ void Mesh(uint3 id : SV_DispatchThreadID)
 
             int3 coord = int3(floor(v0 + edge1 * alpha + edge2 * beta));
 
-            if (all(coord >= 0) && all(coord < (int)params.GridSize))
+            if (all(coord >= 0) && all(coord < (int)VOLUME_GRID_SIZE))
             {
                 InterlockedMax(UintVolumesRW[UINT_SLOT_ALBEDO][uint3(coord)], albedoKey);
                 InterlockedMax(UintVolumesRW[UINT_SLOT_NORMAL][uint3(coord)], normalKey);
@@ -100,9 +90,7 @@ void Mesh(uint3 id : SV_DispatchThreadID)
 [numthreads(VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE)]
 void Resolve(uint3 id : SV_DispatchThreadID)
 {
-    volume_op_params params = LoadVolumeOpParams(pc.ParamsPtr);
-
-    if (any(id >= params.Size))
+    if (any(id >= VOLUME_GRID_SIZE))
     {
         return;
     }
@@ -112,6 +100,6 @@ void Resolve(uint3 id : SV_DispatchThreadID)
 
     float occupancy = albedoKey ? 1.0 : 0.0;
 
-    VolumesRW[params.SrcSlot][id] = float4(UnpackColorKey(albedoKey), occupancy);
-    VolumesRW[params.DstSlot][id] = float4(UnpackColorKey(normalKey), occupancy);
+    VolumesRW[VOLUME_SLOT_ALBEDO][id] = float4(UnpackColorKey(albedoKey), occupancy);
+    VolumesRW[VOLUME_SLOT_NORMAL][id] = float4(UnpackColorKey(normalKey), occupancy);
 }

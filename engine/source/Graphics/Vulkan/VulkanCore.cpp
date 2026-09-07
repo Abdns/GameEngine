@@ -53,7 +53,7 @@ global_variable image_kind_desc ImageKindDescs[] =
     { VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D,   0,                                       VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, 1 },
 
     // 3D volume: прямое чтение и запись из шейдеров через sampled/storage descriptors.
-    { VK_IMAGE_TYPE_3D, VK_IMAGE_VIEW_TYPE_3D,   0,                                       VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,                  VK_IMAGE_ASPECT_COLOR_BIT, 1 },
+    { VK_IMAGE_TYPE_3D, VK_IMAGE_VIEW_TYPE_3D,   0,                                       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT, 1 },
 };
 
 static_assert(ArrayCount(ImageKindDescs) == Image_KindCount, "ImageKindDescs must describe every image_kind");
@@ -381,6 +381,15 @@ internal void CmdImageToGeneral(VkCommandBuffer cmd, VkImage image, VkImageAspec
     VkImageSubresourceRange range = ImageRange(aspect, 0, VK_REMAINING_MIP_LEVELS, layers);
 
     CmdImageBarrier(cmd, image, range, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_NONE, 0, dstStage, dstAccess);
+}
+
+internal void CmdClearImage(VkCommandBuffer cmd, VkImage image)
+{
+    VkClearColorValue clear{};
+
+    VkImageSubresourceRange range = ImageRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 1);
+
+    vkCmdClearColorImage(cmd, image, VK_IMAGE_LAYOUT_GENERAL, &clear, 1, &range);
 }
 
 internal void CmdImageToPresent(VkCommandBuffer cmd, VkImage image)
