@@ -43,8 +43,7 @@
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanPasses.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanPipeline.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanFrame.cpp" />
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\Voxels\VoxelsResources.cpp" />
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\Voxels\VoxelsRenderer.cpp" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\Gi.cpp" />
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32FileIO.cpp" />
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32GameCode.cpp" />
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32GDI.cpp" />
@@ -66,6 +65,7 @@
     <ClInclude Include="..\engine\source\Game\src\Input.cpp" />
     <ClInclude Include="..\engine\source\Game\src\UI\UI.cpp" />
     <ClInclude Include="..\engine\source\Game\src\Gizmo.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\GiValidation.cpp" />
     <ClInclude Include="..\engine\source\Game\src\UI\Text.cpp" />
     <ClInclude Include="..\engine\source\Game\include\Game.h" />
     <ClInclude Include="..\engine\source\Game\include\GameState.h" />
@@ -82,7 +82,8 @@
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRender.h" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\ShaderInterop.h" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderHeap.h" />
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderVolumes.h" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\GiInterop.h" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\GiSampling.h" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderParams.h" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderMath.h" />
     <ClInclude Include="..\shared\EngineMath.h" />
@@ -103,7 +104,7 @@
     <None Include="..\engine\source\Graphics\Vulkan\shaders\depth.hlsl" />
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\Compute.hlsl" />
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelize.hlsl" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\skyocclusion.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\environment.hlsl" />
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\radiance.hlsl" />
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\cascades.hlsl" />
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\screengi.hlsl" />

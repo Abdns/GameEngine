@@ -38,9 +38,7 @@ global_variable compute_desc ComputeDescs[] =
 {
     { "voxelize",     "Mesh"      },
     { "voxelize",     "Resolve"   },
-
-    { "skyocclusion", "Sweep"     },
-    { "skyocclusion", "Blur"      },
+    { "environment",  "Prefilter" },
 
     { "radiance",     "Inject"    },
     { "radiance",     "Smooth"    },

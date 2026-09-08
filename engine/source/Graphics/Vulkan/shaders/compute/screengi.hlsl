@@ -63,17 +63,14 @@ void Probe(uint3 id : SV_DispatchThreadID)
         return;
     }
 
-    uint2 pixel = id.xy * RC_SCREEN_TILE + RC_SCREEN_TILE / 2;
+    uint2 pixel = min(id.xy * RC_SCREEN_TILE + RC_SCREEN_TILE / 2,
+                      uint2(globals.ScreenWidth - 1, globals.ScreenHeight - 1));
 
     float depth = Tex[TEXTURE_SLOT_DEPTH].Load(int3((int2)pixel, 0)).r;
 
     if (depth >= 1.0)
     {
-        for (uint sky = 0; sky < LIGHT_DIRECTIONS; ++sky)
-        {
-            GiScreenRW(sky)[uint3(id.xy, 0)] = float4(0.0, 0.0, 0.0, 1.0);
-        }
-
+        GiScreenLightRW[uint3(id.xy, 0)] = float4(0.0, 0.0, 0.0, 1.0);
         GiScreenMetaRW[uint3(id.xy, 0)] = float4(0.0, 0.0, 0.0, 0.0);
 
         return;
@@ -83,9 +80,14 @@ void Probe(uint3 id : SV_DispatchThreadID)
 
     float3 normal = ReconstructNormal(globals, pixel, depth, center);
 
-    float cellSize = (2.0 * VOLUME_WORLD_EXTENT) / (float)LIGHT_GRID_SIZE;
+    float3 local = GiSurfaceOrigin(center - globals.VolumeCenter, normal);
 
-    float3 local = center - globals.VolumeCenter + normal * cellSize * 1.5;
+    if (any(LocalToUVW(local) < 0.0) || any(LocalToUVW(local) > 1.0))
+    {
+        GiScreenLightRW[uint3(id.xy, 0)] = float4(0.0, 0.0, 0.0, 1.0);
+        GiScreenMetaRW[uint3(id.xy, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+        return;
+    }
 
     float3 grid = LocalToUVW(local) * (float)RC_HANDOFF_PROBE_SIZE - 0.5;
 
@@ -99,14 +101,24 @@ void Probe(uint3 id : SV_DispatchThreadID)
     {
         float3 probeLocal = RcProbeLocal(gather.Corner[c], RC_HANDOFF_PROBE_SIZE);
 
-        side[c] = saturate(dot(probeLocal - local, normal) / (0.25 * handoffCell) + 0.5);
+        side[c] = 0.0;
+        if (gather.Weight[c] > 0.0 && ProbeOccupancy(gather.Corner[c], RC_HANDOFF_PROBE_SIZE) <= 0.0)
+        {
+            float planeWeight = saturate(dot(probeLocal - local, normal) / (0.25 * handoffCell) + 0.5);
+            if (planeWeight > 0.0)
+            {
+                side[c] = planeWeight * GiSegmentVisibility(local, probeLocal, normal);
+            }
+        }
     }
 
     WeightProbes(gather, side);
 
     float cascadeNorm = ProbeNorm(gather);
 
-    axis_light light = AxisLightZero();
+    float3 total = float3(0.0, 0.0, 0.0);
+    float skyTotal = 0.0;
+    float totalWeight = 0.0;
 
     float intervalStart = 0.0;
     float intervalSpan  = 0.0;
@@ -117,30 +129,57 @@ void Probe(uint3 id : SV_DispatchThreadID)
     {
         for (uint u = 0; u < RC_SCREEN_DIR_RES; ++u)
         {
-            float3 direction = RcDirection(uint2(u, v), RC_SCREEN_DIR_RES);
+            uint2 dirUV = uint2(u, v);
+            float3 direction = RcDirection(dirUV, RC_SCREEN_DIR_RES);
+            float cosine = max(dot(direction, normal), 0.0);
 
-            if (dot(direction, normal) <= 0.0)
+            if (cosine <= 0.0)
             {
                 continue;
             }
 
-            float4 nearField = TraceVolume(VOLUME_SLOT_RADIANCE_SMOOTH, local, direction, 0.0, intervalStart, RC_CASCADE_STEPS(RC_HANDOFF_CASCADE));
-
-            float4 farField = float4(0.0, 0.0, 0.0, 0.0);
-
-            for (uint tap = 0; tap < 8; ++tap)
+            float4 incoming;
+            if (gather.Total <= 1e-4)
             {
-                uint3 coord = uint3(gather.Corner[tap].xy * RC_SCREEN_DIR_RES + uint2(u, v), gather.Corner[tap].z);
+                // A closed or thin room may contain no visible handoff probe.
+                // Preserve occlusion by tracing locally instead of restoring
+                // interpolation weights for probes behind its walls.
+                incoming = GiTraceSurface(local, direction, 0.0, VolumeTraceDistance(), normal);
+            }
+            else
+            {
+                float4 nearField = GiTraceSurface(local, direction, 0.0, intervalStart, normal);
+                float4 farField = float4(0.0, 0.0, 0.0, 0.0);
 
-                farField += GiHandoffRW[coord] * gather.Weight[tap];
+                if (nearField.a > 0.0)
+                {
+                    for (uint tap = 0; tap < 8; ++tap)
+                    {
+                        if (gather.Weight[tap] <= 0.0)
+                        {
+                            continue;
+                        }
+                        uint3 coord = uint3(gather.Corner[tap].xy * RC_SCREEN_DIR_RES + dirUV, gather.Corner[tap].z);
+                        farField += GiHandoffRW[coord] * gather.Weight[tap];
+                    }
+                    farField *= cascadeNorm;
+
+                    // A visible probe can still see a blocker in this angular
+                    // bin that the receiver does not. Confirm inherited
+                    // occlusion along the actual receiver ray before darkening
+                    // it; preserve the inexpensive fully-open-sky case.
+                    if (farField.a < 0.9999)
+                    {
+                        farField = GiTraceSurface(local, direction, intervalStart, VolumeTraceDistance(), normal);
+                    }
+                }
+                incoming = float4(nearField.rgb + nearField.a * farField.rgb, nearField.a * farField.a);
             }
 
-            farField *= cascadeNorm;
-
-            float3 merged   = nearField.rgb + nearField.a * farField.rgb;
-            float  skyReach = nearField.a * farField.a;
-
-            AxisAccumulate(light, direction, merged, skyReach, 1.0);
+            float weight = cosine * RcDirectionSolidAngle(dirUV, RC_SCREEN_DIR_RES);
+            total += incoming.rgb * weight;
+            skyTotal += incoming.a * weight;
+            totalWeight += weight;
         }
     }
 
@@ -148,8 +187,8 @@ void Probe(uint3 id : SV_DispatchThreadID)
 
     GiScreenMetaRW[uint3(id.xy, 0)] = float4(normal, viewDepth);
 
-    for (uint store = 0; store < LIGHT_DIRECTIONS; ++store)
-    {
-        GiScreenRW(store)[uint3(id.xy, 0)] = AxisResolve(light, store);
-    }
+    // One diffuse E/pi value per surface probe. Normalized angular quadrature
+    // preserves constant radiance and uses the actual receiver normal.
+    float norm = 1.0 / max(totalWeight, 1e-4);
+    GiScreenLightRW[uint3(id.xy, 0)] = float4(total * norm, saturate(skyTotal * norm));
 }

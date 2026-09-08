@@ -18,7 +18,7 @@ vs_output VSMain(uint vertexID : SV_VertexID)
 
 float4 PSMain(vs_output input) : SV_Target
 {
-    image_params params = LoadImageParams(pc.ParamsPtr);
+    image_params params = LoadPassParams(image_params);
 
     float3 Color = Tex[params.TextureSlot].Sample(Samp, input.UV).rgb;
 

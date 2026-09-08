@@ -1,4 +1,5 @@
 #include "ShaderInterop.h"
+#include "interop/GiSampling.h"
 
 static const float PI            = 3.14159265;
 static const float GSAA_MAX_BIAS = 0.2;
@@ -12,7 +13,7 @@ struct vs_output
 
 vs_output VSMain(uint vertexID : SV_VertexID)
 {
-    draw_params params = LoadDrawParams(pc.ParamsPtr);
+    draw_params params = LoadPassParams(draw_params);
 
     vertex v = LoadVertex(params.Vertices, vertexID);
 
@@ -23,7 +24,7 @@ vs_output VSMain(uint vertexID : SV_VertexID)
     vs_output output;
     output.Position = mul(globals.ViewProj, WorldPos);
     output.WorldPos = WorldPos.xyz;
-    output.Normal   = mul((float3x3)params.Model, v.Normal);
+    output.Normal   = TransformNormal(params.Model, v.Normal);
     return output;
 }
 
@@ -62,18 +63,6 @@ float GeometricRoughness(float3 Normal, float Roughness)
     return min(Roughness + min(2.0 * Variance, GSAA_MAX_BIAS), 1.0);
 }
 
-float RoughnessToMip(float Roughness, float LastMip)
-{
-    return Roughness * (1.7 - 0.7 * Roughness) * LastMip;
-}
-
-float3 OffSpecularPeakDirection(float3 Normal, float3 Reflection, float Roughness)
-{
-    float a = Roughness * Roughness;
-
-    return normalize(lerp(Reflection, Normal, a));
-}
-
 float3 EnvironmentBRDF(float3 F0, float Roughness, float NdotV)
 {
     const float4 c0 = float4(-1.0, -0.0275, -0.572,  0.022);
@@ -89,38 +78,33 @@ float3 EnvironmentBRDF(float3 F0, float Roughness, float NdotV)
     return (F0 * ab.x + ab.y) * Compensation;
 }
 
-float3 SampleCascadeProbes(float3 uvw, float3 direction, out float skyVisibility)
+float3 ScreenProbeWorld(frame_globals globals, int2 probe, float viewDepth)
 {
-    float3 total       = float3(0.0, 0.0, 0.0);
-    float  skyTotal    = 0.0;
-    float  totalWeight = 0.0;
+    int2 screenSize = int2((int)globals.ScreenWidth, (int)globals.ScreenHeight);
+    int2 pixel = min(probe * RC_SCREEN_TILE + RC_SCREEN_TILE / 2, screenSize - 1);
+    float2 ndc = ((float2)pixel + 0.5) / (float2)screenSize * 2.0 - 1.0;
+    float3 ray = globals.SkyRight.xyz * ndc.x + globals.SkyUp.xyz * ndc.y + globals.SkyForward.xyz;
 
-    for (uint axis = 0; axis < LIGHT_DIRECTIONS; ++axis)
-    {
-        float weight = max(dot(direction, LightAxis[axis]), 0.0);
-
-        float4 stored = GiIrradiance(axis).SampleLevel(VolumeSamp, SmoothUVW(uvw, (float)RC_IRRADIANCE_SIZE), 0);
-
-        total       += stored.rgb * weight;
-        skyTotal    += stored.a * weight;
-        totalWeight += weight;
-    }
-
-    float norm = 1.0 / max(totalWeight, 1e-4);
-
-    skyVisibility = saturate(skyTotal * norm);
-
-    return total * (LIGHT_GI_STRENGTH * norm);
+    return globals.CameraPos + ray * viewDepth;
 }
 
-float3 SampleScreenBounce(float2 pixel, float viewDepth, float3 normal, uint2 probeCount, out float coverage, out float skyVisibility)
+float3 SampleScreenBounce(frame_globals globals, float2 pixel, float3 worldPos, float viewDepth,
+                          float3 normal, float pixelFootprint, out float confidence, out float skyVisibility)
 {
-    float2 coord = pixel / (float)RC_SCREEN_TILE - 0.5;
+    uint2 probeCount = uint2(RC_SCREEN_PROBES_X(globals.ScreenWidth), RC_SCREEN_PROBES_Y(globals.ScreenHeight));
+    float2 coord = (pixel - 0.5 - (float)(RC_SCREEN_TILE / 2)) / (float)RC_SCREEN_TILE;
 
     int2   base     = (int2)floor(coord);
-    float2 fraction = coord - (float2)base;
+    float2 lastPixel = float2((float)globals.ScreenWidth, (float)globals.ScreenHeight) - 0.5;
+    float2 firstCenter = min((float2)base * RC_SCREEN_TILE + (float)(RC_SCREEN_TILE / 2) + 0.5, lastPixel);
+    float2 nextCenter = min(((float2)base + 1.0) * RC_SCREEN_TILE + (float)(RC_SCREEN_TILE / 2) + 0.5, lastPixel);
+    float2 fraction = saturate((pixel - firstCenter) / max(nextCenter - firstCenter, 1.0));
 
     fraction = fraction * fraction * (3.0 - 2.0 * fraction);
+
+    float voxelSize = (2.0 * VOLUME_WORLD_EXTENT) / (float)VOLUME_GRID_SIZE;
+    float planeTolerance = max(voxelSize * 0.125, min(pixelFootprint * 2.0, voxelSize * 0.5));
+    float depthTolerance = max(viewDepth * 0.01, pixelFootprint * (float)RC_SCREEN_TILE * 2.0);
 
     float3 total       = float3(0.0, 0.0, 0.0);
     float  skyTotal    = 0.0;
@@ -145,41 +129,34 @@ float3 SampleScreenBounce(float2 pixel, float viewDepth, float3 normal, uint2 pr
 
         float2 axisWeight = lerp(1.0 - fraction, fraction, (float2)offset);
 
-        float depthWeight  = saturate(1.0 - abs(meta.a - viewDepth) / max(viewDepth * 0.05, 1e-3));
-        float normalWeight = saturate(dot(meta.rgb, normal));
+        float3 probeWorld = ScreenProbeWorld(globals, probe, meta.a);
+        float3 delta = probeWorld - worldPos;
+        float planeDistance = max(abs(dot(delta, normal)), abs(dot(delta, meta.rgb)));
+
+        float planeWeight = saturate(1.0 - planeDistance / max(planeTolerance, 1e-4));
+        // Adjacent pixels on a sloped plane legitimately differ in depth. Keep
+        // full confidence within that footprint; plane distance rejects leaks.
+        float depthWeight = saturate(2.0 - abs(meta.a - viewDepth) / max(depthTolerance, 1e-3));
+        float normalWeight = saturate((dot(meta.rgb, normal) - 0.8) / 0.2);
 
         normalWeight *= normalWeight;
 
-        float weight = axisWeight.x * axisWeight.y * depthWeight * normalWeight;
+        float weight = axisWeight.x * axisWeight.y * planeWeight * depthWeight * normalWeight;
 
         if (weight <= 0.0)
         {
             continue;
         }
 
-        float3 value       = float3(0.0, 0.0, 0.0);
-        float  valueSky    = 0.0;
-        float  valueWeight = 0.0;
+        // Screen probes store diffuse E/pi for their surface normal, plus sky visibility.
+        float4 stored = GiScreenLight.Load(int4(probe, 0, 0));
 
-        for (uint lobe = 0; lobe < LIGHT_DIRECTIONS; ++lobe)
-        {
-            float aligned = max(dot(normal, LightAxis[lobe]), 0.0);
-
-            float4 stored = GiScreen(lobe).Load(int4(probe, 0, 0));
-
-            value       += stored.rgb * aligned;
-            valueSky    += stored.a * aligned;
-            valueWeight += aligned;
-        }
-
-        float lobeNorm = 1.0 / max(valueWeight, 1e-4);
-
-        total       += value * (weight * lobeNorm);
-        skyTotal    += valueSky * (weight * lobeNorm);
+        total       += stored.rgb * weight;
+        skyTotal    += stored.a * weight;
         totalWeight += weight;
     }
 
-    coverage = totalWeight;
+    confidence = saturate(totalWeight);
 
     if (totalWeight <= 1e-4)
     {
@@ -191,70 +168,60 @@ float3 SampleScreenBounce(float2 pixel, float viewDepth, float3 normal, uint2 pr
 
     skyVisibility = saturate(skyTotal * norm);
 
-    return total * (LIGHT_GI_STRENGTH * norm);
+    return total * norm;
 }
 
-float3 SampleIrradiance(float3 worldPos, float3 normal, float3 center, float3 skyIrradiance, float3 screenBounce, float coverage, float screenSkyVisibility)
+float3 HistoryDebug(float3 local, float3 normal)
 {
-    float probeSpacing = (2.0 * VOLUME_WORLD_EXTENT) / (float)RC_IRRADIANCE_SIZE;
-    float voxelSize    = (2.0 * VOLUME_WORLD_EXTENT) / (float)VOLUME_GRID_SIZE;
+    float voxelSize = (2.0 * VOLUME_WORLD_EXTENT) / (float)VOLUME_GRID_SIZE;
 
-    float3 local = worldPos - center;
-    float3 uvw   = LocalToUVW(local + normal * probeSpacing * 0.5);
-
-    if (any(uvw < 0.0) || any(uvw > 1.0))
+    for (uint tap = 0; tap < 3; ++tap)
     {
-        return skyIrradiance;
+        float offset = (tap == 0) ? 0.0 : ((tap == 1) ? -0.5 : 0.5);
+        float3 uvw = LocalToUVW(local + normal * (offset * voxelSize));
+
+        if (any(uvw < 0.0) || any(uvw >= 1.0))
+        {
+            continue;
+        }
+
+        int3 coord = (int3)floor(uvw * (float)VOLUME_GRID_SIZE);
+
+        if (GiAlbedo.Load(int4(coord, 0)).a > 0.5)
+        {
+            float valid = saturate(GiNormal.Load(int4(coord, 0)).a);
+            return float3(1.0 - valid, valid, 0.0);
+        }
     }
 
-    float columnVisibility = GiSkyOcclusion.SampleLevel(VolumeSamp, SmoothUVW(LocalToUVW(local + normal * voxelSize), (float)VOLUME_GRID_SIZE), 0).r;
-
-    float  cascadeSkyVisibility = 1.0;
-    float3 cascadeBounce        = SampleCascadeProbes(uvw, normal, cascadeSkyVisibility);
-
-    float3 bounce        = coverage > 1e-4 ? screenBounce : cascadeBounce;
-    float  skyVisibility = coverage > 1e-4 ? screenSkyVisibility : cascadeSkyVisibility;
-
-    skyVisibility = min(skyVisibility, columnVisibility);
-
-    float3 skylight = skyIrradiance * lerp(1.0, skyVisibility, LIGHT_OCCLUSION_STRENGTH);
-
-    return bounce + skylight;
-}
-
-float3 SampleIrradianceRay(float3 worldPos, float3 direction, float3 center, out float skyVisibility)
-{
-    float probeSpacing = (2.0 * VOLUME_WORLD_EXTENT) / (float)RC_IRRADIANCE_SIZE;
-
-    float3 uvw = LocalToUVW(worldPos + direction * probeSpacing * 0.5 - center);
-
-    if (any(uvw < 0.0) || any(uvw > 1.0))
-    {
-        skyVisibility = 1.0;
-        return float3(0.0, 0.0, 0.0);
-    }
-
-    return SampleCascadeProbes(uvw, direction, skyVisibility);
+    // Blue means there is no occupied voxel close enough to diagnose this surface.
+    return float3(0.0, 0.0, 1.0);
 }
 
 float4 PSMain(vs_output input) : SV_Target
 {
-    draw_params params = LoadDrawParams(pc.ParamsPtr);
+    draw_params params = LoadPassParams(draw_params);
 
     frame_globals globals = LoadGlobals(pc.GlobalsPtr);
 
     gpu_material Material = LoadMaterial(params.Materials, params.MaterialSlot);
 
-    float3 BaseColor = Material.BaseColor.rgb * params.Tint.rgb;
+    float3 BaseColor = saturate(Material.BaseColor.rgb * params.Tint.rgb);
     float  Metallic  = saturate(Material.Metallic);
     float  Roughness = clamp(Material.Roughness, 0.045, 1.0);
 
-    Roughness = GeometricRoughness(input.Normal, Roughness);
+    float3 N = normalize(input.Normal);
+    float3 derivativeX = ddx(input.WorldPos);
+    float3 derivativeY = ddy(input.WorldPos);
+    float3 geometric = cross(derivativeX, derivativeY);
+    float geometricLength2 = dot(geometric, geometric);
+    float3 Ngeom = geometricLength2 > 1e-12 ? geometric * rsqrt(geometricLength2) : N;
+    Ngeom = dot(Ngeom, N) < 0.0 ? -Ngeom : Ngeom;
 
-    float3 Ngeom = normalize(input.Normal);
-    float3 V     = normalize(globals.CameraPos - input.WorldPos);
+    Roughness = GeometricRoughness(N, Roughness);
 
-    float3 N = Ngeom;
+    float3 local = input.WorldPos - globals.VolumeCenter;
+    float3 V = normalize(globals.CameraPos - input.WorldPos);
 
     float3 L = normalize(globals.LightDir);
     float3 H = normalize(V + L);
@@ -271,31 +238,69 @@ float4 PSMain(vs_output input) : SV_Target
     float  Normalized = DistributionGGX(Roughness, NdotH);
     float  Visibility = VisibilitySmith(Roughness, NdotV, NdotL);
 
-    float3 Direct = (Albedo / PI + Fresnel * Normalized * Visibility) * globals.LightColor * NdotL;
+    float3 Direct = ((1.0 - Fresnel) * Albedo / PI + Fresnel * Normalized * Visibility)
+                  * globals.LightColor * NdotL;
 
-    uint   SkyIndex      = min(globals.SkyCubemap, (uint)(MAX_CUBEMAPS - 1));
-    float  LastMip       = max((float)globals.SkyMipCount - 1.0, 0.0);
-    float3 SkyIrradiance = Sky[SkyIndex].SampleLevel(Samp, N, LastMip).rgb;
-    float  ViewDepth  = mul(globals.ViewProj, float4(input.WorldPos, 1.0)).w;
-    uint2  ProbeCount = uint2((globals.ScreenWidth + RC_SCREEN_TILE - 1) / RC_SCREEN_TILE, (globals.ScreenHeight + RC_SCREEN_TILE - 1) / RC_SCREEN_TILE);
+    float ViewDepth = mul(globals.ViewProj, float4(input.WorldPos, 1.0)).w;
+    float PixelFootprint = max(length(derivativeX), length(derivativeY));
+    float Confidence = 0.0;
+    float ScreenSkyVis = 1.0;
+    float3 ScreenBounce = SampleScreenBounce(globals, input.Position.xy, input.WorldPos, ViewDepth,
+                                           Ngeom, PixelFootprint, Confidence, ScreenSkyVis);
+    ScreenBounce *= LIGHT_GI_STRENGTH;
 
-    float  Coverage     = 0.0;
-    float  ScreenSkyVis = 1.0;
-    float3 ScreenBounce = SampleScreenBounce(input.Position.xy, ViewDepth, Ngeom, ProbeCount, Coverage, ScreenSkyVis);
+    float WorldSkyVis = ScreenSkyVis;
+    float3 WorldBounce = ScreenBounce;
+    if (Confidence < 0.999)
+    {
+        // Find free space along the actual surface normal; evaluate light with
+        // the shading normal without shifting the receiver into a neighbor.
+        WorldBounce = GiSampleDiffuseProbes(local, N, Ngeom, WorldSkyVis);
+    }
+    float3 Bounce = lerp(WorldBounce, ScreenBounce, Confidence) * globals.GiStrength;
+    float SkyVisibility = saturate(lerp(WorldSkyVis, ScreenSkyVis, Confidence));
+    float3 DiffuseSky = GiDiffuseSky(globals, N) * SkyVisibility;
 
-    float3 Irradiance = SampleIrradiance(input.WorldPos, Ngeom, globals.VolumeCenter, SkyIrradiance, ScreenBounce, Coverage, ScreenSkyVis);
+    float3 Reflection = reflect(-V, N);
+    // Smooth shading normals can reflect below the actual triangle at grazing
+    // angles. Keep the sky direction above that geometric plane.
+    Reflection = normalize(Reflection + Ngeom * max(0.001 - dot(Reflection, Ngeom), 0.0));
+    float3 SkyRadiance = GiSpecularSky(globals, Reflection, Roughness);
 
-    float3 Reflection = OffSpecularPeakDirection(N, reflect(-V, N), Roughness);
-    float3 SkyRadiance = Sky[SkyIndex].SampleLevel(Samp, Reflection, RoughnessToMip(Roughness, LastMip)).rgb;
+    float3 SpecularWeight = saturate(EnvironmentBRDF(F0, Roughness, NdotV));
+    float3 DiffuseWeight = Albedo * (1.0 - SpecularWeight);
+    // Both diffuse fields contain E/pi; the Lambertian pi is already accounted for.
+    float3 Indirect = DiffuseWeight * (Bounce + DiffuseSky);
 
-    float  ReflectionSkyVis = 1.0;
-    float3 ReflectionBounce = SampleIrradianceRay(input.WorldPos, Reflection, globals.VolumeCenter, ReflectionSkyVis);
+    float3 Radiance = SkyRadiance;
+    float3 Reflections = Radiance * SpecularWeight;
 
-    float3 Radiance = SkyRadiance * lerp(1.0, ReflectionSkyVis, LIGHT_OCCLUSION_STRENGTH) + ReflectionBounce;
+    float3 Color = Direct + Indirect + Reflections;
 
-    float3 Ambient = Albedo * Irradiance + Radiance * EnvironmentBRDF(F0, Roughness, NdotV);
-
-    float3 Color = Direct + Ambient;
+    if (globals.GiDebugMode == GI_DEBUG_DIRECT)
+    {
+        Color = Direct;
+    }
+    else if (globals.GiDebugMode == GI_DEBUG_INDIRECT)
+    {
+        Color = Indirect;
+    }
+    else if (globals.GiDebugMode == GI_DEBUG_SKY_VISIBILITY)
+    {
+        Color = SkyVisibility.xxx;
+    }
+    else if (globals.GiDebugMode == GI_DEBUG_SCREEN_CONFIDENCE)
+    {
+        Color = float3(1.0 - Confidence, Confidence, 0.0);
+    }
+    else if (globals.GiDebugMode == GI_DEBUG_HISTORY_REJECTION)
+    {
+        Color = HistoryDebug(local, Ngeom);
+    }
+    else if (globals.GiDebugMode == GI_DEBUG_REFLECTIONS)
+    {
+        Color = Reflections;
+    }
 
     return float4(Color, Material.BaseColor.a * params.Tint.a);
 }

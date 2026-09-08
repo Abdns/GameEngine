@@ -34,9 +34,6 @@
     <Filter Include="engine\source\Graphics\Vulkan">
       <UniqueIdentifier>{a1000000-0000-0000-0000-000000000004}</UniqueIdentifier>
     </Filter>
-    <Filter Include="engine\source\Graphics\Vulkan\Voxels">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-0000000000c1}</UniqueIdentifier>
-    </Filter>
     <Filter Include="engine\source\Graphics\Vulkan\shaders">
       <UniqueIdentifier>{a1000000-0000-0000-0000-000000000005}</UniqueIdentifier>
     </Filter>
@@ -95,11 +92,8 @@
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanFrame.cpp">
       <Filter>engine\source\Graphics\Vulkan</Filter>
     </ClInclude>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\Voxels\VoxelsResources.cpp">
-      <Filter>engine\source\Graphics\Vulkan\Voxels</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\Voxels\VoxelsRenderer.cpp">
-      <Filter>engine\source\Graphics\Vulkan\Voxels</Filter>
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\Gi.cpp">
+      <Filter>engine\source\Graphics\Vulkan</Filter>
     </ClInclude>
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32FileIO.cpp">
       <Filter>engine\source\Platform\win32\src</Filter>
@@ -164,6 +158,9 @@
     <ClInclude Include="..\engine\source\Game\src\Gizmo.cpp">
       <Filter>engine\source\Game\src</Filter>
     </ClInclude>
+    <ClInclude Include="..\engine\source\Game\src\GiValidation.cpp">
+      <Filter>engine\source\Game\src</Filter>
+    </ClInclude>
     <ClInclude Include="..\engine\source\Game\src\UI\Text.cpp">
       <Filter>engine\source\Game\src\UI</Filter>
     </ClInclude>
@@ -194,7 +191,10 @@
     <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderHeap.h">
       <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
     </ClInclude>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderVolumes.h">
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\GiInterop.h">
+      <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\GiSampling.h">
       <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
     </ClInclude>
     <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderParams.h">
@@ -271,7 +271,7 @@
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelize.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\skyocclusion.hlsl">
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\environment.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
     <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\radiance.hlsl">

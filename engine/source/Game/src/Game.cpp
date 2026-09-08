@@ -154,7 +154,10 @@ internal void InitPresets(game_state *GameState, game_memory *Memory)
         AddPreset(Presets, MakePreset("ball", Entity_Ball, "sphere", "test", TransformIdentity(), false, Textured));
 
 #if ENGINE_INTERNAL
-        SavePresets(Presets, Memory, PRESET_PATH);
+        if (!Memory->GiValidationRun)
+        {
+            SavePresets(Presets, Memory, PRESET_PATH);
+        }
 #endif
     }
 
@@ -257,6 +260,7 @@ internal void InitGame(game_memory *Memory, game_state *GameState, render_comman
     InitTools(GameState);
     BuildTestScene(GameState);
     InitPresets(GameState, Memory);
+    InitGiValidation(GameState);
 
     PushMaterialsToRender(&GameState->Materials, RenderCommands);
 
@@ -264,6 +268,10 @@ internal void InitGame(game_memory *Memory, game_state *GameState, render_comman
 
     GameState->tSine  = 0.0f;
     GameState->Paused = false;
+    GameState->GiDebugMode = 0;
+    GameState->GiHistorySeconds = 0.08f;
+    GameState->GiStrength = 1.0f;
+    GameState->ShowGiDiagnostics = false;
 
     DebugLog("World arena: %llu KB used of %llu KB\n", WorldArena->Used / 1024, WorldArena->Size / 1024);
 }
@@ -278,6 +286,16 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     if (!Memory->IsInitialized)
     {
         InitGame(Memory, GameState, RenderCommands);
+
+        if (Memory->GiValidationRun)
+        {
+            if (Memory->GiStartupScene > GiValidation_Original && Memory->GiStartupScene < GiValidation_Count)
+            {
+                SelectGiValidationScene(GameState, Memory->GiStartupScene);
+            }
+            GameState->GiDebugMode = Memory->GiStartupView <= 6 ? Memory->GiStartupView : 0;
+            DebugLog("GI validation game startup: scene=%u view=%u\n", GameState->GiValidationScene, GameState->GiDebugMode);
+        }
 
         Memory->IsInitialized = true;
     }
@@ -295,6 +313,22 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     BeginGizmo(Gizmo, Mouse, RenderCommands);
 
     UpdateEditorUI(GameState, UI);
+
+    RenderCommands->GiDebugMode = GameState->GiDebugMode;
+    RenderCommands->GiHistorySeconds = GameState->GiHistorySeconds;
+    RenderCommands->GiStrength = GameState->GiStrength;
+    RenderCommands->DeltaTime = Controls->dtForFrame;
+
+    if (GameState->GiValidationScene != GiValidation_Original)
+    {
+        // The lab emits temporary meshes only. Existing entities, physics, and
+        // editor selection remain intact and the original camera is restored on exit.
+        UpdateCamera(Camera, GameState->World, Controls);
+        PushGiValidationScene(GameState, RenderCommands, Controls->dtForFrame);
+        EndGizmo(Gizmo);
+        EndUI(UI);
+        return;
+    }
 
     rectangle3  SimBounds = Rect3CenterRadius(Vector3(0.0f, 0.0f, 0.0f), SIM_HALF_DIM);
     sim_region *Region    = BeginSim(&GameState->FrameArena, GameState->World, &GameState->Storage, Camera->Position, SimBounds, SIM_MAX_ENTITIES);

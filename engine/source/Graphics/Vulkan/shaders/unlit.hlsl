@@ -9,7 +9,7 @@ struct vs_output
 
 vs_output VSMain(uint vertexID : SV_VertexID)
 {
-    draw_params params = LoadDrawParams(pc.ParamsPtr);
+    draw_params params = LoadPassParams(draw_params);
 
     vertex v = LoadVertex(params.Vertices, vertexID);
 
@@ -24,7 +24,7 @@ vs_output VSMain(uint vertexID : SV_VertexID)
 
 float4 PSMain(vs_output input) : SV_Target
 {
-    draw_params params = LoadDrawParams(pc.ParamsPtr);
+    draw_params params = LoadPassParams(draw_params);
 
     gpu_material Material = LoadMaterial(params.Materials, params.MaterialSlot);
 

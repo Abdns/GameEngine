@@ -14,7 +14,6 @@ enum command_type
     Load_Mesh,
     Load_Texture,
     Load_Cubemap,
-    Load_Volume,
     Load_Material,
 };
 
@@ -32,12 +31,6 @@ enum texture_format
 };
 
 #define TEXTURE_NONE 0xFFFFFFFF
-
-enum volume_format
-{
-    VolumeFormat_RGBA16F = 0,
-    VolumeFormat_R32U,
-};
 
 enum blend_mode
 {
@@ -124,16 +117,6 @@ struct command_load_cubemap
     texture_format Format;
 };
 
-struct command_load_volume
-{
-    command_type   Type;
-    uint32         VolumeHandle;
-    uint32         Width;
-    uint32         Height;
-    uint32         Depth;
-    volume_format  Format;
-};
-
 struct command_load_material
 {
     command_type  Type;
@@ -180,7 +163,6 @@ inline uint32 CommandSize(command_type Type)
         case Load_Mesh:          return (uint32)sizeof(command_load_mesh);
         case Load_Texture:       return (uint32)sizeof(command_load_texture);
         case Load_Cubemap:       return (uint32)sizeof(command_load_cubemap);
-        case Load_Volume:        return (uint32)sizeof(command_load_volume);
         case Load_Material:      return (uint32)sizeof(command_load_material);
     }
     return 0;
@@ -196,6 +178,11 @@ struct render_commands
 
     bool32 ShowVolumeDebug;
 
+    uint32 GiDebugMode;
+    real32 GiHistorySeconds;
+    real32 GiStrength;
+    real32 DeltaTime;
+
     uint8 *PushBufferBase;
     uint32 PushBufferSize;
     uint32 MaxPushBufferSize;
@@ -206,6 +193,8 @@ inline render_commands InitRenderCommands(void *Memory, uint32 Size)
     render_commands Result = {};
     Result.PushBufferBase    = (uint8 *)Memory;
     Result.MaxPushBufferSize = Size;
+    Result.GiHistorySeconds  = 0.08f;
+    Result.GiStrength        = 1.0f;
 
     return Result;
 }
@@ -314,21 +303,6 @@ inline void PushLoadCubemap(render_commands *Commands, uint32 CubemapHandle, voi
         cmd->Pixels   = Pixels;
         cmd->FaceSize = FaceSize;
         cmd->Format   = Format;
-
-        Commands->LoadCount++;
-    }
-}
-
-inline void PushLoadVolume(render_commands *Commands, uint32 VolumeHandle, uint32 Width, uint32 Height, uint32 Depth, volume_format Format)
-{
-    command_load_volume *cmd = (command_load_volume *)PushRenderCommand(Commands, Load_Volume);
-    if (cmd)
-    {
-        cmd->VolumeHandle = VolumeHandle;
-        cmd->Width  = Width;
-        cmd->Height = Height;
-        cmd->Depth  = Depth;
-        cmd->Format = Format;
 
         Commands->LoadCount++;
     }

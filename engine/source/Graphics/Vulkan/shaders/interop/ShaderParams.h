@@ -30,7 +30,7 @@ struct frame_globals
     float  CameraFar;
 
     float3 CameraPos;
-    float  GlobalsPad2;
+    float  GiDeltaTime;
 
     uint SkyCubemap;
     uint SkyMipCount;
@@ -38,7 +38,12 @@ struct frame_globals
     uint ScreenHeight;
 
     float3 VolumeCenter;
-    float  GlobalsPad5;
+    uint   GiDebugMode;
+
+    float GiHistorySeconds;
+    float GiStrength;
+    uint GlobalsPad0;
+    uint GlobalsPad1;
 };
 
 struct gpu_material
@@ -90,58 +95,8 @@ struct image_params
     uint ImagePad2;
 };
 
-struct volume_params
-{
-    uint  VolumeSlot;
-    uint  VolumeSize;
-    float VolumeSlice;
-    uint  VolumeMode;
-
-    uint  VolumeLightSlot;
-    uint  VolumePad0;
-    uint  VolumePad1;
-    uint  VolumePad2;
-};
-
-struct volume_op_params
-{
-    uint SrcSlot;
-    uint DstSlot;
-    uint VolumeOpPad0;
-    uint VolumeOpPad1;
-};
-
-struct rc_cascade_params
-{
-    uint Cascade;
-    uint CascadePad0;
-    uint CascadePad1;
-    uint CascadePad2;
-};
-
-struct voxelize_params
-{
-    float4x4 Model;
-
-    gpu_ptr Vertices;
-    gpu_ptr Indices;
-
-    gpu_ptr Materials;
-    uint    FirstIndex;
-    uint    TriangleCount;
-
-    uint FirstVertex;
-    uint MaterialSlot;
-    uint VoxelizePad0;
-    uint VoxelizePad1;
-};
-
 #ifndef __cplusplus
     typedef vk::BufferPointer<frame_globals, 16>     frame_globals_ptr;
-    typedef vk::BufferPointer<draw_params, 16>       draw_params_ptr;
-    typedef vk::BufferPointer<image_params, 16>      image_params_ptr;
-    typedef vk::BufferPointer<voxelize_params, 16>   voxelize_params_ptr;
-    typedef vk::BufferPointer<skybox_params, 16>     skybox_params_ptr;
     typedef vk::BufferPointer<rect_params, 16>       rect_params_ptr;
 
     vertex LoadVertex(uint64_t base, uint index)
@@ -169,28 +124,7 @@ struct voxelize_params
         return frame_globals_ptr(address).Get();
     }
 
-    draw_params LoadDrawParams(uint64_t address)
-    {
-        return draw_params_ptr(address).Get();
-    }
-
-    skybox_params LoadSkyboxParams(uint64_t address)
-    {
-        return skybox_params_ptr(address).Get();
-    }
-
-    image_params LoadImageParams(uint64_t address)
-    {
-        return image_params_ptr(address).Get();
-    }
-
     #define LoadPassParams(Type) vk::BufferPointer<Type, 16>(pc.ParamsPtr).Get()
-
-    voxelize_params LoadVoxelizeParams(uint64_t address)
-    {
-        return voxelize_params_ptr(address).Get();
-    }
-
 #endif
 
 #endif

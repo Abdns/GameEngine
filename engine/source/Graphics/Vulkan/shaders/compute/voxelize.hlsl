@@ -1,4 +1,4 @@
-#include "Compute.hlsl"
+#include "ShaderInterop.h"
 
 static const float VOXEL_SAMPLE_DENSITY = 1.5;
 static const uint  VOXEL_MAX_STEPS      = 512;
@@ -27,7 +27,7 @@ float3 UnpackColorKey(uint key)
 [numthreads(VOXEL_GROUP_SIZE, 1, 1)]
 void Mesh(uint3 id : SV_DispatchThreadID)
 {
-    voxelize_params params = LoadVoxelizeParams(pc.ParamsPtr);
+    voxelize_params params = LoadPassParams(voxelize_params);
 
     if (id.x >= params.TriangleCount)
     {
@@ -50,7 +50,7 @@ void Mesh(uint3 id : SV_DispatchThreadID)
     float3 w1 = mul(params.Model, float4(b.Position, 1.0)).xyz;
     float3 w2 = mul(params.Model, float4(c.Position, 1.0)).xyz;
 
-    float3 normal = normalize(mul((float3x3)params.Model, a.Normal + b.Normal + c.Normal));
+    float3 normal = TransformNormal(params.Model, a.Normal + b.Normal + c.Normal);
 
     float3 v0 = WorldToVoxel(w0, globals.VolumeCenter);
     float3 v1 = WorldToVoxel(w1, globals.VolumeCenter);
@@ -62,7 +62,8 @@ void Mesh(uint3 id : SV_DispatchThreadID)
 
     gpu_material material = LoadMaterial(params.Materials, params.MaterialSlot);
 
-    uint albedoKey = PackColorKey(material.BaseColor.rgb);
+    float3 diffuseReflectance = saturate(material.BaseColor.rgb * params.Tint.rgb) * (1.0 - saturate(material.Metallic));
+    uint albedoKey = PackColorKey(diffuseReflectance);
     uint normalKey = PackColorKey(normal * 0.5 + 0.5);
 
     float3 edge1 = v1 - v0;
@@ -100,6 +101,15 @@ void Resolve(uint3 id : SV_DispatchThreadID)
 
     float occupancy = albedoKey ? 1.0 : 0.0;
 
+    float4 previousAlbedo = GiAlbedoRW[id];
+    float4 previousNormal = GiNormalRW[id];
+    bool historyValid = previousAlbedo.a == occupancy;
+    if (occupancy > 0.0)
+    {
+        historyValid = historyValid && PackColorKey(previousAlbedo.rgb) == albedoKey &&
+                                       PackColorKey(previousNormal.rgb) == normalKey;
+    }
+
     GiAlbedoRW[id] = float4(UnpackColorKey(albedoKey), occupancy);
-    GiNormalRW[id] = float4(UnpackColorKey(normalKey), occupancy);
+    GiNormalRW[id] = float4(UnpackColorKey(normalKey), historyValid ? 1.0 : 0.0);
 }

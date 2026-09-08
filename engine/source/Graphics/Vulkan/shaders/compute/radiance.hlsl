@@ -1,142 +1,68 @@
 #include "Compute.hlsl"
 
-float3 SampleBounce(float3 local, float3 normal)
-{
-    float3 uvw = LocalToUVW(local);
-
-    if (any(uvw < 0.0) || any(uvw > 1.0))
-    {
-        return float3(0.0, 0.0, 0.0);
-    }
-
-    float3 total       = float3(0.0, 0.0, 0.0);
-    float  totalWeight = 0.0;
-
-    for (uint axis = 0; axis < LIGHT_DIRECTIONS; ++axis)
-    {
-        float weight = max(dot(normal, LightAxis[axis]), 0.0);
-
-        total       += GiIrradiance(axis).SampleLevel(VolumeSamp, SmoothUVW(uvw, (float)RC_IRRADIANCE_SIZE), 0).rgb * weight;
-        totalWeight += weight;
-    }
-
-    return total / max(totalWeight, 1e-4);
-}
-
 [numthreads(VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE)]
 void Inject(uint3 id : SV_DispatchThreadID)
 {
-    if (any(id >= LIGHT_GRID_SIZE))
+    if (any(id >= LIGHT_GRID_SIZE)) return;
+    float4 surface = GiAlbedo.Load(int4(id, 0));
+    if (surface.a <= 0.0)
     {
+        // Removed geometry stops emitting and occluding in this frame.
+        GiRadianceRW[id] = 0.0;
         return;
     }
-
-    float4 history = GiRadianceRW[id];
-
-    float4 solid = GiAlbedoRW[id];
-
-    if (solid.a <= 0.0)
-    {
-        GiRadianceRW[id] = lerp(history, float4(0.0, 0.0, 0.0, 0.0), LIGHT_BLEND);
-        return;
-    }
-
     frame_globals globals = LoadGlobals(pc.GlobalsPtr);
-
-    float3 normal = float3(0.0, 1.0, 0.0);
-
-    float3 packed  = GiNormalRW[id].rgb * 2.0 - 1.0;
-    float  length2 = dot(packed, packed);
-
-    if (length2 > 1e-6)
-    {
-        normal = packed * rsqrt(length2);
-    }
-
-    float skyVisibility = GiSkyOcclusionRW[id].r;
-
-    uint  skyIndex = min(globals.SkyCubemap, (uint)(MAX_CUBEMAPS - 1));
-    float lastMip  = max((float)globals.SkyMipCount - 1.0, 0.0);
-
-    float3 skyColor = Sky[skyIndex].SampleLevel(Samp, normal, lastMip).rgb * LIGHT_SKY_STRENGTH;
-
+    float4 encoded = GiNormal.Load(int4(id, 0));
+    float3 normal = normalize(encoded.rgb * 2.0 - 1.0);
+    float3 local = RcProbeLocal(id, LIGHT_GRID_SIZE);
     float3 toLight = normalize(globals.LightDir);
+    float sunVisibility = GiInjectionSunVisibility(local, normal, toLight);
+    float3 sunlight = globals.LightColor * max(dot(normal, toLight), 0.0) * RC_INV_PI * sunVisibility;
 
-    float ndotl = max(dot(normal, toLight), 0.0);
+    // Previous-frame irradiance supplies one additional diffuse bounce.
+    // Geometry and the visibility rays are always from the current frame.
+    float skyVisibility;
+    float3 bounced = GiSampleDiffuseProbes(local, normal, skyVisibility);
+    float3 skylight = GiDiffuseSky(globals, normal) * skyVisibility;
+    float3 current = surface.rgb * 0.96 * (sunlight + skylight + bounced * LIGHT_BOUNCE_STRENGTH);
 
-    float voxelSize = (2.0 * VOLUME_WORLD_EXTENT) / (float)LIGHT_GRID_SIZE;
-
-    float3 position = RcProbeLocal(id, LIGHT_GRID_SIZE);
-
-    float sunVisibility = 1.0;
-
-    if (ndotl > 0.0)
-    {
-        float stepSize = voxelSize;
-
-        float3 origin = position + normal * voxelSize * 1.5 + toLight * voxelSize * 1.5;
-
-        for (uint i = 0; i < RC_SUN_STEPS; ++i)
-        {
-            float3 uvw = LocalToUVW(origin + toLight * (stepSize * ((float)i + 0.5)));
-
-            if (any(uvw < 0.0) || any(uvw > 1.0))
-            {
-                break;
-            }
-
-            float fringe = GiAlbedo.SampleLevel(VolumeSamp, uvw, 0).a;
-
-            float blocker = saturate((fringe - RC_SUN_FRINGE) / (1.0 - RC_SUN_FRINGE));
-
-            if (blocker > 0.001)
-            {
-                sunVisibility *= exp(-blocker * RC_EXTINCTION * stepSize);
-
-                if (sunVisibility < 0.01)
-                {
-                    sunVisibility = 0.0;
-                    break;
-                }
-            }
-        }
-    }
-
-    float3 sunlight = globals.LightColor * ndotl * RC_INV_PI * sunVisibility;
-    float3 skylight = skyColor * skyVisibility;
-
-    float3 local = position + normal * voxelSize;
-
-    float3 bounced = SampleBounce(local, normal) * LIGHT_BOUNCE_STRENGTH;
-
-    float4 current = float4(solid.rgb * (sunlight + skylight + bounced), solid.a);
-
-    GiRadianceRW[id] = lerp(history, current, LIGHT_BLEND);
+    float3 history = GiRadianceRW[id].rgb;
+    float response = globals.GiHistorySeconds > 0.0
+        ? 1.0 - exp(-max(globals.GiDeltaTime, 0.0) / globals.GiHistorySeconds) : 1.0;
+    if (encoded.a <= 0.0) response = 1.0;
+    GiRadianceRW[id] = float4(lerp(history, current, response), surface.a);
 }
 
 [numthreads(VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE, VOLUME_GROUP_SIZE)]
 void Smooth(uint3 id : SV_DispatchThreadID)
 {
-    if (any(id >= LIGHT_GRID_SIZE))
+    if (any(id >= LIGHT_GRID_SIZE)) return;
+    float4 center = GiRadiance.Load(int4(id, 0));
+    if (center.a <= 0.0)
     {
+        GiRadianceSmoothRW[id] = 0.0;
         return;
     }
-
-    float inv = 1.0 / (float)LIGHT_GRID_SIZE;
-
-    float3 uvw = ((float3)id + 0.5) * inv;
-
-    float4 total = float4(0.0, 0.0, 0.0, 0.0);
-
-    for (uint corner = 0; corner < 8; ++corner)
+    float3 normal = normalize(GiNormal.Load(int4(id, 0)).rgb * 2.0 - 1.0);
+    float3 albedo = GiAlbedo.Load(int4(id, 0)).rgb;
+    float3 sum = center.rgb * 2.0;
+    float total = 2.0;
+    [unroll] for (uint axis = 0; axis < LIGHT_DIRECTIONS; ++axis)
     {
-        float3 offset = float3(
-            (corner & 1) ? 0.5 : -0.5,
-            (corner & 2) ? 0.5 : -0.5,
-            (corner & 4) ? 0.5 : -0.5) * inv;
-
-        total += GiRadiance.SampleLevel(VolumeSamp, uvw + offset, 0);
+        int3 cell = (int3)id + (int3)LightAxis[axis];
+        if (any(cell < 0) || any(cell >= LIGHT_GRID_SIZE)) continue;
+        float4 neighbor = GiRadiance.Load(int4(cell, 0));
+        if (neighbor.a <= 0.0) continue;
+        float3 n = normalize(GiNormal.Load(int4(cell, 0)).rgb * 2.0 - 1.0);
+        float3 a = GiAlbedo.Load(int4(cell, 0)).rgb;
+        float plane = abs(dot(LightAxis[axis], normal));
+        float materialDifference = max(abs(a.r - albedo.r), max(abs(a.g - albedo.g), abs(a.b - albedo.b)));
+        // Smooth along the same material/plane, never into air or across walls.
+        float weight = saturate((dot(n, normal) - 0.95) * 20.0)
+                     * saturate(1.0 - plane * 4.0)
+                     * saturate(1.0 - materialDifference * 16.0);
+        sum += neighbor.rgb * weight;
+        total += weight;
     }
-
-    GiRadianceSmoothRW[id] = total * 0.125;
+    GiRadianceSmoothRW[id] = float4(sum / total, center.a);
 }

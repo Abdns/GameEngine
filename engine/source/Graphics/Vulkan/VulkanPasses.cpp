@@ -74,8 +74,8 @@ internal void BeginPass(vulkan_context *context, VkCommandBuffer cmd, VkImageVie
     rendering.sType                = VK_STRUCTURE_TYPE_RENDERING_INFO;
     rendering.renderArea.extent    = context->swapchainExtent;
     rendering.layerCount           = 1;
-    rendering.colorAttachmentCount = 1;
-    rendering.pColorAttachments    = &color;
+    rendering.colorAttachmentCount = colorTarget ? 1u : 0u;
+    rendering.pColorAttachments    = colorTarget ? &color : nullptr;
     rendering.pDepthAttachment     = (depthMode != Depth_None) ? &depth : nullptr;
 
     vkCmdBeginRendering(cmd, &rendering);

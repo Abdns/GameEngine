@@ -16,9 +16,7 @@ for %%f in (..\engine\source\Graphics\Vulkan\shaders\*.hlsl) do (
 
 call :compute voxelize     Mesh      || goto :failed
 call :compute voxelize     Resolve   || goto :failed
-
-call :compute skyocclusion Sweep     || goto :failed
-call :compute skyocclusion Blur      || goto :failed
+call :compute environment  Prefilter || goto :failed
 
 call :compute radiance     Inject    || goto :failed
 call :compute radiance     Smooth    || goto :failed

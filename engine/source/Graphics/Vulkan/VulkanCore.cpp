@@ -383,6 +383,17 @@ internal void CmdImageToGeneral(VkCommandBuffer cmd, VkImage image, VkImageAspec
     CmdImageBarrier(cmd, image, range, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_NONE, 0, dstStage, dstAccess);
 }
 
+internal void CmdAcquiredImageToGeneral(VkCommandBuffer cmd, VkImage image)
+{
+    VkImageSubresourceRange range = ImageRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 1);
+
+    // EndFrame waits for image acquisition at COLOR_ATTACHMENT_OUTPUT. Include
+    // that stage in the source scope so this discard transition waits as well.
+    CmdImageBarrier(cmd, image, range, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+                    VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, 0,
+                    VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+}
+
 internal void CmdClearImage(VkCommandBuffer cmd, VkImage image)
 {
     VkClearColorValue clear{};
@@ -420,7 +431,9 @@ internal void CmdUploadImage(VkCommandBuffer cmd, VkBuffer staging, VkDeviceSize
 {
     VkImageSubresourceRange range = ImageRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, layers);
 
-    CmdImageToGeneral(cmd, image, VK_IMAGE_ASPECT_COLOR_BIT, layers, VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+    // This transition initializes every mip: level zero is copied, while later
+    // levels may be written by CmdGenerateMips at the BLIT stage.
+    CmdImageToGeneral(cmd, image, VK_IMAGE_ASPECT_COLOR_BIT, layers, VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
     CmdCopyBufferToImage(cmd, staging, stagingOffset, image, width, height, layers);
 
     CmdImageBarrier(cmd, image, range, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
@@ -448,6 +461,8 @@ internal void CmdGenerateMips(VkCommandBuffer cmd, VkImage image, uint32 width, 
 
         uint32 srcWidth  = width  >> (level - 1);
         uint32 srcHeight = height >> (level - 1);
+        srcWidth = srcWidth > 0 ? srcWidth : 1;
+        srcHeight = srcHeight > 0 ? srcHeight : 1;
         uint32 dstWidth  = srcWidth  > 1 ? (srcWidth  >> 1) : 1;
         uint32 dstHeight = srcHeight > 1 ? (srcHeight >> 1) : 1;
 

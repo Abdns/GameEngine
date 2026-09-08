@@ -112,9 +112,7 @@ enum compute_type
 {
     Compute_VoxelizeMesh = 0,
     Compute_VoxelizeResolve,
-
-    Compute_SkyOcclusionSweep,
-    Compute_SkyOcclusionBlur,
+    Compute_EnvironmentPrefilter,
 
     Compute_RadianceInject,
     Compute_RadianceSmooth,
@@ -174,6 +172,8 @@ struct vulkan_resources
     gpu_image      UintVolumes[MAX_UINT_VOLUMES];
     material_state MaterialStates[MAX_MATERIALS];
     uint32         MaterialCount;
+    bool32         GiEnvironmentDirty;
+    uint32         GiEnvironmentSky;
 };
 
 struct vulkan_frame

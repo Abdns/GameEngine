@@ -6,12 +6,11 @@
 #include "VulkanCore.cpp"
 #include "VulkanDevice.cpp"
 #include "VulkanResources.cpp"
-#include "Voxels/VoxelsResources.cpp"
 #include "VulkanPasses.cpp"
 #include "VulkanPipeline.cpp"
 #include "VulkanFrame.cpp"
 
-#include "Voxels/VoxelsRenderer.cpp"
+#include "Gi.cpp"
 
 global_variable vulkan_renderer GlobalRenderer;
 
@@ -107,6 +106,7 @@ internal const char *InitVulkan(HINSTANCE hinstance, HWND hwnd)
     VkCommandBuffer setup = BeginSingleTimeCommands(context);
     {
         *targets = CreateFrameTargets(context, &res->Heap, setup);
+        CreateGiResources(context, res, setup);
     }
     EndSingleTimeCommands(context, setup);
 
@@ -178,29 +178,7 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
                 CmdUploadImage(cmd, staging.Buffer, upload.Offset, cube->Image, entry->FaceSize, entry->FaceSize, 6);
                 CmdGenerateMips(cmd, cube->Image, entry->FaceSize, entry->FaceSize, 6, cube->MipLevels);
                 WriteHeapImage(context, &res->Heap, BINDING_CUBEMAPS, entry->CubemapHandle, cube->View);
-            }
-            else if (*header == Load_Volume)
-            {
-                command_load_volume *entry = (command_load_volume *)header;
-
-                gpu_image *volume = 0;
-
-                if (entry->Format == VolumeFormat_R32U)
-                {
-                    volume = CreateUintVolume(context, res, entry->VolumeHandle, entry->Width, entry->Height, entry->Depth);
-
-                    WriteHeapImage(context, &res->Heap, BINDING_UINT_VOLUMES, entry->VolumeHandle, volume->View);
-                }
-                else
-                {
-                    volume = CreateVolume(context, res, entry->VolumeHandle, entry->Width, entry->Height, entry->Depth);
-
-                    WriteHeapImage(context, &res->Heap, BINDING_VOLUMES,         entry->VolumeHandle, volume->View);
-                    WriteHeapImage(context, &res->Heap, BINDING_STORAGE_VOLUMES, entry->VolumeHandle, volume->View);
-                }
-
-                CmdImageToGeneral(cmd, volume->Image, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_CLEAR_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
-                CmdClearImage(cmd, volume->Image);
+                res->GiEnvironmentDirty = true;
             }
         }
 
@@ -237,6 +215,10 @@ internal void FillFrameGlobals(vulkan_context *context, vulkan_resources *res, r
 
     globals->ScreenWidth  = context->swapchainExtent.width;
     globals->ScreenHeight = context->swapchainExtent.height;
+    globals->GiDeltaTime = commands->DeltaTime > 0.0f ? commands->DeltaTime : (1.0f / 60.0f);
+    globals->GiDebugMode = commands->GiDebugMode;
+    globals->GiHistorySeconds = commands->GiHistorySeconds;
+    globals->GiStrength = commands->GiStrength;
 
     uint32 offset = 0;
     for (command_type *cmdBase = NextRenderCommand(commands, &offset); cmdBase; cmdBase = NextRenderCommand(commands, &offset))
@@ -303,7 +285,6 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
     render_state wanted  = {};
 
     vkCmdBindIndexBuffer(cmd, res->IndexBuffer.Buffer, 0, VK_INDEX_TYPE_UINT32);
-
     for (uint32 queue = 0; queue < Queue_Count; ++queue)
     {
         uint32 offset   = 0;
@@ -329,15 +310,11 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
                     BindPipelineState(context, cmd, pipeline, &current, &wanted);
                     ApplyRenderState(context, cmd, &current, &wanted);
 
-                    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(skybox_params), 16);
-
                     skybox_params params = {};
                     params.Tint         = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
                     params.CubemapIndex = cubeSlot;
 
-                    *(skybox_params *)alloc.Cpu = params;
-
-                    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+                    PushPassParams(cmd, res, params);
 
                     vkCmdDraw(cmd, 3, 1, 0, 0);
                 } break;
@@ -380,8 +357,6 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
 
                     ApplyRenderState(context, cmd, &current, &wanted);
 
-                    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(draw_params), 16);
-
                     draw_params params = {};
                     params.Model         = meshCmd->Transform;
                     params.Tint          = meshCmd->Tint;
@@ -389,9 +364,7 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
                     params.Materials     = res->MaterialBuffer.Address;
                     params.MaterialSlot  = materialSlot;
 
-                    *(draw_params *)alloc.Cpu = params;
-
-                    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+                    PushPassParams(cmd, res, params);
 
                     vkCmdDrawIndexed(cmd, mesh->IndexCount, 1, mesh->FirstIndex, (int32)mesh->FirstVertex, 0);
                 } break;
@@ -494,8 +467,6 @@ internal void RenderDepthPrepass(vulkan_context *context, VkCommandBuffer cmd, v
 
         ApplyRenderState(context, cmd, &current, &wanted);
 
-        gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(draw_params), 16);
-
         draw_params params = {};
         params.Model        = meshCmd->Transform;
         params.Tint         = meshCmd->Tint;
@@ -503,9 +474,7 @@ internal void RenderDepthPrepass(vulkan_context *context, VkCommandBuffer cmd, v
         params.Materials    = res->MaterialBuffer.Address;
         params.MaterialSlot = materialSlot;
 
-        *(draw_params *)alloc.Cpu = params;
-
-        BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+        PushPassParams(cmd, res, params);
 
         vkCmdDrawIndexed(cmd, mesh->IndexCount, 1, mesh->FirstIndex, (int32)mesh->FirstVertex, 0);
     }
@@ -526,11 +495,6 @@ internal void RenderVulkanFrame(render_commands *Commands)
 
     WaitForFrame(context);
 
-    if (res->Volumes[VOLUME_SLOT_ALBEDO].Image == VK_NULL_HANDLE)
-    {
-        PushVoxelVolumes(Commands);
-    }
-
     LoadAssets(context, res, Commands);
 
     vulkan_frame Frame = BeginFrame(context, res);
@@ -550,65 +514,25 @@ internal void RenderVulkanFrame(render_commands *Commands)
 
     BeginGpuFrame(context, &Frame);
 
-    {
-        GpuSection(context, &Frame, "vox");
+    GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+                   VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                   VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
 
-        ClearVoxelGrids(Frame.Cmd, res);
-        VoxelizeMeshes(context, Frame.Cmd, res, &pipelines->Compute[Compute_VoxelizeMesh], Commands);
-        ResolveVoxels(context, Frame.Cmd, &pipelines->Compute[Compute_VoxelizeResolve]);
-    }
-
-    {
-        GpuSection(context, &Frame, "sky");
-
-        StorageBarrier(Frame.Cmd);
-        ComputeSkyOcclusion(context, Frame.Cmd, &pipelines->Compute[Compute_SkyOcclusionSweep]);
-        StorageBarrier(Frame.Cmd);
-        BlurSkyOcclusion(context, Frame.Cmd, res, &pipelines->Compute[Compute_SkyOcclusionBlur], VOLUME_SLOT_SKY_OCCLUSION, VOLUME_SLOT_SKY_OCCLUSION_SCRATCH);
-        StorageBarrier(Frame.Cmd);
-        BlurSkyOcclusion(context, Frame.Cmd, res, &pipelines->Compute[Compute_SkyOcclusionBlur], VOLUME_SLOT_SKY_OCCLUSION_SCRATCH, VOLUME_SLOT_SKY_OCCLUSION);
-    }
-
-    {
-        GpuSection(context, &Frame, "inject");
-
-        StorageBarrier(Frame.Cmd);
-        InjectRadiance(context, Frame.Cmd, &pipelines->Compute[Compute_RadianceInject]);
-        StorageBarrier(Frame.Cmd);
-        SmoothRadiance(context, Frame.Cmd, &pipelines->Compute[Compute_RadianceSmooth]);
-    }
-
-    {
-        GpuSection(context, &Frame, "cascades");
-
-        StorageBarrier(Frame.Cmd);
-        TraceCascades(context, Frame.Cmd, res, &pipelines->Compute[Compute_CascadesTrace]);
-        MergeCascades(context, Frame.Cmd, res, &pipelines->Compute[Compute_CascadesMerge]);
-        StorageBarrier(Frame.Cmd);
-        ResolveIrradiance(context, Frame.Cmd, &pipelines->Compute[Compute_CascadesResolve]);
-        PrefilterHandoff(context, Frame.Cmd, &pipelines->Compute[Compute_CascadesPrefilter]);
-    }
+    UpdateWorldGi(context, &Frame, res, pipelines, Commands);
 
     {
         GpuSection(context, &Frame, "depth");
 
-        StorageBarrier(Frame.Cmd);
-        BeginPass(context, Frame.Cmd, targets->Scene.View, targets->Depth.View, VK_ATTACHMENT_LOAD_OP_DONT_CARE, Vector4(0.0f, 0.0f, 0.0f, 0.0f), Depth_Clear);
+        BeginPass(context, Frame.Cmd, VK_NULL_HANDLE, targets->Depth.View, VK_ATTACHMENT_LOAD_OP_DONT_CARE, Vector4(0.0f, 0.0f, 0.0f, 0.0f), Depth_Clear);
         RenderDepthPrepass(context, Frame.Cmd, res, &pipelines->Render[Pipeline_Depth], Commands);
         EndPass(Frame.Cmd);
     }
 
-    {
-        GpuSection(context, &Frame, "screen");
-
-        GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
-        ComputeScreenGI(context, Frame.Cmd, &pipelines->Compute[Compute_ScreenGiProbe]);
-    }
+    UpdateScreenGi(context, &Frame, pipelines);
 
     {
         GpuSection(context, &Frame, "scene");
 
-        GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
         BeginPass(context, Frame.Cmd, targets->Scene.View, targets->Depth.View, VK_ATTACHMENT_LOAD_OP_CLEAR, Vector4(0.05f, 0.05f, 0.08f, 1.0f), Depth_Load);
         ExecuteRenderCommands(context, Frame.Cmd, res, pipelines->Render, Commands);
         EndPass(Frame.Cmd);
@@ -622,7 +546,7 @@ internal void RenderVulkanFrame(render_commands *Commands)
         DrawFullscreen(context, Frame.Cmd, res, &pipelines->Render[Pipeline_Post], TEXTURE_SLOT_SCENE);
         EndPass(Frame.Cmd);
         GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
-        CmdImageToGeneral(Frame.Cmd, swapchainImage, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+        CmdAcquiredImageToGeneral(Frame.Cmd, swapchainImage);
 
         BeginPass(context, Frame.Cmd, context->swapchainImageViews[Frame.ImageIndex], VK_NULL_HANDLE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, Vector4(0.0f, 0.0f, 0.0f, 0.0f), Depth_None);
         DrawFullscreen(context, Frame.Cmd, res, &pipelines->Render[Pipeline_UI], TEXTURE_SLOT_POST);

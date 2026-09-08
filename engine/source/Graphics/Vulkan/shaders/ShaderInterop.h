@@ -1,9 +1,6 @@
 #ifndef SHADERINTEROP_H
 #define SHADERINTEROP_H
 
-#include "interop/ShaderVolumes.h"
-#include "interop/ShaderHeap.h"
-
 #ifdef __cplusplus
 #define float4x4 Matrix4
 #define float4   Vector4
@@ -15,6 +12,8 @@
 #define gpu_ptr  uint64_t
 #endif
 
+#include "interop/GiInterop.h"
+#include "interop/ShaderHeap.h"
 #include "interop/ShaderParams.h"
 #include "interop/ShaderMath.h"
 

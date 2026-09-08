@@ -138,14 +138,10 @@ internal void DrawFullscreen(vulkan_context *context, VkCommandBuffer cmd, vulka
     render_state wanted  = {};
     BindPipelineState(context, cmd, pipeline, &current, &wanted);
 
-    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(image_params), 16);
-
     image_params params = {};
     params.TextureSlot = textureSlot;
 
-    *(image_params *)alloc.Cpu = params;
-
-    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+    PushPassParams(cmd, res, params);
 
     vkCmdDraw(cmd, 3, 1, 0, 0);
 }

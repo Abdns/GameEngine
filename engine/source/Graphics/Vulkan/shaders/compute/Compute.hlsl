@@ -2,6 +2,7 @@
 #define COMPUTE_HLSL
 
 #include "ShaderInterop.h"
+#include "../interop/GiSampling.h"
 
 struct probe_gather
 {
@@ -17,42 +18,18 @@ struct axis_light
     float  Weight[LIGHT_DIRECTIONS];
 };
 
-float4 TraceVolume(uint slot, float3 origin, float3 direction, float start, float span, uint steps)
+float VolumeTraceDistance()
 {
-    float stepSize = span / (float)steps;
+    // The longest segment inside the cubic GI domain is its diagonal.
+    return 2.0 * VOLUME_WORLD_EXTENT * 1.73205081;
+}
 
-    float3 radiance      = float3(0.0, 0.0, 0.0);
-    float  transmittance = 1.0;
+float ProbeOccupancy(uint3 probe, uint probeSize)
+{
+    float3 uvw = LocalToUVW(RcProbeLocal(probe, probeSize));
+    int3 voxel = clamp((int3)(uvw * VOLUME_GRID_SIZE), 0, VOLUME_GRID_SIZE - 1);
 
-    for (uint i = 0; i < steps; ++i)
-    {
-        float travel = start + stepSize * ((float)i + 0.5);
-
-        float3 uvw = LocalToUVW(origin + direction * travel);
-
-        if (any(uvw < 0.0) || any(uvw > 1.0))
-        {
-            break;
-        }
-
-        float4 voxel = Volumes[slot].SampleLevel(VolumeSamp, SmoothUVW(uvw, (float)LIGHT_GRID_SIZE), 0);
-
-        if (voxel.a > 0.001)
-        {
-            float absorbed = 1.0 - exp(-voxel.a * RC_EXTINCTION * stepSize);
-
-            radiance      += transmittance * (voxel.rgb / voxel.a) * absorbed;
-            transmittance *= 1.0 - absorbed;
-
-            if (transmittance < 0.005)
-            {
-                transmittance = 0.0;
-                break;
-            }
-        }
-    }
-
-    return float4(radiance, transmittance);
+    return GiAlbedo.Load(int4(voxel, 0)).a;
 }
 
 probe_gather ProbeCorners(float3 grid, uint probeSize)
@@ -89,11 +66,6 @@ void WeightProbes(inout probe_gather gather, float scale[8])
     for (uint c = 0; c < 8; ++c)
     {
         total += gather.Weight[c] * scale[c];
-    }
-
-    if (total < 1e-4)
-    {
-        return;
     }
 
     for (uint w = 0; w < 8; ++w)
@@ -139,6 +111,8 @@ float4 AxisResolve(axis_light light, uint axis)
 {
     float norm = 1.0 / max(light.Weight[axis], 1e-4);
 
+    // Normalized cosine/solid-angle quadrature approximates E/pi and preserves
+    // constant radiance exactly, including at the lower directional resolutions.
     return float4(light.Total[axis] * norm, saturate(light.Sky[axis] * norm));
 }
 

@@ -7,7 +7,7 @@ struct vs_output
 
 vs_output VSMain(uint vertexID : SV_VertexID)
 {
-    draw_params params = LoadDrawParams(pc.ParamsPtr);
+    draw_params params = LoadPassParams(draw_params);
 
     vertex v = LoadVertex(params.Vertices, vertexID);
 

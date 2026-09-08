@@ -38,11 +38,15 @@ vs_output VSMain(uint vertexID : SV_VertexID)
 
 float4 PSMain(vs_output input) : SV_Target
 {
-    image_params params = LoadImageParams(pc.ParamsPtr);
+    image_params params = LoadPassParams(image_params);
 
     float3 Color = Tex[params.TextureSlot].Sample(Samp, input.UV).rgb;
 
-    Color = ACESFilm(Color * Exposure);
+    frame_globals globals = LoadGlobals(pc.GlobalsPtr);
+    bool diagnostic = globals.GiDebugMode == GI_DEBUG_SKY_VISIBILITY
+                   || globals.GiDebugMode == GI_DEBUG_SCREEN_CONFIDENCE
+                   || globals.GiDebugMode == GI_DEBUG_HISTORY_REJECTION;
+    if (!diagnostic) Color = ACESFilm(Color * Exposure);
 
     return float4(Color, 1.0);
 }
