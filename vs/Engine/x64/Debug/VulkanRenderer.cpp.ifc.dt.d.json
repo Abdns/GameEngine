@@ -282,7 +282,6 @@
             "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\um\\ime_cmodes.h",
             "c:\\vulkansdk\\1.4.350.0\\include\\vulkan\\vulkan_win32.h",
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\shaderinterop.h",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\interop\\giinterop.h",
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\interop\\shaderheap.h",
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\interop\\shaderparams.h",
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\interop\\shadermath.h",
@@ -293,8 +292,7 @@
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\vulkanresources.cpp",
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\vulkanpasses.cpp",
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\vulkanpipeline.cpp",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\vulkanframe.cpp",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\gi.cpp"
+            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\vulkanframe.cpp"
         ],
         "ImportedModules": [],
         "ImportedHeaderUnits": []

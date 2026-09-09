@@ -18,11 +18,7 @@ static_assert(sizeof(vertex) == VERTEX_STRIDE, "vertex stride must match the sha
 static_assert(sizeof(gpu_material) == MATERIAL_STRIDE, "material stride must match the shader stride");
 static_assert(sizeof(rect_params) == RECT_PARAMS_STRIDE, "rect params stride must match the shader stride");
 static_assert(sizeof(push_constants) == 16, "push constants contain only two GPU addresses");
-static_assert(sizeof(volume_params) == 32, "volume params must match the shader layout");
-static_assert(sizeof(voxelize_params) == 128, "voxelize params must match the shader layout");
-static_assert(sizeof(frame_globals) == 208, "frame globals must match the shader layout");
-static_assert(sizeof(rc_cascade_params) == 16, "rc cascade params must match the shader layout");
-static_assert(LIGHT_GRID_SIZE == VOLUME_GRID_SIZE, "inject reads voxel volumes directly, the grids must match");
+static_assert(sizeof(frame_globals) == 176, "frame globals must match the shader layout");
 
 struct vulkan_context
 {

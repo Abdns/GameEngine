@@ -40,17 +40,6 @@ struct game_state
     gizmo_context Gizmo;
 
     bool32 Paused;
-    bool32 ShowVoxels;
-    bool32 ShowGiDiagnostics;
-
-    uint32 GiDebugMode;
-    real32 GiHistorySeconds;
-    real32 GiStrength;
-
-    uint32 GiValidationScene;
-    real32 GiValidationTime;
-    uint32 GiValidationMaterialHandles[3];
-    camera GiSavedCamera;
 };
 
 #endif

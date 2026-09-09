@@ -12,7 +12,6 @@
 #define gpu_ptr  uint64_t
 #endif
 
-#include "interop/GiInterop.h"
 #include "interop/ShaderHeap.h"
 #include "interop/ShaderParams.h"
 #include "interop/ShaderMath.h"
@@ -31,16 +30,6 @@
 [[vk::binding(BINDING_TEXTURES, SET_GLOBAL)]] Texture2D    Tex[TEXTURE_HEAP_SIZE];
 [[vk::binding(BINDING_SAMPLER,  SET_GLOBAL)]] SamplerState Samp;
 [[vk::binding(BINDING_CUBEMAPS, SET_GLOBAL)]] TextureCube  Sky[MAX_CUBEMAPS];
-
-[[vk::binding(BINDING_VOLUMES, SET_GLOBAL)]] Texture3D Volumes[MAX_VOLUMES];
-
-[[vk::image_format("rgba16f")]]
-[[vk::binding(BINDING_STORAGE_VOLUMES, SET_GLOBAL)]] RWTexture3D<float4> VolumesRW[MAX_VOLUMES];
-
-[[vk::image_format("r32ui")]]
-[[vk::binding(BINDING_UINT_VOLUMES, SET_GLOBAL)]] RWTexture3D<uint> UintVolumesRW[MAX_UINT_VOLUMES];
-
-[[vk::binding(BINDING_VOLUME_SAMPLER, SET_GLOBAL)]] SamplerState VolumeSamp;
 
 [[vk::push_constant]] push_constants pc;
 

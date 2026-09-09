@@ -59,7 +59,6 @@ enum image_kind
     Image_Cubemap,
     Image_ColorTarget,
     Image_DepthTarget,
-    Image_Volume,
 
     Image_KindCount,
 };
@@ -103,34 +102,9 @@ struct render_pipeline
     VkShaderEXT Frag;
 };
 
-struct compute_pipeline
-{
-    VkShaderEXT Compute;
-};
-
-enum compute_type
-{
-    Compute_VoxelizeMesh = 0,
-    Compute_VoxelizeResolve,
-    Compute_EnvironmentPrefilter,
-
-    Compute_RadianceInject,
-    Compute_RadianceSmooth,
-
-    Compute_CascadesTrace,
-    Compute_CascadesMerge,
-    Compute_CascadesResolve,
-    Compute_CascadesPrefilter,
-
-    Compute_ScreenGiProbe,
-
-    Compute_Count,
-};
-
 struct vulkan_pipelines
 {
-    render_pipeline  Render[Pipeline_Count];
-    compute_pipeline Compute[Compute_Count];
+    render_pipeline Render[Pipeline_Count];
 };
 
 struct descriptor_heap
@@ -156,7 +130,6 @@ struct vulkan_resources
     descriptor_heap  Heap;
     VkPipelineLayout PipelineLayout;
     VkSampler        Sampler;
-    VkSampler        VolumeSampler;
 
     gpu_buffer VertexBuffer;
     gpu_buffer IndexBuffer;
@@ -168,12 +141,8 @@ struct vulkan_resources
     gpu_mesh       Meshes[MAX_MESHES];
     gpu_image      Textures[MAX_TEXTURES];
     gpu_image      Cubemaps[MAX_CUBEMAPS];
-    gpu_image      Volumes[MAX_VOLUMES];
-    gpu_image      UintVolumes[MAX_UINT_VOLUMES];
     material_state MaterialStates[MAX_MATERIALS];
     uint32         MaterialCount;
-    bool32         GiEnvironmentDirty;
-    uint32         GiEnvironmentSky;
 };
 
 struct vulkan_frame

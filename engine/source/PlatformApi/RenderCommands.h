@@ -55,8 +55,6 @@ enum pipeline_type
     Pipeline_Post,
     Pipeline_UI,
     Pipeline_UIRect,
-    Pipeline_VolumeView,
-    Pipeline_Depth,
     Pipeline_Count,
 
     Pipeline_MeshCount = Pipeline_Skybox,
@@ -176,13 +174,6 @@ struct render_commands
     uint32 MaterialCount;
     uint32 RectCount;
 
-    bool32 ShowVolumeDebug;
-
-    uint32 GiDebugMode;
-    real32 GiHistorySeconds;
-    real32 GiStrength;
-    real32 DeltaTime;
-
     uint8 *PushBufferBase;
     uint32 PushBufferSize;
     uint32 MaxPushBufferSize;
@@ -193,9 +184,6 @@ inline render_commands InitRenderCommands(void *Memory, uint32 Size)
     render_commands Result = {};
     Result.PushBufferBase    = (uint8 *)Memory;
     Result.MaxPushBufferSize = Size;
-    Result.GiHistorySeconds  = 0.08f;
-    Result.GiStrength        = 1.0f;
-
     return Result;
 }
 
@@ -351,11 +339,6 @@ inline void PushRenderTexturedRect(render_commands *Commands, Vector2 Min, Vecto
 inline void PushRenderRect(render_commands *Commands, Vector2 Min, Vector2 Max, Vector4 Color)
 {
     PushRenderTexturedRect(Commands, Min, Max, Color, Vector4(0.0f, 0.0f, 0.0f, 0.0f), TEXTURE_NONE);
-}
-
-inline void PushVolumeDebug(render_commands *Commands)
-{
-    Commands->ShowVolumeDebug = true;
 }
 
 inline void PushRenderSkybox(render_commands *Commands, uint32 Cubemap)

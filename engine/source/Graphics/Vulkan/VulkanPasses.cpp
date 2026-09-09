@@ -7,15 +7,13 @@ enum depth_mode
     Depth_Load,
 };
 
-internal gpu_image CreateDepthTarget(vulkan_context *context, descriptor_heap *heap, VkCommandBuffer cmd)
+internal gpu_image CreateDepthTarget(vulkan_context *context, VkCommandBuffer cmd)
 {
     VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
 
     gpu_image target = CreateImage(context, Image_DepthTarget, depthFormat, context->swapchainExtent.width, context->swapchainExtent.height, 1, 1);
 
     CmdImageToGeneral(cmd, target.Image, VK_IMAGE_ASPECT_DEPTH_BIT, 1, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0);
-
-    WriteHeapImage(context, heap, BINDING_TEXTURES, TEXTURE_SLOT_DEPTH, target.View);
 
     return target;
 }
@@ -34,7 +32,7 @@ internal gpu_image CreateRenderTarget(vulkan_context *context, descriptor_heap *
 internal frame_targets CreateFrameTargets(vulkan_context *context, descriptor_heap *heap, VkCommandBuffer cmd)
 {
     frame_targets targets = {};
-    targets.Depth = CreateDepthTarget(context, heap, cmd);
+    targets.Depth = CreateDepthTarget(context, cmd);
     targets.Scene = CreateRenderTarget(context, heap, TEXTURE_SLOT_SCENE, VK_FORMAT_R16G16B16A16_SFLOAT, cmd);
     targets.Post  = CreateRenderTarget(context, heap, TEXTURE_SLOT_POST,  VK_FORMAT_R16G16B16A16_SFLOAT, cmd);
 
@@ -101,9 +99,4 @@ internal void GpuBarrier(VkCommandBuffer cmd, VkPipelineStageFlags2 srcStage, Vk
     dependency.pMemoryBarriers    = &barrier;
 
     vkCmdPipelineBarrier2(cmd, &dependency);
-}
-
-internal void StorageBarrier(VkCommandBuffer cmd)
-{
-    GpuBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 }

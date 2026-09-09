@@ -92,9 +92,6 @@
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanFrame.cpp">
       <Filter>engine\source\Graphics\Vulkan</Filter>
     </ClInclude>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\Gi.cpp">
-      <Filter>engine\source\Graphics\Vulkan</Filter>
-    </ClInclude>
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32FileIO.cpp">
       <Filter>engine\source\Platform\win32\src</Filter>
     </ClInclude>
@@ -158,9 +155,6 @@
     <ClInclude Include="..\engine\source\Game\src\Gizmo.cpp">
       <Filter>engine\source\Game\src</Filter>
     </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\GiValidation.cpp">
-      <Filter>engine\source\Game\src</Filter>
-    </ClInclude>
     <ClInclude Include="..\engine\source\Game\src\UI\Text.cpp">
       <Filter>engine\source\Game\src\UI</Filter>
     </ClInclude>
@@ -189,12 +183,6 @@
       <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
     </ClInclude>
     <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderHeap.h">
-      <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\GiInterop.h">
-      <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\GiSampling.h">
       <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
     </ClInclude>
     <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderParams.h">
@@ -258,30 +246,6 @@
     </None>
     <None Include="..\engine\source\Graphics\Vulkan\shaders\uirect.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\volumeview.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\depth.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\Compute.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\voxelize.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\environment.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\radiance.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\cascades.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\compute\screengi.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\compute</Filter>
     </None>
     <None Include="..\EngaAsset\assets.enga">
       <Filter>EngaAsset</Filter>

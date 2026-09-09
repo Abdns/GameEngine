@@ -10,8 +10,6 @@
 #include "VulkanPipeline.cpp"
 #include "VulkanFrame.cpp"
 
-#include "Gi.cpp"
-
 global_variable vulkan_renderer GlobalRenderer;
 
 internal void ResizeRenderer(vulkan_renderer *renderer)
@@ -106,7 +104,6 @@ internal const char *InitVulkan(HINSTANCE hinstance, HWND hwnd)
     VkCommandBuffer setup = BeginSingleTimeCommands(context);
     {
         *targets = CreateFrameTargets(context, &res->Heap, setup);
-        CreateGiResources(context, res, setup);
     }
     EndSingleTimeCommands(context, setup);
 
@@ -178,7 +175,6 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
                 CmdUploadImage(cmd, staging.Buffer, upload.Offset, cube->Image, entry->FaceSize, entry->FaceSize, 6);
                 CmdGenerateMips(cmd, cube->Image, entry->FaceSize, entry->FaceSize, 6, cube->MipLevels);
                 WriteHeapImage(context, &res->Heap, BINDING_CUBEMAPS, entry->CubemapHandle, cube->View);
-                res->GiEnvironmentDirty = true;
             }
         }
 
@@ -213,13 +209,6 @@ internal void FillFrameGlobals(vulkan_context *context, vulkan_resources *res, r
 
     real32 FOVaspect = (real32)context->swapchainExtent.width / (real32)context->swapchainExtent.height;
 
-    globals->ScreenWidth  = context->swapchainExtent.width;
-    globals->ScreenHeight = context->swapchainExtent.height;
-    globals->GiDeltaTime = commands->DeltaTime > 0.0f ? commands->DeltaTime : (1.0f / 60.0f);
-    globals->GiDebugMode = commands->GiDebugMode;
-    globals->GiHistorySeconds = commands->GiHistorySeconds;
-    globals->GiStrength = commands->GiStrength;
-
     uint32 offset = 0;
     for (command_type *cmdBase = NextRenderCommand(commands, &offset); cmdBase; cmdBase = NextRenderCommand(commands, &offset))
     {
@@ -237,17 +226,10 @@ internal void FillFrameGlobals(vulkan_context *context, vulkan_resources *res, r
             {
                 command_render_camera *cameraCmd = (command_render_camera *)cmdBase;
 
-                Vector3 origin = cameraCmd->WorldPosition - cameraCmd->Position;
-
-                globals->VolumeCenter = Vector3(0.0f, 0.0f, 0.0f) - origin;
-
                 real32 nearPlane = 0.1f;
                 real32 farPlane  = 100.0f;
 
                 Matrix4 proj = Mat4Perspective(cameraCmd->FovY, FOVaspect, nearPlane, farPlane);
-
-                globals->CameraNear = nearPlane;
-                globals->CameraFar  = farPlane;
 
                 globals->ViewProj  = Mat4Multiply(proj, cameraCmd->View);
                 globals->CameraPos = cameraCmd->Position;
@@ -423,63 +405,6 @@ internal void ExecuteUICommands(vulkan_context *context, VkCommandBuffer cmd, vu
     vkCmdDraw(cmd, 6, rectCount, 0, 0);
 }
 
-internal void RenderDepthPrepass(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, render_pipeline *pipeline, render_commands *commands)
-{
-    if (pipeline->Vert == VK_NULL_HANDLE)
-    {
-        return;
-    }
-
-    render_state current = {};
-    render_state wanted  = {};
-
-    BindPipelineState(context, cmd, pipeline, &current, &wanted);
-
-    vkCmdBindIndexBuffer(cmd, res->IndexBuffer.Buffer, 0, VK_INDEX_TYPE_UINT32);
-
-    uint32 offset = 0;
-    for (command_type *cmdBase = NextRenderCommand(commands, &offset); cmdBase; cmdBase = NextRenderCommand(commands, &offset))
-    {
-        if (*cmdBase != Render_Mesh)
-        {
-            continue;
-        }
-
-        command_render_mesh *meshCmd = (command_render_mesh *)cmdBase;
-        Assert(meshCmd->MeshHandle < MAX_MESHES);
-
-        gpu_mesh *mesh = res->Meshes + meshCmd->MeshHandle;
-        if (!mesh->IndexCount)
-        {
-            continue;
-        }
-
-        uint32 materialSlot = meshCmd->MaterialHandle;
-        Assert(materialSlot < res->MaterialCount);
-
-        material_state *material = &res->MaterialStates[materialSlot];
-        if (material->Queue != Queue_Opaque || !material->DepthWrite)
-        {
-            continue;
-        }
-
-        wanted.CullMode = ToVulkanCullMode(material->CullMode);
-
-        ApplyRenderState(context, cmd, &current, &wanted);
-
-        draw_params params = {};
-        params.Model        = meshCmd->Transform;
-        params.Tint         = meshCmd->Tint;
-        params.Vertices     = res->VertexBuffer.Address;
-        params.Materials    = res->MaterialBuffer.Address;
-        params.MaterialSlot = materialSlot;
-
-        PushPassParams(cmd, res, params);
-
-        vkCmdDrawIndexed(cmd, mesh->IndexCount, 1, mesh->FirstIndex, (int32)mesh->FirstVertex, 0);
-    }
-}
-
 internal void RenderVulkanFrame(render_commands *Commands)
 {
     vulkan_renderer *renderer  = &GlobalRenderer;
@@ -518,22 +443,10 @@ internal void RenderVulkanFrame(render_commands *Commands)
                    VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
                    VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
 
-    UpdateWorldGi(context, &Frame, res, pipelines, Commands);
-
-    {
-        GpuSection(context, &Frame, "depth");
-
-        BeginPass(context, Frame.Cmd, VK_NULL_HANDLE, targets->Depth.View, VK_ATTACHMENT_LOAD_OP_DONT_CARE, Vector4(0.0f, 0.0f, 0.0f, 0.0f), Depth_Clear);
-        RenderDepthPrepass(context, Frame.Cmd, res, &pipelines->Render[Pipeline_Depth], Commands);
-        EndPass(Frame.Cmd);
-    }
-
-    UpdateScreenGi(context, &Frame, pipelines);
-
     {
         GpuSection(context, &Frame, "scene");
 
-        BeginPass(context, Frame.Cmd, targets->Scene.View, targets->Depth.View, VK_ATTACHMENT_LOAD_OP_CLEAR, Vector4(0.05f, 0.05f, 0.08f, 1.0f), Depth_Load);
+        BeginPass(context, Frame.Cmd, targets->Scene.View, targets->Depth.View, VK_ATTACHMENT_LOAD_OP_CLEAR, Vector4(0.05f, 0.05f, 0.08f, 1.0f), Depth_Clear);
         ExecuteRenderCommands(context, Frame.Cmd, res, pipelines->Render, Commands);
         EndPass(Frame.Cmd);
     }
@@ -550,11 +463,6 @@ internal void RenderVulkanFrame(render_commands *Commands)
 
         BeginPass(context, Frame.Cmd, context->swapchainImageViews[Frame.ImageIndex], VK_NULL_HANDLE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, Vector4(0.0f, 0.0f, 0.0f, 0.0f), Depth_None);
         DrawFullscreen(context, Frame.Cmd, res, &pipelines->Render[Pipeline_UI], TEXTURE_SLOT_POST);
-        if (Commands->ShowVolumeDebug)
-        {
-            DrawVolumeDebug(context, Frame.Cmd, res, &pipelines->Render[Pipeline_VolumeView], VOLUME_SLOT_ALBEDO, VOLUME_GRID_SIZE, VOLUME_MODE_LIGHT, 0.5f);
-        }
-
         ExecuteUICommands(context, Frame.Cmd, res, pipelines->Render, Commands);
         EndPass(Frame.Cmd);
     }

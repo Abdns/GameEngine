@@ -24,26 +24,18 @@ struct frame_globals
     float4 SkyForward;
 
     float3 LightDir;
-    float  CameraNear;
+    float  GlobalsPad0;
 
     float3 LightColor;
-    float  CameraFar;
+    float  GlobalsPad1;
 
     float3 CameraPos;
-    float  GiDeltaTime;
+    float  GlobalsPad2;
 
     uint SkyCubemap;
     uint SkyMipCount;
-    uint ScreenWidth;
-    uint ScreenHeight;
-
-    float3 VolumeCenter;
-    uint   GiDebugMode;
-
-    float GiHistorySeconds;
-    float GiStrength;
-    uint GlobalsPad0;
-    uint GlobalsPad1;
+    uint GlobalsPad3;
+    uint GlobalsPad4;
 };
 
 struct gpu_material

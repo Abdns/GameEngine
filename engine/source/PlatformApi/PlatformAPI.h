@@ -32,10 +32,6 @@ struct game_memory
     debug_platform_write_entire_file* DEBUGPlatformWriteEntireFile;
 #endif
 
-    // Optional process-local GI validation startup; zero preserves normal startup.
-    bool32 GiValidationRun;
-    uint32 GiStartupScene;
-    uint32 GiStartupView;
 };
 
 struct game_button_state

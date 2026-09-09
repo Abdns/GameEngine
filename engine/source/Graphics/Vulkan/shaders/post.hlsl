@@ -42,11 +42,7 @@ float4 PSMain(vs_output input) : SV_Target
 
     float3 Color = Tex[params.TextureSlot].Sample(Samp, input.UV).rgb;
 
-    frame_globals globals = LoadGlobals(pc.GlobalsPtr);
-    bool diagnostic = globals.GiDebugMode == GI_DEBUG_SKY_VISIBILITY
-                   || globals.GiDebugMode == GI_DEBUG_SCREEN_CONFIDENCE
-                   || globals.GiDebugMode == GI_DEBUG_HISTORY_REJECTION;
-    if (!diagnostic) Color = ACESFilm(Color * Exposure);
+    Color = ACESFilm(Color * Exposure);
 
     return float4(Color, 1.0);
 }

@@ -28,10 +28,6 @@ vs_output VSMain(uint vertexID : SV_VertexID)
 float4 PSMain(vs_output input) : SV_Target
 {
     skybox_params params = LoadPassParams(skybox_params);
-    frame_globals globals = LoadGlobals(pc.GlobalsPtr);
-    if (globals.GiDebugMode == GI_DEBUG_SKY_VISIBILITY) return float4(1, 1, 1, 1);
-    if (globals.GiDebugMode != GI_DEBUG_FINAL) return float4(0, 0, 0, 1);
-
     float3 Radiance = Sky[params.CubemapIndex].Sample(Samp, normalize(input.Direction)).rgb * params.Tint.rgb;
 
     return float4(Radiance, 1.0);

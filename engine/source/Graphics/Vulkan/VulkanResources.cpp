@@ -2,8 +2,8 @@
 
 #define FRAME_BUFFER_SIZE     Megabytes(4)
 
-#define PIPELINE_PUSH_STAGES  (VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT)
-#define HEAP_STAGES           (VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT)
+#define PIPELINE_PUSH_STAGES  (VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
+#define HEAP_STAGES           VK_SHADER_STAGE_FRAGMENT_BIT
 #define HEAP_BUFFER_USAGE     (VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT | VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT)
 
 struct heap_binding_desc
@@ -15,13 +15,9 @@ struct heap_binding_desc
 
 global_variable heap_binding_desc HeapBindingDescs[] =
 {
-    { BINDING_TEXTURES,        VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, TEXTURE_HEAP_SIZE },
-    { BINDING_SAMPLER,         VK_DESCRIPTOR_TYPE_SAMPLER,       1                 },
-    { BINDING_CUBEMAPS,        VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, MAX_CUBEMAPS      },
-    { BINDING_VOLUMES,         VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, MAX_VOLUMES       },
-    { BINDING_STORAGE_VOLUMES, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, MAX_VOLUMES       },
-    { BINDING_UINT_VOLUMES,    VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, MAX_UINT_VOLUMES  },
-    { BINDING_VOLUME_SAMPLER,  VK_DESCRIPTOR_TYPE_SAMPLER,       1                 },
+    { BINDING_TEXTURES, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, TEXTURE_HEAP_SIZE },
+    { BINDING_SAMPLER,  VK_DESCRIPTOR_TYPE_SAMPLER,       1                 },
+    { BINDING_CUBEMAPS, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, MAX_CUBEMAPS      },
 };
 
 static_assert(ArrayCount(HeapBindingDescs) == BINDING_COUNT, "HeapBindingDescs must describe every heap binding");
@@ -195,14 +191,12 @@ internal vulkan_resources CreateResources(vulkan_context *context)
 
     res.FrameArena    = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, FRAME_BUFFER_SIZE);
     res.GlobalsBuffer = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(frame_globals) * MAX_FRAMES_IN_FLIGHT);
-    res.Sampler       = CreateTextureSampler(context, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT);
-    res.VolumeSampler = CreateTextureSampler(context, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
+    res.Sampler = CreateTextureSampler(context, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT);
 
     res.Heap = CreateDescriptorHeap(context);
     res.PipelineLayout = CreatePipelineLayout(context, res.Heap.Layout);
 
-    WriteHeapSampler(context, &res.Heap, BINDING_SAMPLER,        0, res.Sampler);
-    WriteHeapSampler(context, &res.Heap, BINDING_VOLUME_SAMPLER, 0, res.VolumeSampler);
+    WriteHeapSampler(context, &res.Heap, BINDING_SAMPLER, 0, res.Sampler);
 
     return res;
 }
@@ -220,7 +214,6 @@ internal void BindDescriptorHeap(vulkan_context *context, VkCommandBuffer cmd, v
     VkDeviceSize setOffset   = 0;
 
     context->CmdSetDescriptorBufferOffsetsEXT(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, SET_GLOBAL, 1, &bufferIndex, &setOffset);
-    context->CmdSetDescriptorBufferOffsetsEXT(cmd, VK_PIPELINE_BIND_POINT_COMPUTE,  layout, SET_GLOBAL, 1, &bufferIndex, &setOffset);
 }
 
 internal gpu_mesh CreateMesh(VkDeviceSize vertexOffset, uint32 VertexCount, VkDeviceSize indexOffset, uint32 IndexCount)
@@ -273,30 +266,6 @@ internal gpu_image *CreateCubemap(vulkan_context *context, vulkan_resources *res
     *cube = CreateImage(context, Image_Cubemap, format, FaceSize, FaceSize, 1, mipLevels);
 
     return cube;
-}
-
-internal gpu_image *CreateVolume(vulkan_context *context, vulkan_resources *res, uint32 volumeSlot, uint32 width, uint32 height, uint32 depth)
-{
-    Assert(volumeSlot < MAX_VOLUMES);
-
-    gpu_image *volume = &res->Volumes[volumeSlot];
-    Assert(volume->Image == VK_NULL_HANDLE);
-
-    *volume = CreateImage(context, Image_Volume, VK_FORMAT_R16G16B16A16_SFLOAT, width, height, depth, 1);
-
-    return volume;
-}
-
-internal gpu_image *CreateUintVolume(vulkan_context *context, vulkan_resources *res, uint32 volumeSlot, uint32 width, uint32 height, uint32 depth)
-{
-    Assert(volumeSlot < MAX_UINT_VOLUMES);
-
-    gpu_image *volume = &res->UintVolumes[volumeSlot];
-    Assert(volume->Image == VK_NULL_HANDLE);
-
-    *volume = CreateImage(context, Image_Volume, VK_FORMAT_R32_UINT, width, height, depth, 1);
-
-    return volume;
 }
 
 internal material_state CreateMaterialState(command_load_material *Description)
