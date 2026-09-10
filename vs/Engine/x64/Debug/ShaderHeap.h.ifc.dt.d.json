@@ -3,7 +3,9 @@
     "Data": {
         "Source": "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\interop\\shaderheap.h",
         "ProvidedModule": "",
-        "Includes": [],
+        "Includes": [
+            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\interop\\shaderparams.h"
+        ],
         "ImportedModules": [],
         "ImportedHeaderUnits": []
     }

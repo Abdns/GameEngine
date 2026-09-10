@@ -1,4 +1,4 @@
-#include "ShaderInterop.h"
+#include "interop/ShaderHeap.h"
 
 static const float2 Positions[3] =
 {

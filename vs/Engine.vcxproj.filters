@@ -179,16 +179,10 @@
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRender.h">
       <Filter>engine\source\Graphics\Vulkan</Filter>
     </ClInclude>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\ShaderInterop.h">
-      <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
-    </ClInclude>
     <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderHeap.h">
       <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
     </ClInclude>
     <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderParams.h">
-      <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderMath.h">
       <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\EngaFormat.h">

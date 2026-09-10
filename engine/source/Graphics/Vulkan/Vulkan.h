@@ -10,7 +10,7 @@
 
 #include <vulkan/vulkan.h>
 
-#include "shaders/ShaderInterop.h"
+#include "shaders/interop/ShaderHeap.h"
 #include "VulkanRender.h"
 
 static_assert(sizeof(vertex) == sizeof(enga_vertex), "vertex must match the packed asset layout");

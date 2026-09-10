@@ -7,7 +7,7 @@
 
 #include <vulkan/vulkan.h>
 
-#include "shaders/ShaderInterop.h"
+#include "shaders/interop/ShaderHeap.h"
 
 #define MAX_SWAPCHAIN_IMAGES  8
 #define MAX_FRAMES_IN_FLIGHT  2

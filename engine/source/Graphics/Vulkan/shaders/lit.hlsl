@@ -1,4 +1,4 @@
-#include "ShaderInterop.h"
+#include "interop/ShaderHeap.h"
 
 static const float PI            = 3.14159265;
 static const float GSAA_MAX_BIAS = 0.2;

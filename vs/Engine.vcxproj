@@ -80,7 +80,6 @@
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRender.h" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderHeap.h" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderParams.h" />
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderMath.h" />
     <ClInclude Include="..\shared\EngineMath.h" />
     <ClInclude Include="..\shared\Intrinsics.h" />
     <ClInclude Include="..\shared\Memory.h" />
