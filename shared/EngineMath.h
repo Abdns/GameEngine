@@ -520,6 +520,24 @@ inline Matrix4 Mat4FromTransform(transform T)
 }
 
 // =============================================================================
+// Rectangle2
+// =============================================================================
+
+struct rect2
+{
+    Vector2 Min;
+    Vector2 Max;
+
+    rect2() = default;
+    rect2(Vector2 InMin, Vector2 InMax) { Min = InMin; Max = InMax; }
+};
+
+inline bool32 PointInRect2(Vector2 Point, rect2 Rect)
+{
+    return (Point.X >= Rect.Min.X && Point.X < Rect.Max.X && Point.Y >= Rect.Min.Y && Point.Y < Rect.Max.Y);
+}
+
+// =============================================================================
 // Rectangle3
 // =============================================================================
 

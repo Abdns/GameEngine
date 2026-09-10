@@ -1,3 +1,5 @@
+#define WIN32_DEFAULT_DPI 96.0f
+
 #define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE* pState)
 typedef X_INPUT_GET_STATE(x_input_get_state);
 #define XInputGetState XInputGetState_
@@ -151,6 +153,7 @@ void Win32ProcessMouseInput(HWND Window, game_input* NewInput, game_input* OldIn
     GetClientRect(Window, &ClientRect);
     NewInput->RenderWidth  = ClientRect.right - ClientRect.left;
     NewInput->RenderHeight = ClientRect.bottom - ClientRect.top;
+    NewInput->UIScale      = (real32)GetDpiForWindow(Window) / WIN32_DEFAULT_DPI;
 
     Win32ProcessMouseButton(&NewInput->MouseButtons[0], &OldInput->MouseButtons[0],
                             GetKeyState(VK_LBUTTON) & (1 << 15));

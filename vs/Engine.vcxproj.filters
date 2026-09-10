@@ -66,11 +66,9 @@
     <ClCompile Include="..\engine\source\Platform\win32\Program.cpp">
       <Filter>engine\source\Platform\win32</Filter>
     </ClCompile>
+    <ClCompile Include="..\engine\source\Graphics\Vulkan\VulkanRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRenderer.cpp">
-      <Filter>engine\source\Graphics\Vulkan</Filter>
-    </ClInclude>
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanCore.cpp">
       <Filter>engine\source\Graphics\Vulkan</Filter>
     </ClInclude>

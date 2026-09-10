@@ -1,0 +1,15 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Engine\\x64\\Debug\\GameState.obj",
+            "outputs": [
+                "Engine\\x64\\Debug\\GameState.h.ifc.dt.module.json",
+                "Engine\\x64\\Debug\\GameState.h.ifc.dt.d.json",
+                "Engine\\x64\\Debug\\Engine.pch"
+            ],
+            "requires": []
+        }
+    ]
+}

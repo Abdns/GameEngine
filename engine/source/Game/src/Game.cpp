@@ -173,7 +173,7 @@ internal void InitTools(game_state *GameState)
 
     uint32 GizmoMaterial = AddMaterial(Materials, OverlayMaterial(Vector4(1.0f, 1.0f, 1.0f, 1.0f), GetAssetTextureHandle(Assets, "test")));
 
-    GameState->UI.Style       = DefaultUIStyle();
+    GameState->UI.Style = DefaultUIStyle();
     GameState->Gizmo.Style    = DefaultGizmoStyle(AxisMeshes, GizmoMaterial);
     GameState->Gizmo.Selected = ENTITY_STORAGE_NONE;
 }
@@ -257,10 +257,10 @@ internal void InitGame(game_memory *Memory, game_state *GameState, render_comman
     InitTools(GameState);
     BuildTestScene(GameState);
     InitPresets(GameState, Memory);
-    PushMaterialsToRender(&GameState->Materials, RenderCommands);
-
+    PushMaterialsToRender(&GameState->Materials, RenderCommands);    
+    
     InitCamera(&GameState->Camera, MapIntoChunkSpace(GameState->World, WorldOrigin(), Vector3(0.0f, 0.0f, 4.0f)), DegToRad(75.0f));
-
+    
     GameState->tSine  = 0.0f;
     GameState->Paused = false;
 
@@ -277,23 +277,19 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     if (!Memory->IsInitialized)
     {
         InitGame(Memory, GameState, RenderCommands);
-
         Memory->IsInitialized = true;
     }
 
     ResetArena(&GameState->FrameArena);
 
     camera        *Camera   = &GameState->Camera;
-    ui_context    *UI       = &GameState->UI;
     gizmo_context *Gizmo    = &GameState->Gizmo;
     input_state   *Controls = &GameState->Controls;
     mouse_input   *Mouse    = &Controls->Mouse;
 
     BeginInput(Controls, Input);
-    BeginUI(UI, Mouse, RenderCommands, &GameState->Assets, GameState->FontHandle, Controls->ViewportSize);
+    BeginUI(&GameState->UI, RenderCommands, Mouse, Input->UIScale);
     BeginGizmo(Gizmo, Mouse, RenderCommands);
-
-    UpdateEditorUI(GameState, UI);
 
     rectangle3  SimBounds = Rect3CenterRadius(Vector3(0.0f, 0.0f, 0.0f), SIM_HALF_DIM);
     sim_region *Region    = BeginSim(&GameState->FrameArena, GameState->World, &GameState->Storage, Camera->Position, SimBounds, SIM_MAX_ENTITIES);
@@ -330,8 +326,9 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
     EndSim(Region, &GameState->WorldArena);
 
+    DebugUI(GameState);
+
     EndGizmo(Gizmo);
-    EndUI(UI);
 }
 
 extern "C" __declspec(dllexport)

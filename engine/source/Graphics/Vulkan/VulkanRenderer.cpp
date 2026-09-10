@@ -433,7 +433,7 @@ internal void RenderVulkanFrame(render_commands *Commands)
                    VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
 
     {
-        GpuSection(context, &Frame, "scene");
+    GpuSection(context, &Frame, "scene");
 
         BeginPass(context, Frame.Cmd, targets->Scene.View, targets->Depth.View, VK_ATTACHMENT_LOAD_OP_CLEAR, Vector4(0.05f, 0.05f, 0.08f, 1.0f), Depth_Clear);
         ExecuteRenderCommands(context, Frame.Cmd, res, pipelines->Render, Commands);
@@ -441,7 +441,7 @@ internal void RenderVulkanFrame(render_commands *Commands)
     }
 
     {
-        GpuSection(context, &Frame, "post");
+    GpuSection(context, &Frame, "post");
 
         GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
         BeginPass(context, Frame.Cmd, targets->Post.View, VK_NULL_HANDLE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, Vector4(0.0f, 0.0f, 0.0f, 0.0f), Depth_None);
@@ -449,6 +449,11 @@ internal void RenderVulkanFrame(render_commands *Commands)
         EndPass(Frame.Cmd);
         GpuBarrier(Frame.Cmd, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
         CmdAcquiredImageToGeneral(Frame.Cmd, swapchainImage);
+
+    }
+
+    {
+    GpuSection(context, &Frame, "UI");
 
         BeginPass(context, Frame.Cmd, context->swapchainImageViews[Frame.ImageIndex], VK_NULL_HANDLE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, Vector4(0.0f, 0.0f, 0.0f, 0.0f), Depth_None);
         DrawFullscreen(context, Frame.Cmd, res, &pipelines->Render[Pipeline_UI], TEXTURE_SLOT_POST);

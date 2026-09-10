@@ -4,90 +4,9 @@
 #include "EngineMath.h"
 #include "RenderCommands.h"
 #include "GameState.h"
-#include "EntitySpawn.cpp"
 
-#include <stdio.h>
-
-internal const char *EntityTypeName(entity_type Type)
+internal void DebugUI(game_state *GameState)
 {
-    switch (Type)
-    {
-        case Entity_Floor: return "floor";
-        case Entity_Prop:  return "prop";
-        case Entity_Ball:  return "ball";
-        default:           return "null";
-    }
-}
-
-internal void UILabelVector3(ui_layout *Layout, const char *Label, Vector3 Value)
-{
-    char Buffer[64];
-
-    snprintf(Buffer, sizeof(Buffer), "%s %.1f %.1f %.1f", Label, Value.X, Value.Y, Value.Z);
-
-    UILabel(Layout, Buffer);
-}
-
-internal void UpdateEntityInfoPanel(game_state *GameState, ui_context *UI)
-{
-    low_entity *Entity = GetLowEntity(&GameState->Storage, GameState->Gizmo.Selected);
-
-    if (!Entity)
-    {
-        return;
-    }
-
-    ui_layout Layout = UIBeginPanelAnchored(UI, UIAnchor_BottomLeft, Vector2(20.0f, 20.0f), 180.0f);
-    {
-        ui_layout listLayout = UIScrollList(&Layout, 3);
-        {
-            UILabel(&listLayout, Entity->Name);
-            UILabel(&listLayout, EntityTypeName(Entity->SimVariant.Type));
-            UIButton(&listLayout, "ss");
-            UIButton(&listLayout, "ss");
-            UIButton(&listLayout, "ss");
-
-            UILabelVector3(&listLayout, "pos", WorldPositionToMeters(GameState->World, Entity->Position));
-        }
-        UIEndScrollList(&listLayout);
-
-        UIButton(&Layout, "ss");
-        UIButton(&Layout, "ss");
-        UIButton(&Layout, "ss");
-        UIButton(&Layout, "ss");
-    }
-    UIEndPanel(&Layout);
-}
-
-internal void UpdateDebugPanel(game_state *GameState, ui_context *UI)
-{
-    ui_layout Layout = UIBeginPanel(UI, Vector2(20.0f, 20.0f), 140.0f);
-
-    UICheckBox(&Layout, "pause", &GameState->Paused);
-
-    UIEndPanel(&Layout);
-}
-
-internal void UpdateSpawnPanel(game_state *GameState, ui_context *UI)
-{
-    ui_layout Layout = UIBeginPanelAnchored(UI, UIAnchor_TopRight, Vector2(20.0f, 20.0f), 140.0f);
-
-    if (UIButton(&Layout, "spawn"))
-    {
-        AddEntityFromPreset(GameState, GetPresetIndex(&GameState->Presets, "cube"), WorldOrigin(), Vector3(0.0f, 0.0f, 0.0f));
-    }
-
-    if (UIButton(&Layout, "clear"))
-    {
-        ClearSpawnedEntities(GameState);
-    }
-
-    UIEndPanel(&Layout);
-}
-
-internal void UpdateEditorUI(game_state *GameState, ui_context *UI)
-{
-    UpdateDebugPanel(GameState, UI);
-    UpdateSpawnPanel(GameState, UI);
-    UpdateEntityInfoPanel(GameState, UI);
+	rect2 panelRect = rect2(Vector2(0.0f, 0.0f), Vector2(100.0f, 100.0f));
+	Panel(&GameState->UI, panelRect);
 }

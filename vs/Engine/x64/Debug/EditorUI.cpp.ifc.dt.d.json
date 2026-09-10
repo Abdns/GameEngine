@@ -61,8 +61,7 @@
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\game\\src\\ui\\ui.cpp",
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\game\\src\\ui\\text.cpp",
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\game\\src\\gizmo.cpp",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\physics\\raycast.cpp",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\game\\src\\entityspawn.cpp"
+            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\physics\\raycast.cpp"
         ],
         "ImportedModules": [],
         "ImportedHeaderUnits": []

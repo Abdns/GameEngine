@@ -76,6 +76,7 @@ struct game_input
 
     int32 RenderWidth;
     int32 RenderHeight;
+    real32 UIScale;
 
     game_controller_input Controllers[5];
 };
