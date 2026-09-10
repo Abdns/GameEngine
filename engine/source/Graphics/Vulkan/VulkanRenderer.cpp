@@ -243,17 +243,6 @@ internal void FillFrameGlobals(vulkan_context *context, vulkan_resources *res, r
                 globals->SkyForward = Vector4(-view->Elements[0][2], -view->Elements[1][2], -view->Elements[2][2], 0.0f);
             } break;
 
-            case Render_Skybox:
-            {
-                command_render_skybox *skyCmd = (command_render_skybox *)cmdBase;
-
-                uint32 cubeSlot = skyCmd->CubemapHandle;
-                Assert(cubeSlot < MAX_CUBEMAPS);
-                Assert(res->Cubemaps[cubeSlot].View);
-
-                globals->SkyCubemap  = cubeSlot;
-                globals->SkyMipCount = res->Cubemaps[cubeSlot].MipLevels;
-            } break;
         }
     }
 }

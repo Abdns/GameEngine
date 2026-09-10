@@ -78,7 +78,6 @@
     <ClInclude Include="..\engine\source\Physics\Collider.h" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\Vulkan.h" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRender.h" />
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\ShaderInterop.h" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderHeap.h" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderParams.h" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderMath.h" />

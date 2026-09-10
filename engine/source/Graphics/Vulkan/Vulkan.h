@@ -18,7 +18,7 @@ static_assert(sizeof(vertex) == VERTEX_STRIDE, "vertex stride must match the sha
 static_assert(sizeof(gpu_material) == MATERIAL_STRIDE, "material stride must match the shader stride");
 static_assert(sizeof(rect_params) == RECT_PARAMS_STRIDE, "rect params stride must match the shader stride");
 static_assert(sizeof(push_constants) == 16, "push constants contain only two GPU addresses");
-static_assert(sizeof(frame_globals) == 176, "frame globals must match the shader layout");
+static_assert(sizeof(frame_globals) == 160, "frame globals must match the shader layout");
 
 struct vulkan_context
 {

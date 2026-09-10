@@ -31,11 +31,6 @@ struct frame_globals
 
     float3 CameraPos;
     float  GlobalsPad2;
-
-    uint SkyCubemap;
-    uint SkyMipCount;
-    uint GlobalsPad3;
-    uint GlobalsPad4;
 };
 
 struct gpu_material

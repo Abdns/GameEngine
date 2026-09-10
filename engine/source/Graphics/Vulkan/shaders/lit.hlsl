@@ -54,19 +54,6 @@ float GeometricRoughness(float3 normal, float roughness)
     return min(roughness + min(2.0 * variance, GSAA_MAX_BIAS), 1.0);
 }
 
-float3 EnvironmentBRDF(float3 f0, float roughness, float nDotV)
-{
-    const float4 c0 = float4(-1.0, -0.0275, -0.572,  0.022);
-    const float4 c1 = float4( 1.0,  0.0425,  1.040, -0.040);
-
-    float4 r = roughness * c0 + c1;
-    float a004 = min(r.x * r.x, exp2(-9.28 * nDotV)) * r.x + r.y;
-    float2 ab = float2(-1.04, 1.04) * a004 + r.zw;
-    float singleScatter = max(ab.x + ab.y, 1e-3);
-    float3 compensation = 1.0 + f0 * (1.0 / singleScatter - 1.0);
-    return (f0 * ab.x + ab.y) * compensation;
-}
-
 float4 PSMain(vs_output input) : SV_Target
 {
     draw_params params = LoadPassParams(draw_params);
@@ -97,14 +84,5 @@ float4 PSMain(vs_output input) : SV_Target
     float3 direct = ((1.0 - fresnel) * albedo / PI + fresnel * distribution * visibility)
                   * globals.LightColor * nDotL;
 
-    uint skyIndex = min(globals.SkyCubemap, (uint)(MAX_CUBEMAPS - 1));
-    float lastMip = (float)max((int)globals.SkyMipCount - 1, 0);
-    float3 environmentDiffuse = Sky[skyIndex].SampleLevel(Samp, normal, lastMip).rgb;
-    float3 reflection = reflect(-viewDirection, normal);
-    float3 environmentSpecular = Sky[skyIndex].SampleLevel(Samp, reflection, roughness * lastMip).rgb;
-    float3 specularWeight = saturate(EnvironmentBRDF(f0, roughness, nDotV));
-    float3 ambient = albedo * (1.0 - specularWeight) * environmentDiffuse
-                   + environmentSpecular * specularWeight;
-
-    return float4(direct + ambient, material.BaseColor.a * params.Tint.a);
+    return float4(direct, material.BaseColor.a * params.Tint.a);
 }
