@@ -25,21 +25,15 @@ struct frame_globals
 
     float3 LightDir;
     float  GlobalsPad0;
-
-    float3 LightColor;
-    float  GlobalsPad1;
-
-    float3 CameraPos;
-    float  GlobalsPad2;
 };
 
 struct gpu_material
 {
     float4 BaseColor;
     uint   TextureSlot;
-    float  Metallic;
-    float  Roughness;
     uint   MaterialPad0;
+    uint   MaterialPad1;
+    uint   MaterialPad2;
 };
 
 struct draw_params

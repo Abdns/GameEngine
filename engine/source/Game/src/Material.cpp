@@ -18,8 +18,7 @@ struct material
 
     Vector4 BaseColor;
     uint32  TextureHandle;
-    real32  Metallic;
-    real32  Roughness;
+    uint32  Reserved[2]; // Preserve the serialized preset layout.
 };
 
 struct materials
@@ -39,8 +38,6 @@ internal material UnlitMaterial(Vector4 BaseColor, uint32 TextureHandle)
     Result.DepthWrite    = true;
     Result.BaseColor     = BaseColor;
     Result.TextureHandle = TextureHandle;
-    Result.Metallic      = 0.0f;
-    Result.Roughness     = 1.0f;
 
     return Result;
 }
@@ -55,19 +52,10 @@ internal material OverlayMaterial(Vector4 BaseColor, uint32 TextureHandle)
     return Result;
 }
 
-internal material LitMaterial(Vector4 BaseColor, real32 Metallic, real32 Roughness)
+internal material LitMaterial(Vector4 BaseColor, uint32 TextureHandle)
 {
-    material Result = {};
-    Result.Pipeline      = Pipeline_Lit;
-    Result.CullMode      = Cull_None;
-    Result.BlendMode     = Blend_Opaque;
-    Result.Queue         = Queue_Opaque;
-    Result.DepthTest     = true;
-    Result.DepthWrite    = true;
-    Result.BaseColor     = BaseColor;
-    Result.TextureHandle = 0;
-    Result.Metallic      = Metallic;
-    Result.Roughness     = Roughness;
+    material Result = UnlitMaterial(BaseColor, TextureHandle);
+    Result.Pipeline = Pipeline_Lit;
 
     return Result;
 }
@@ -87,6 +75,6 @@ internal void PushMaterialsToRender(materials* Materials, render_commands* Comma
     for (uint32 Index = 0; Index < Materials->Count; ++Index)
     {
         material* Material = Materials->Items + Index;
-        PushLoadMaterial(Commands, Index, Material->Pipeline, Material->CullMode, Material->BlendMode, Material->Queue, Material->DepthTest, Material->DepthWrite, Material->BaseColor, Material->TextureHandle, Material->Metallic, Material->Roughness);
+        PushLoadMaterial(Commands, Index, Material->Pipeline, Material->CullMode, Material->BlendMode, Material->Queue, Material->DepthTest, Material->DepthWrite, Material->BaseColor, Material->TextureHandle);
     }
 }

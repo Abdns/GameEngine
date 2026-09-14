@@ -183,32 +183,16 @@ internal void BuildTestScene(game_state *GameState)
     asset_store *Assets    = &GameState->Assets;
     materials   *Materials = &GameState->Materials;
 
-    uint32 SphereMesh = GameState->SpawnMeshHandles[1];
+    uint32 TestTextureHandle = GetAssetTextureHandle(Assets, "test");
 
-    GameState->SpawnMaterialHandles[0] = AddMaterial(Materials, UnlitMaterial(Vector4(1.0f, 1.0f, 1.0f, 1.0f), GetAssetTextureHandle(Assets, "test")));
+    GameState->SpawnMaterialHandles[0] = AddMaterial(Materials, UnlitMaterial(Vector4(1.0f, 1.0f, 1.0f, 1.0f), TestTextureHandle));
     GameState->SpawnMaterialHandles[1] = GameState->SpawnMaterialHandles[0];
     GameState->SpawnMaterialHandles[2] = GameState->SpawnMaterialHandles[0];
 
-    uint32 LitHandle   = AddMaterial(Materials, LitMaterial(Vector4(0.9f, 0.5f, 0.2f, 1.0f), 1.0f, 0.25f));
-    uint32 FloorHandle = AddMaterial(Materials, LitMaterial(Vector4(0.45f, 0.45f, 0.5f, 1.0f), 0.0f, 0.7f));
+    uint32 LitHandle   = AddMaterial(Materials, LitMaterial(Vector4(0.9f, 0.5f, 0.2f, 1.0f), TestTextureHandle));
+    uint32 FloorHandle = AddMaterial(Materials, LitMaterial(Vector4(0.45f, 0.45f, 0.5f, 1.0f), TestTextureHandle));
 
     AddEntity(GameState, Entity_Floor, TransformAt(Vector3(0.0f, -2.1f, 0.0f)), GetAssetMeshHandle(Assets, "plane"), FloorHandle, true, "floor");
-
-    for (uint32 Row = 0; Row < 2; ++Row)
-    {
-        real32 Metallic = (real32)Row;
-
-        for (uint32 Column = 0; Column < 7; ++Column)
-        {
-            real32 Roughness = 0.05f + (real32)Column * 0.15f;
-
-            uint32 BallMaterial = AddMaterial(Materials, LitMaterial(Vector4(0.75f, 0.05f, 0.05f, 1.0f), Metallic, Roughness));
-
-            Vector3 Position = Vector3(((real32)Column - 3.0f) * 1.3f, Metallic * 1.6f - 0.8f, -4.0f);
-
-            AddEntity(GameState, Entity_Prop, TransformAt(Position), SphereMesh, BallMaterial, true, 0);
-        }
-    }
 
     for (uint32 SpawnIndex = 0; SpawnIndex < 3; ++SpawnIndex)
     {
@@ -319,8 +303,8 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         Vector3 CameraWorldP = WorldPositionToMeters(GameState->World, Region->Origin) + CameraSimP;
 
-        PushRenderCamera(RenderCommands, CameraView(Camera, CameraSimP), CameraSimP, CameraWorldP, Camera->FovY);
-        PushRenderLight(RenderCommands, Vector3(0.4f, 1.0f, 0.3f), Vector3(3.0f, 2.85f, 2.6f));
+        PushRenderCamera(RenderCommands, CameraView(Camera, CameraSimP), CameraWorldP, Camera->FovY);
+        PushRenderLight(RenderCommands, Vector3(0.4f, 1.0f, 0.3f));
         PushRenderSkybox(RenderCommands, GameState->SkyHandle);
         PushEntitiesToRender(Region, RenderCommands, RenderAlpha, Gizmo->Selected, Gizmo->Style.Selected);
     }

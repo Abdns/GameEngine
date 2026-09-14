@@ -129,15 +129,12 @@ struct command_load_material
 
     Vector4       BaseColor;
     uint32        TextureHandle;
-    real32        Metallic;
-    real32        Roughness;
 };
 
 struct command_render_camera
 {
     command_type Type;
     Matrix4 View;
-    Vector3 Position;
     Vector3 WorldPosition;
     real32  FovY;
 };
@@ -146,7 +143,6 @@ struct command_render_light
 {
     command_type Type;
     Vector3 Direction;
-    Vector3 Color;
 };
 
 inline uint32 CommandSize(command_type Type)
@@ -221,26 +217,24 @@ inline command_type *NextRenderCommand(render_commands *Commands, uint32 *Offset
     return CmdBase;
 }
 
-inline void PushRenderCamera(render_commands *Commands, Matrix4 View, Vector3 Position, Vector3 WorldPosition, real32 FovY)
+inline void PushRenderCamera(render_commands *Commands, Matrix4 View, Vector3 WorldPosition, real32 FovY)
 {
     command_render_camera *cmd = (command_render_camera *)PushRenderCommand(Commands, Render_Camera);
     if (cmd)
     {
         cmd->View          = View;
-        cmd->Position      = Position;
         cmd->WorldPosition = WorldPosition;
         cmd->FovY          = FovY;
     }
 }
 
-inline void PushRenderLight(render_commands* Commands, Vector3 Direction, Vector3 Color)
+inline void PushRenderLight(render_commands* Commands, Vector3 Direction)
 {
     command_render_light* cmd = (command_render_light*)PushRenderCommand(Commands, Render_Light);
 
     if (cmd)
     {
         cmd->Direction = Direction;
-        cmd->Color     = Color;
     }
 }
 
@@ -296,7 +290,7 @@ inline void PushLoadCubemap(render_commands *Commands, uint32 CubemapHandle, voi
     }
 }
 
-inline void PushLoadMaterial(render_commands *Commands, uint32 MaterialHandle, pipeline_type Pipeline, cull_mode CullMode, blend_mode BlendMode, render_queue Queue, bool32 DepthTest, bool32 DepthWrite, Vector4 BaseColor, uint32 TextureHandle, real32 Metallic, real32 Roughness)
+inline void PushLoadMaterial(render_commands *Commands, uint32 MaterialHandle, pipeline_type Pipeline, cull_mode CullMode, blend_mode BlendMode, render_queue Queue, bool32 DepthTest, bool32 DepthWrite, Vector4 BaseColor, uint32 TextureHandle)
 {
     command_load_material *cmd = (command_load_material *)PushRenderCommand(Commands, Load_Material);
     if (cmd)
@@ -310,8 +304,6 @@ inline void PushLoadMaterial(render_commands *Commands, uint32 MaterialHandle, p
         cmd->DepthWrite     = DepthWrite;
         cmd->BaseColor      = BaseColor;
         cmd->TextureHandle  = TextureHandle;
-        cmd->Metallic       = Metallic;
-        cmd->Roughness      = Roughness;
 
         Commands->LoadCount++;
         if (MaterialHandle >= Commands->MaterialCount)

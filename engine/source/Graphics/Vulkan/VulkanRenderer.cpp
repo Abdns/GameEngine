@@ -218,8 +218,7 @@ internal void FillFrameGlobals(vulkan_context *context, vulkan_resources *res, r
             {
                 command_render_light *lightCmd = (command_render_light *)cmdBase;
 
-                globals->LightDir   = lightCmd->Direction;
-                globals->LightColor = lightCmd->Color;
+                globals->LightDir = lightCmd->Direction;
             } break;
 
             case Render_Camera:
@@ -231,8 +230,7 @@ internal void FillFrameGlobals(vulkan_context *context, vulkan_resources *res, r
 
                 Matrix4 proj = Mat4Perspective(cameraCmd->FovY, FOVaspect, nearPlane, farPlane);
 
-                globals->ViewProj  = Mat4Multiply(proj, cameraCmd->View);
-                globals->CameraPos = cameraCmd->Position;
+                globals->ViewProj = Mat4Multiply(proj, cameraCmd->View);
 
                 Matrix4 *view = &cameraCmd->View;
                 real32 rightScale = 1.0f / proj.Elements[0][0];

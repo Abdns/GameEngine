@@ -288,8 +288,6 @@ internal gpu_material CreateMaterial(command_load_material *Description)
     gpu_material result = {};
     result.BaseColor   = Description->BaseColor;
     result.TextureSlot = Description->TextureHandle;
-    result.Metallic    = Description->Metallic;
-    result.Roughness   = Description->Roughness;
 
     return result;
 }
