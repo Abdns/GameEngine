@@ -14,7 +14,6 @@ Global
 		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Debug|x64.ActiveCfg = Debug|x64
 		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Debug|x64.Build.0 = Debug|x64
 		{B7A55EC1-2F3D-4A18-9C64-58D2A31B0E77}.Debug|x64.ActiveCfg = Debug|x64
-		{B7A55EC1-2F3D-4A18-9C64-58D2A31B0E77}.Debug|x64.Build.0 = Debug|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

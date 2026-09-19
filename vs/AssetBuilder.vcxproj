@@ -18,8 +18,8 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <NMakeBuildCommandLine>cd /d "$(ProjectDir).." &amp;&amp; build.bat</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>cd /d "$(ProjectDir).." &amp;&amp; build.bat</NMakeReBuildCommandLine>
+    <NMakeBuildCommandLine>cmd /d /c "cd /d "$(ProjectDir).." &amp;&amp; call "$(ProjectDir)..\build.bat""</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>cmd /d /c "cd /d "$(ProjectDir).." &amp;&amp; call "$(ProjectDir)..\build.bat""</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>if exist "$(ProjectDir)..\build" rd /s /q "$(ProjectDir)..\build"</NMakeCleanCommandLine>
     <NMakeOutput>$(ProjectDir)..\build\AssetBuilder.exe</NMakeOutput>
     <NMakePreprocessorDefinitions>ENGINE_INTERNAL=1;ENGINE_SLOW=1;ENGINE_WIN32=1;UNICODE;_UNICODE;_DEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>

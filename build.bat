@@ -6,6 +6,23 @@ if not exist build mkdir build
 if not exist EngaAsset mkdir EngaAsset
 pushd build
 
+set "WindowsSDKVersion="
+for /f "tokens=2*" %%A in ('reg query "HKLM\SOFTWARE\Microsoft\Windows Kits\Installed Roots" /v KitsRoot10 2^>nul') do set "WindowsSdkDir=%%B"
+if not defined WindowsSdkDir set "WindowsSdkDir=%ProgramFiles(x86)%\Windows Kits\10\"
+if not defined WindowsSdkDir set "WindowsSdkDir=%ProgramFiles%\Windows Kits\10\"
+if not "%WindowsSdkDir:~-1%"=="\" set "WindowsSdkDir=%WindowsSdkDir%\"
+for /f "delims=" %%V in ('dir /b /ad /o-n "%WindowsSdkDir%Include" 2^>nul') do (
+    if not defined WindowsSDKVersion set "WindowsSDKVersion=%%V\"
+)
+if not defined WindowsSDKVersion (
+    echo Windows SDK headers not found under "%WindowsSdkDir%Include"
+    goto failed
+)
+set "UniversalCRTSdkDir=%WindowsSdkDir%"
+set "INCLUDE=%WindowsSdkDir%Include\%WindowsSDKVersion%ucrt;%WindowsSdkDir%Include\%WindowsSDKVersion%um;%WindowsSdkDir%Include\%WindowsSDKVersion%shared;%WindowsSdkDir%Include\%WindowsSDKVersion%winrt;%WindowsSdkDir%Include\%WindowsSDKVersion%cppwinrt;%INCLUDE%"
+set "LIB=%WindowsSdkDir%Lib\%WindowsSDKVersion%ucrt\x64;%WindowsSdkDir%Lib\%WindowsSDKVersion%um\x64;%LIB%"
+set "LIBPATH=%WindowsSdkDir%Lib\%WindowsSDKVersion%ucrt\x64;%WindowsSdkDir%Lib\%WindowsSDKVersion%um\x64;%LIBPATH%"
+
 del *.pdb > NUL 2> NUL
 
 if not exist CompiledShaders mkdir CompiledShaders
