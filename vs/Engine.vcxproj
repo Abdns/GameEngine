@@ -64,7 +64,6 @@
     <ClInclude Include="..\engine\source\Game\src\Input.cpp" />
     <ClInclude Include="..\engine\source\Game\src\UI\UI.cpp" />
     <ClInclude Include="..\engine\source\Game\src\Gizmo.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\UI\Text.cpp" />
     <ClInclude Include="..\engine\source\Game\include\Game.h" />
     <ClInclude Include="..\engine\source\Game\include\GameState.h" />
     <ClInclude Include="..\engine\source\Game\include\Input.h" />

@@ -28,7 +28,6 @@ struct game_state
     physics_state  Physics;
 
     uint32 SkyHandle;
-    uint32 FontHandle;
 
     uint32 SpawnMeshHandles[2];
     uint32 SpawnMaterialHandles[3];

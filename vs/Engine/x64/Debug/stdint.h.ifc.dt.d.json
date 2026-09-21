@@ -1,0 +1,15 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "d:\\visualstudio\\vc\\tools\\msvc\\14.51.36231\\include\\stdint.h",
+        "ProvidedModule": "",
+        "Includes": [
+            "d:\\visualstudio\\vc\\tools\\msvc\\14.51.36231\\include\\vcruntime.h",
+            "d:\\visualstudio\\vc\\tools\\msvc\\14.51.36231\\include\\sal.h",
+            "d:\\visualstudio\\vc\\tools\\msvc\\14.51.36231\\include\\concurrencysal.h",
+            "d:\\visualstudio\\vc\\tools\\msvc\\14.51.36231\\include\\vadefs.h"
+        ],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
+    }
+}

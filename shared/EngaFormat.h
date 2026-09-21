@@ -4,10 +4,9 @@
 #include "Types.h"
 
 #define ENGA_MAGIC   (((uint32)'E') | ((uint32)'N' << 8) | ((uint32)'G' << 16) | ((uint32)'A' << 24))
-#define ENGA_VERSION 9
+#define ENGA_VERSION 10
 
 #define ENGA_MAX_ASSET_NAME 32
-#define ENGA_MAX_CODEPOINT  1120
 
 #define ENGA_ASSET_DIR  "..\\EngaAsset"
 #define ENGA_PACK_PATH  ENGA_ASSET_DIR "\\assets.enga"
@@ -25,7 +24,6 @@ enum asset_type
     Asset_None = 0,
     Asset_Image,
     Asset_Sound,
-    Asset_Font,
     Asset_Mesh,
 };
 
@@ -64,15 +62,6 @@ struct asset_image_info
     uint32 Layers;
 };
 
-struct asset_font_info
-{
-    uint32 AtlasSize;
-    uint32 CellWidth;
-    uint32 CellHeight;
-    real32 OriginX;
-    real32 LineAdvance;
-};
-
 struct asset_descriptor
 {
     uint32 Type;
@@ -83,7 +72,6 @@ struct asset_descriptor
     {
         asset_mesh_info  Mesh;
         asset_image_info Image;
-        asset_font_info  Font;
     };
 };
 

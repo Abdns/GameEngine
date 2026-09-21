@@ -28,9 +28,6 @@
     <Filter Include="assets\images">
       <UniqueIdentifier>{b1000000-0000-0000-0000-000000000012}</UniqueIdentifier>
     </Filter>
-    <Filter Include="assets\fonts">
-      <UniqueIdentifier>{b1000000-0000-0000-0000-000000000013}</UniqueIdentifier>
-    </Filter>
     <Filter Include="EngaAsset">
       <UniqueIdentifier>{b1000000-0000-0000-0000-000000000014}</UniqueIdentifier>
     </Filter>
@@ -51,9 +48,6 @@
       <Filter>tools\AssetBuilder\Loaders</Filter>
     </ClInclude>
     <ClInclude Include="..\tools\AssetBuilder\Loaders\Cubemap.h">
-      <Filter>tools\AssetBuilder\Loaders</Filter>
-    </ClInclude>
-    <ClInclude Include="..\tools\AssetBuilder\Loaders\Font.h">
       <Filter>tools\AssetBuilder\Loaders</Filter>
     </ClInclude>
     <ClInclude Include="..\tools\AssetBuilder\Loaders\Json.h">
@@ -96,12 +90,6 @@
     </None>
     <None Include="..\assets\images\sky.hdr">
       <Filter>assets\images</Filter>
-    </None>
-    <None Include="..\assets\fonts\DejaVuSansMono.ttf">
-      <Filter>assets\fonts</Filter>
-    </None>
-    <None Include="..\assets\fonts\DejaVuSansMono.LICENSE.txt">
-      <Filter>assets\fonts</Filter>
     </None>
     <None Include="..\EngaAsset\assets.enga">
       <Filter>EngaAsset</Filter>

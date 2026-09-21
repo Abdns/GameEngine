@@ -8,5 +8,10 @@
 internal void DebugUI(game_state *GameState)
 {
 	rect2 panelRect = rect2(Vector2(0.0f, 0.0f), Vector2(100.0f, 100.0f));
+
 	Panel(&GameState->UI, panelRect);
+
+	rect2 scrollList = rect2(Vector2(0.0f, 0.0f), Vector2(300.0f, 100.0f));
+
+	ScrollList(&GameState->UI, scrollList);
 }

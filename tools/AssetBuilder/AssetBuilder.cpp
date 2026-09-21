@@ -9,10 +9,8 @@
 #include "Loaders/TGA.h"
 #include "Loaders/HDR.h"
 #include "Loaders/Cubemap.h"
-#include "Loaders/Font.h"
 
 #define MAX_PACK_ASSETS 64
-#define MAX_FONT_GLYPHS 512
 
 struct enga_asset_table
 {
@@ -30,7 +28,6 @@ struct asset_source
     {
         asset_mesh_info  Mesh;
         asset_image_info Image;
-        asset_font_info  Font;
     };
 };
 
@@ -100,16 +97,6 @@ internal void AddAsset(enga_asset_table *Table, asset_source Source)
                            AssetImageFormatBytes((asset_image_format)Source.Image.Format);
         } break;
 
-        case Asset_Font:
-        {
-            Assert(Source.Font.AtlasSize && Source.Font.CellWidth && Source.Font.CellHeight);
-
-            Entry->Font = Source.Font;
-            Entry->Size = (uint64)ENGA_MAX_CODEPOINT * (sizeof(uint16) + sizeof(real32)) +
-                          (uint64)Source.Font.AtlasSize * Source.Font.AtlasSize *
-                          AssetImageFormatBytes(ImageFormat_RGBA8);
-        } break;
-
         default:
         {
             Assert(!"unsupported asset type");
@@ -118,37 +105,6 @@ internal void AddAsset(enga_asset_table *Table, asset_source Source)
 
     Table->Data[Table->Count] = Source.Data;
     Table->Count++;
-}
-
-internal void LoadFont(enga_asset_table *Table, memory_arena *Arena, const char *Path, const char *FaceName, const char *Name, int32 PixelHeight, uint32 AtlasSize)
-{
-    int32 Ranges[][2] =
-    {
-        {   32,  126 },
-        { 1025, 1025 },
-        { 1040, 1103 },
-        { 1105, 1105 },
-    };
-
-    int32  Codepoints[MAX_FONT_GLYPHS];
-    uint32 Count = 0;
-    for (uint32 RangeIndex = 0; RangeIndex < ArrayCount(Ranges); ++RangeIndex)
-    {
-        for (int32 Codepoint = Ranges[RangeIndex][0]; Codepoint <= Ranges[RangeIndex][1]; ++Codepoint)
-        {
-            Assert(Count < ArrayCount(Codepoints));
-            Codepoints[Count++] = Codepoint;
-        }
-    }
-
-    loaded_font Font = BakeFont(Arena, Path, FaceName, PixelHeight, Codepoints, Count, AtlasSize);
-
-    asset_source FontAsset = {};
-    FontAsset.Type = Asset_Font;
-    FontAsset.Name = Name;
-    FontAsset.Data = Font.Blob;
-    FontAsset.Font = Font.Info;
-    AddAsset(Table, FontAsset);
 }
 
 internal void LoadSkyCubemap(enga_asset_table *Table, memory_arena *Arena, const char *Path, const char *Name, uint32 FaceSize)
@@ -289,7 +245,6 @@ int main(int ArgCount, char **Args)
     LoadGLTF(&Table, &Arena, "..\\assets\\models\\TestShapes\\TestShapes.gltf");
     LoadGLTF(&Table, &Arena, "..\\assets\\models\\Gizmo\\Gizmo.gltf");
     LoadSkyCubemap(&Table, &Arena, "..\\assets\\images\\sky.hdr", "sky", 512);
-    LoadFont(&Table, &Arena, "..\\assets\\fonts\\DejaVuSansMono.ttf", "DejaVu Sans Mono", "DejaVuSansMono24", 24, 256);
     CreateENGA(&Table, OutPath);
 
     DebugLog("AssetBuilder: '%s' written (%u assets)\n", OutPath, Table.Count);

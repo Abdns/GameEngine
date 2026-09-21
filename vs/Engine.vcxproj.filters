@@ -66,7 +66,9 @@
     <ClCompile Include="..\engine\source\Platform\win32\Program.cpp">
       <Filter>engine\source\Platform\win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\engine\source\Graphics\Vulkan\VulkanRenderer.cpp" />
+    <ClCompile Include="..\engine\source\Graphics\Vulkan\VulkanRenderer.cpp">
+      <Filter>engine\source\Graphics\Vulkan</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanCore.cpp">
@@ -152,9 +154,6 @@
     </ClInclude>
     <ClInclude Include="..\engine\source\Game\src\Gizmo.cpp">
       <Filter>engine\source\Game\src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\UI\Text.cpp">
-      <Filter>engine\source\Game\src\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\engine\source\Game\include\Game.h">
       <Filter>engine\source\Game\include</Filter>

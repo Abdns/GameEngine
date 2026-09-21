@@ -14,7 +14,6 @@ struct asset_store_budget
     uint32 MeshCount;
     uint32 TextureCount;
     uint32 CubemapCount;
-    uint32 FontCount;
     uint32 VertexCount;
     uint32 IndexCount;
     uint64 PixelByteCount;
@@ -52,14 +51,6 @@ struct asset_store
     uint32 *CubemapFaceSize;
     uint32 *CubemapFormat;
     uint32  CubemapCount, CubemapCapacity;
-
-    char   *FontNames;
-    asset_font_info *FontInfo;
-    uint32 *FontTextureHandle;
-    uint16 *FontMap;
-    real32 *FontAdvance;
-    uint32  FontCount, FontCapacity;
-
 };
 
 struct asset_pack
@@ -142,13 +133,6 @@ internal asset_store_budget AssetStoreBudgetFromPack(void *PackData, uint32 Pack
                 }
             } break;
 
-            case Asset_Font:
-            {
-                Budget.FontCount++;
-                Budget.TextureCount++;
-                Budget.PixelByteCount += (uint64)Entry->Font.AtlasSize * Entry->Font.AtlasSize * 4;
-            } break;
-
             default:
             {
             } break;
@@ -164,7 +148,6 @@ internal asset_store_budget AssetStoreBudgetAdd(asset_store_budget A, asset_stor
     Result.MeshCount      = A.MeshCount      + B.MeshCount;
     Result.TextureCount   = A.TextureCount   + B.TextureCount;
     Result.CubemapCount   = A.CubemapCount   + B.CubemapCount;
-    Result.FontCount      = A.FontCount      + B.FontCount;
     Result.VertexCount    = A.VertexCount    + B.VertexCount;
     Result.IndexCount     = A.IndexCount     + B.IndexCount;
     Result.PixelByteCount = A.PixelByteCount + B.PixelByteCount;
@@ -182,7 +165,6 @@ internal void AssetStoreInit(asset_store *Store, memory_arena *Arena, asset_stor
     Store->MeshCapacity      = Budget.MeshCount;
     Store->TextureCapacity   = Budget.TextureCount;
     Store->CubemapCapacity   = Budget.CubemapCount;
-    Store->FontCapacity      = Budget.FontCount;
 
     if (Store->VertexCapacity)
     {
@@ -227,15 +209,6 @@ internal void AssetStoreInit(asset_store *Store, memory_arena *Arena, asset_stor
         Store->CubemapFaceSize  = PushArray(Arena, Store->CubemapCapacity, uint32);
         Store->CubemapFormat    = PushArray(Arena, Store->CubemapCapacity, uint32);
     }
-
-    if (Store->FontCapacity)
-    {
-        Store->FontNames         = PushArray(Arena, (memory_size)Store->FontCapacity * ENGA_MAX_ASSET_NAME, char);
-        Store->FontInfo          = PushArray(Arena, Store->FontCapacity, asset_font_info);
-        Store->FontTextureHandle = PushArray(Arena, Store->FontCapacity, uint32);
-        Store->FontMap           = PushArray(Arena, (memory_size)Store->FontCapacity * ENGA_MAX_CODEPOINT, uint16);
-        Store->FontAdvance       = PushArray(Arena, (memory_size)Store->FontCapacity * ENGA_MAX_CODEPOINT, real32);
-    }
 }
 
 inline Vector3 EngaVertexPosition(enga_vertex *Vertex)
@@ -261,16 +234,6 @@ internal uint8 *AssetTexturePixels(asset_store *Store, uint32 Handle)
 internal uint8 *AssetCubemapPixels(asset_store *Store, uint32 Handle)
 {
     return Store->Pixels + Store->CubemapFirstByte[Handle];
-}
-
-internal uint16 *AssetFontMap(asset_store *Store, uint32 Handle)
-{
-    return Store->FontMap + (memory_size)Handle * ENGA_MAX_CODEPOINT;
-}
-
-internal real32 *AssetFontAdvance(asset_store *Store, uint32 Handle)
-{
-    return Store->FontAdvance + (memory_size)Handle * ENGA_MAX_CODEPOINT;
 }
 
 internal collision AssetCollisionMesh(asset_store *Store, uint32 MeshHandle)
@@ -372,26 +335,6 @@ internal uint32 AssetAddCubemap(asset_store *Store, const char *Name, void *Pixe
     return Handle;
 }
 
-internal uint32 AssetAddFont(asset_store *Store, const char *Name, asset_font_info *Info, uint16 *Map, real32 *Advances, void *AtlasPixels)
-{
-    Assert(Store->FontCount < Store->FontCapacity);
-
-    uint32 TextureHandle = AssetAddTexture(Store, Name, AtlasPixels, Info->AtlasSize, Info->AtlasSize, false, ImageFormat_RGBA8);
-
-    uint32 Handle = Store->FontCount;
-
-    CopySize(ENGA_MAX_CODEPOINT * sizeof(uint16), Map, AssetFontMap(Store, Handle));
-    CopySize(ENGA_MAX_CODEPOINT * sizeof(real32), Advances, AssetFontAdvance(Store, Handle));
-
-    AppendString(Store->FontNames + (memory_size)Handle * ENGA_MAX_ASSET_NAME, ENGA_MAX_ASSET_NAME, 0, Name);
-    Store->FontInfo[Handle]          = *Info;
-    Store->FontTextureHandle[Handle] = TextureHandle;
-
-    Store->FontCount++;
-
-    return Handle;
-}
-
 internal void AssetStoreLoadPack(asset_store *Store, void *PackData, uint32 PackSize)
 {
     asset_pack Pack = AssetPackFromMemory(PackData, PackSize);
@@ -425,14 +368,6 @@ internal void AssetStoreLoadPack(asset_store *Store, void *PackData, uint32 Pack
                 }
             } break;
 
-            case Asset_Font:
-            {
-                memory_size MapBytes     = ENGA_MAX_CODEPOINT * sizeof(uint16);
-                memory_size AdvanceBytes = ENGA_MAX_CODEPOINT * sizeof(real32);
-
-                AssetAddFont(Store, Entry->Name, &Entry->Font, (uint16 *)Data, (real32 *)((uint8 *)Data + MapBytes), (uint8 *)Data + MapBytes + AdvanceBytes);
-            } break;
-
             default:
             {
                 DebugLog("AssetStore: asset %s of type %u has no loader\n", Entry->Name, Entry->Type);
@@ -440,8 +375,8 @@ internal void AssetStoreLoadPack(asset_store *Store, void *PackData, uint32 Pack
         }
     }
 
-    DebugLog("AssetStore: %u meshes (%u vertices, %u indices), %u textures, %u cubemaps, %u fonts, %llu pixel bytes\n",
-             Store->MeshCount, Store->VertexUsed, Store->IndexUsed, Store->TextureCount, Store->CubemapCount, Store->FontCount, Store->PixelByteUsed);
+    DebugLog("AssetStore: %u meshes (%u vertices, %u indices), %u textures, %u cubemaps, %llu pixel bytes\n",
+             Store->MeshCount, Store->VertexUsed, Store->IndexUsed, Store->TextureCount, Store->CubemapCount, Store->PixelByteUsed);
 }
 
 internal uint32 AssetHandleByName(char *Names, uint32 Count, const char *Name)
@@ -476,14 +411,6 @@ internal uint32 GetAssetTextureHandle(asset_store *Store, const char *Name)
 internal uint32 GetAssetCubemapHandle(asset_store *Store, const char *Name)
 {
     uint32 Handle = AssetHandleByName(Store->CubemapNames, Store->CubemapCount, Name);
-    Assert(Handle != ASSET_HANDLE_NONE);
-
-    return Handle;
-}
-
-internal uint32 GetAssetFontHandle(asset_store *Store, const char *Name)
-{
-    uint32 Handle = AssetHandleByName(Store->FontNames, Store->FontCount, Name);
     Assert(Handle != ASSET_HANDLE_NONE);
 
     return Handle;

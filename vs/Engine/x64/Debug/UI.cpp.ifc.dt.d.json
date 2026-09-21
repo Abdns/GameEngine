@@ -43,11 +43,7 @@
             "c:\\users\\artem\\desktop\\engine\\engine\\source\\platformapi\\platformapi.h",
             "c:\\users\\artem\\desktop\\engine\\shared\\strings.h",
             "c:\\users\\artem\\desktop\\engine\\engine\\source\\platformapi\\rendercommands.h",
-            "c:\\users\\artem\\desktop\\engine\\engine\\source\\game\\include\\input.h",
-            "c:\\users\\artem\\desktop\\engine\\engine\\source\\game\\src\\ui\\text.cpp",
-            "c:\\users\\artem\\desktop\\engine\\shared\\engaformat.h",
-            "c:\\users\\artem\\desktop\\engine\\engine\\source\\assets\\assetstore.cpp",
-            "c:\\users\\artem\\desktop\\engine\\engine\\source\\physics\\collider.h"
+            "c:\\users\\artem\\desktop\\engine\\engine\\source\\game\\include\\input.h"
         ],
         "ImportedModules": [],
         "ImportedHeaderUnits": []

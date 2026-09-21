@@ -13,7 +13,6 @@
 #include "Camera.cpp"
 #include "Material.cpp"
 #include "Preset.cpp"
-#include "Text.cpp"
 #include "UI.cpp"
 #include "Gizmo.cpp"
 
@@ -233,7 +232,6 @@ internal void InitGame(game_memory *Memory, game_state *GameState, render_comman
     BuildMeshShapes(GameState, WorldArena);
 
     GameState->SkyHandle  = GetAssetCubemapHandle(Assets, "sky");
-    GameState->FontHandle = GetAssetFontHandle(Assets, "DejaVuSansMono24");
 
     GameState->SpawnMeshHandles[0] = GetAssetMeshHandle(Assets, "cube");
     GameState->SpawnMeshHandles[1] = GetAssetMeshHandle(Assets, "sphere");

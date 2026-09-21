@@ -73,8 +73,7 @@ set CommonLinkerFlags=-incremental:no^
 cl %CommonCompilerFlags%^
  ..\tools\AssetBuilder\AssetBuilder.cpp^
  -FeAssetBuilder.exe^
- /link %CommonLinkerFlags%^
- gdi32.lib
+ /link %CommonLinkerFlags%
 if errorlevel 1 goto :failed
 .\AssetBuilder.exe
 if errorlevel 1 goto :failed

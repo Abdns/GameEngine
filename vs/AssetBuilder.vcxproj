@@ -38,7 +38,6 @@
     <ClInclude Include="..\tools\AssetBuilder\Loaders\GLTF.h" />
     <ClInclude Include="..\tools\AssetBuilder\Loaders\HDR.h" />
     <ClInclude Include="..\tools\AssetBuilder\Loaders\Cubemap.h" />
-    <ClInclude Include="..\tools\AssetBuilder\Loaders\Font.h" />
     <ClInclude Include="..\tools\AssetBuilder\Loaders\Json.h" />
     <ClInclude Include="..\shared\EngaFormat.h" />
     <ClInclude Include="..\shared\Half.h" />
@@ -54,8 +53,6 @@
     <None Include="..\assets\models\Gizmo\Gizmo.gltf" />
     <None Include="..\assets\models\Gizmo\Gizmo.bin" />
     <None Include="..\assets\images\sky.hdr" />
-    <None Include="..\assets\fonts\DejaVuSansMono.ttf" />
-    <None Include="..\assets\fonts\DejaVuSansMono.LICENSE.txt" />
     <None Include="..\EngaAsset\assets.enga" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
