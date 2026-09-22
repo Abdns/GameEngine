@@ -77,7 +77,7 @@ internal loaded_cubemap EquirectToCubemap(memory_arena *Arena, loaded_hdr *Sourc
 
     for (uint32 Face = 0; Face < FacesCount; ++Face)
     {
-        uint16 *FacePixels = Pixels + (memory_size)Face * FaceSize * FaceSize * ChannelsPerPixel;
+        uint16 *FacePixels = &Pixels[(memory_size)Face * FaceSize * FaceSize * ChannelsPerPixel];
 
         for (uint32 Y = 0; Y < FaceSize; ++Y)
         {
@@ -105,7 +105,7 @@ internal loaded_cubemap EquirectToCubemap(memory_arena *Arena, loaded_hdr *Sourc
                 Color[1] = fminf(Color[1], CUBEMAP_MAX_RADIANCE);
                 Color[2] = fminf(Color[2], CUBEMAP_MAX_RADIANCE);
 
-                uint16 *Out = FacePixels + ((memory_size)Y * FaceSize + X) * 4;
+                uint16 *Out = &FacePixels[((memory_size)Y * FaceSize + X) * 4];
                 Out[0] = FloatToHalf(Color[0]);
                 Out[1] = FloatToHalf(Color[1]);
                 Out[2] = FloatToHalf(Color[2]);

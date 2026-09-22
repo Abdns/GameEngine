@@ -38,7 +38,7 @@ internal sim_entity_slot *GetSlotFromStorageIndex(sim_region *Region, uint32 Sto
     {
         uint32 SlotIndex = HashSlotIndex(Region->HashSlots, StorageIndex + Offset);
 
-        sim_entity_slot *Slot = Region->HashSlots + SlotIndex;
+        sim_entity_slot *Slot = &Region->HashSlots[SlotIndex];
 
         if (Slot->StorageIndex == ENTITY_STORAGE_NONE || Slot->StorageIndex == StorageIndex)
         {
@@ -87,7 +87,7 @@ internal sim_entity *AddEntityRaw(sim_region *Region, uint32 StorageIndex, low_e
         return 0;
     }
 
-    sim_entity *Entity = Region->Entities + Region->EntityCount++;
+    sim_entity *Entity = &Region->Entities[Region->EntityCount++];
 
     Slot->StorageIndex = StorageIndex;
     Slot->Ptr          = Entity;
@@ -190,7 +190,7 @@ internal sim_region *BeginSim(memory_arena *SimArena, world *World, entity_stora
                     for (uint32 Index = 0; Index < Block->EntityCount; ++Index)
                     {
                         uint32      StorageIndex = Block->StorageIndex[Index];
-                        low_entity *Stored       = Storage->LowEntities + StorageIndex;
+                        low_entity *Stored       = &Storage->LowEntities[StorageIndex];
 
                         if (Stored->SimVariant.Type == Entity_Null)
                         {
@@ -222,8 +222,8 @@ internal void EndSim(sim_region *Region, memory_arena *Arena)
 
     for (uint32 Index = 0; Index < Region->EntityCount; ++Index)
     {
-        sim_entity *Entity = Region->Entities + Index;
-        low_entity *Stored = Storage->LowEntities + Entity->LowStorageIndex;
+        sim_entity *Entity = &Region->Entities[Index];
+        low_entity *Stored = &Storage->LowEntities[Entity->LowStorageIndex];
 
         Stored->SimVariant   = *Entity;
         Stored->PrevPosition = MapIntoChunkSpace(World, Region->Origin, Entity->Previous.Position);

@@ -119,7 +119,7 @@ internal uint8 *GLTFAccessorData(gltf_file *File, json_value *AccessorIndex, uin
     *OutCount         = Count;
     *OutComponentType = ComponentType;
     *OutStride        = Stride;
-    return ViewData + Offset;
+    return &ViewData[Offset];
 }
 
 struct gltf_geometry
@@ -188,13 +188,13 @@ internal gltf_geometry GLTFMeshGeometry(memory_arena *Arena, gltf_file *File, js
     uint8 *Blob = (uint8 *)PushSize(Arena, VertexBytes + IndexBytes);
 
     enga_vertex *Out     = (enga_vertex *)Blob;
-    uint32     *OutIndx = (uint32 *)(Blob + VertexBytes);
+    uint32     *OutIndx = (uint32 *)&Blob[VertexBytes];
 
     for (uint32 v = 0; v < VertexCount; ++v)
     {
-        real32 *SrcPos = (real32 *)(Pos + (memory_size)v * PosStride);
+        real32 *SrcPos = (real32 *)&Pos[(memory_size)v * PosStride];
 
-        enga_vertex *Dst = Out + v;
+        enga_vertex *Dst = &Out[v];
         Dst->Pos[0]    = SrcPos[0];
         Dst->Pos[1]    = SrcPos[1];
         Dst->Pos[2]    = SrcPos[2];
@@ -209,7 +209,7 @@ internal gltf_geometry GLTFMeshGeometry(memory_arena *Arena, gltf_file *File, js
 
         if (Normal && v < NormalCount)
         {
-            real32 *SrcNormal = (real32 *)(Normal + (memory_size)v * NormalStride);
+            real32 *SrcNormal = (real32 *)&Normal[(memory_size)v * NormalStride];
             Dst->Normal[0] = SrcNormal[0];
             Dst->Normal[1] = SrcNormal[1];
             Dst->Normal[2] = SrcNormal[2];
@@ -217,7 +217,7 @@ internal gltf_geometry GLTFMeshGeometry(memory_arena *Arena, gltf_file *File, js
 
         if (UV && v < UVCount)
         {
-            real32 *SrcUV = (real32 *)(UV + (memory_size)v * UVStride);
+            real32 *SrcUV = (real32 *)&UV[(memory_size)v * UVStride];
             Dst->UV[0] = SrcUV[0];
             Dst->UV[1] = SrcUV[1];
         }
@@ -228,7 +228,7 @@ internal gltf_geometry GLTFMeshGeometry(memory_arena *Arena, gltf_file *File, js
         uint32 Src = i;
         if (SourceIndices)
         {
-            uint8 *SrcIndex = SourceIndices + (memory_size)i * IndexStride;
+            uint8 *SrcIndex = &SourceIndices[(memory_size)i * IndexStride];
             Src = (IndexType == GLTF_USHORT) ? *(uint16 *)SrcIndex : *(uint32 *)SrcIndex;
         }
         Assert(Src < VertexCount);
@@ -249,9 +249,9 @@ internal gltf_geometry GLTFMeshGeometry(memory_arena *Arena, gltf_file *File, js
 
         for (uint32 i = 0; i + 2 < IndexCount; i += 3)
         {
-            enga_vertex *A = Out + OutIndx[i + 0];
-            enga_vertex *B = Out + OutIndx[i + 1];
-            enga_vertex *C = Out + OutIndx[i + 2];
+            enga_vertex *A = &Out[OutIndx[i + 0]];
+            enga_vertex *B = &Out[OutIndx[i + 1]];
+            enga_vertex *C = &Out[OutIndx[i + 2]];
 
             real32 ABx = B->Pos[0] - A->Pos[0];
             real32 ABy = B->Pos[1] - A->Pos[1];

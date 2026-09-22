@@ -78,12 +78,12 @@ internal uint32 BroadphaseFindPairs(broadphase *Broad, sim_entity *Entities)
     for (uint32 IndexA = 0; IndexA < Broad->OrderCount; ++IndexA)
     {
         uint32      EntityA = Broad->Order[IndexA];
-        sim_entity *A       = Entities + EntityA;
+        sim_entity *A       = &Entities[EntityA];
 
         for (uint32 IndexB = IndexA + 1; IndexB < Broad->OrderCount; ++IndexB)
         {
             uint32      EntityB = Broad->Order[IndexB];
-            sim_entity *B       = Entities + EntityB;
+            sim_entity *B       = &Entities[EntityB];
 
             if (B->Bounds.Min.X > A->Bounds.Max.X)
             {
@@ -109,7 +109,7 @@ internal uint32 BroadphaseFindPairs(broadphase *Broad, sim_entity *Entities)
                 return Broad->PairCount;
             }
 
-            body_pair *Pair = Broad->Pairs + Broad->PairCount++;
+            body_pair *Pair = &Broad->Pairs[Broad->PairCount++];
             Pair->A = EntityA;
             Pair->B = EntityB;
         }

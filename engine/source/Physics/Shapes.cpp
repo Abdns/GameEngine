@@ -72,8 +72,8 @@ internal void ShapeBuildFaces(memory_arena *Arena, collision_shape *Shape)
 
     for (uint32 PlaneIndex = 0; PlaneIndex < Shape->PlaneCount; ++PlaneIndex)
     {
-        shape_plane *Plane = Shape->Planes + PlaneIndex;
-        uint32      *Loop  = Scratchpad + (memory_size)PlaneIndex * Shape->VertexCount;
+        shape_plane *Plane = &Shape->Planes[PlaneIndex];
+        uint32      *Loop  = &Scratchpad[(memory_size)PlaneIndex * Shape->VertexCount];
         uint32       Count = 0;
 
         Vector3 Centroid = Vector3(0.0f, 0.0f, 0.0f);
@@ -139,8 +139,8 @@ internal void ShapeBuildFaces(memory_arena *Arena, collision_shape *Shape)
 
     for (uint32 PlaneIndex = 0; PlaneIndex < Shape->PlaneCount; ++PlaneIndex)
     {
-        shape_face  *Face  = Shape->Faces + PlaneIndex;
-        shape_plane *Plane = Shape->Planes + PlaneIndex;
+        shape_face  *Face  = &Shape->Faces[PlaneIndex];
+        shape_plane *Plane = &Shape->Planes[PlaneIndex];
 
         if (!Face->VertexCount)
         {

@@ -106,7 +106,7 @@ internal asset_store_budget AssetStoreBudgetFromPack(void *PackData, uint32 Pack
 
     for (uint32 Index = 0; Index < Pack.Count; ++Index)
     {
-        asset_descriptor *Entry = Pack.Entries + Index;
+        asset_descriptor *Entry = &Pack.Entries[Index];
 
         switch ((asset_type)Entry->Type)
         {
@@ -218,12 +218,12 @@ inline Vector3 EngaVertexPosition(enga_vertex *Vertex)
 
 internal enga_vertex *AssetMeshVertices(asset_store *Store, uint32 Handle)
 {
-    return Store->Vertices + Store->MeshFirstVertex[Handle];
+    return &Store->Vertices[Store->MeshFirstVertex[Handle]];
 }
 
 internal uint32 *AssetMeshIndices(asset_store *Store, uint32 Handle)
 {
-    return Store->Indices + Store->MeshFirstIndex[Handle];
+    return &Store->Indices[Store->MeshFirstIndex[Handle]];
 }
 
 internal uint8 *AssetTexturePixels(asset_store *Store, uint32 Handle)
@@ -272,7 +272,7 @@ internal uint32 AssetAddMesh(asset_store *Store, const char *Name, enga_vertex *
     Vector3 BoundsMax = Vector3(-REAL32_LARGE, -REAL32_LARGE, -REAL32_LARGE);
     for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
     {
-        Vector3 P = EngaVertexPosition(Vertices + VertexIndex);
+        Vector3 P = EngaVertexPosition(&Vertices[VertexIndex]);
         for (int Axis = 0; Axis < 3; ++Axis)
         {
             BoundsMin.Elements[Axis] = Minimum(BoundsMin.Elements[Axis], P.Elements[Axis]);
@@ -282,7 +282,7 @@ internal uint32 AssetAddMesh(asset_store *Store, const char *Name, enga_vertex *
     Store->MeshBoundsMin[Handle] = BoundsMin;
     Store->MeshBoundsMax[Handle] = BoundsMax;
 
-    AppendString(Store->MeshNames + (memory_size)Handle * ENGA_MAX_ASSET_NAME, ENGA_MAX_ASSET_NAME, 0, Name);
+    AppendString(&Store->MeshNames[(memory_size)Handle * ENGA_MAX_ASSET_NAME], ENGA_MAX_ASSET_NAME, 0, Name);
 
     Store->VertexUsed += VertexCount;
     Store->IndexUsed  += IndexCount;
@@ -303,7 +303,7 @@ internal uint32 AssetAddTexture(asset_store *Store, const char *Name, void *Pixe
     Store->TextureFirstByte[Handle] = Store->PixelByteUsed;
     CopySize(ByteSize, Pixels, AssetTexturePixels(Store, Handle));
 
-    AppendString(Store->TextureNames + (memory_size)Handle * ENGA_MAX_ASSET_NAME, ENGA_MAX_ASSET_NAME, 0, Name);
+    AppendString(&Store->TextureNames[(memory_size)Handle * ENGA_MAX_ASSET_NAME], ENGA_MAX_ASSET_NAME, 0, Name);
     Store->TextureWidth[Handle]  = Width;
     Store->TextureHeight[Handle] = Height;
     Store->TextureSRGB[Handle]   = SRGB;
@@ -326,7 +326,7 @@ internal uint32 AssetAddCubemap(asset_store *Store, const char *Name, void *Pixe
     Store->CubemapFirstByte[Handle] = Store->PixelByteUsed;
     CopySize(ByteSize, Pixels, AssetCubemapPixels(Store, Handle));
 
-    AppendString(Store->CubemapNames + (memory_size)Handle * ENGA_MAX_ASSET_NAME, ENGA_MAX_ASSET_NAME, 0, Name);
+    AppendString(&Store->CubemapNames[(memory_size)Handle * ENGA_MAX_ASSET_NAME], ENGA_MAX_ASSET_NAME, 0, Name);
     Store->CubemapFaceSize[Handle] = FaceSize;
     Store->CubemapFormat[Handle]   = (uint32)Format;
     Store->CubemapCount++;
@@ -341,7 +341,7 @@ internal void AssetStoreLoadPack(asset_store *Store, void *PackData, uint32 Pack
 
     for (uint32 Index = 0; Index < Pack.Count; ++Index)
     {
-        asset_descriptor *Entry = Pack.Entries + Index;
+        asset_descriptor *Entry = &Pack.Entries[Index];
         void *Data = AssetPackData(&Pack, Entry);
         Assert(Data);
 
@@ -351,7 +351,7 @@ internal void AssetStoreLoadPack(asset_store *Store, void *PackData, uint32 Pack
             {
                 memory_size VertexBytes = (memory_size)Entry->Mesh.VertexCount * sizeof(enga_vertex);
 
-                AssetAddMesh(Store, Entry->Name, (enga_vertex *)Data, Entry->Mesh.VertexCount, (uint32 *)((uint8 *)Data + VertexBytes), Entry->Mesh.IndexCount);
+                AssetAddMesh(Store, Entry->Name, (enga_vertex *)Data, Entry->Mesh.VertexCount, (uint32 *)&((uint8 *)Data)[VertexBytes], Entry->Mesh.IndexCount);
             } break;
 
             case Asset_Image:
@@ -383,7 +383,7 @@ internal uint32 AssetHandleByName(char *Names, uint32 Count, const char *Name)
 {
     for (uint32 Index = 0; Index < Count; ++Index)
     {
-        if (StringsAreEqual(Names + (memory_size)Index * ENGA_MAX_ASSET_NAME, Name))
+        if (StringsAreEqual(&Names[(memory_size)Index * ENGA_MAX_ASSET_NAME], Name))
         {
             return Index;
         }

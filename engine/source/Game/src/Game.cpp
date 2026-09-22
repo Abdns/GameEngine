@@ -80,7 +80,7 @@ internal void PushEntitiesToRender(sim_region *Region, render_commands *Commands
 {
     for (uint32 Index = 0; Index < Region->EntityCount; ++Index)
     {
-        sim_entity *Entity = Region->Entities + Index;
+        sim_entity *Entity = &Region->Entities[Index];
 
         if (!(Entity->Flags & EntityFlag_Visible))
         {

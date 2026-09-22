@@ -3,6 +3,7 @@
 #include "Types.h"
 #include "EngineMath.h"
 #include "RenderCommands.h"
+#include "RenderDescription.h"
 
 #define MAX_GAME_MATERIALS 64
 
@@ -59,7 +60,7 @@ internal void PushMaterialsToRender(materials* Materials, render_commands* Comma
 {
     for (uint32 Index = 0; Index < Materials->Count; ++Index)
     {
-        material* Material = Materials->Items + Index;
+        material* Material = &Materials->Items[Index];
         PushLoadMaterial(Commands, Index, Material);
     }
 }

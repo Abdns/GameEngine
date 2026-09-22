@@ -139,7 +139,7 @@ inline void *PushRenderCommand(render_commands *Commands, command_type Type)
     void *Base = 0;
     if (Commands->PushBufferSize + Size <= Commands->MaxPushBufferSize)
     {
-        command_type *CmdBase = (command_type *)(Commands->PushBufferBase + Commands->PushBufferSize);
+        command_type *CmdBase = (command_type *)&Commands->PushBufferBase[Commands->PushBufferSize];
         *CmdBase = Type;
         Base = CmdBase;
         Commands->PushBufferSize += Size;
@@ -154,7 +154,7 @@ inline command_type *NextRenderCommand(render_commands *Commands, uint32 *Offset
         return 0;
     }
 
-    command_type *CmdBase = (command_type *)(Commands->PushBufferBase + *Offset);
+    command_type *CmdBase = (command_type *)&Commands->PushBufferBase[*Offset];
     uint32 Size = CommandSize(*CmdBase);
     if (!Size)
     {

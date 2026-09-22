@@ -58,7 +58,7 @@ internal low_entity *GetLowEntity(entity_storage *Storage, uint32 StorageIndex)
         return 0;
     }
 
-    return Storage->LowEntities + StorageIndex;
+    return &Storage->LowEntities[StorageIndex];
 }
 
 internal char *LowEntityName(entity_storage *Storage, uint32 StorageIndex)
@@ -85,7 +85,7 @@ internal uint32 FindLowEntityByName(entity_storage *Storage, const char *Name)
 
 internal void ChangeEntityLocation(memory_arena *Arena, world *World, entity_storage *Storage, uint32 StorageIndex, world_position NewP)
 {
-    low_entity *Entity = Storage->LowEntities + StorageIndex;
+    low_entity *Entity = &Storage->LowEntities[StorageIndex];
 
     world_position *OldP  = IsWorldPositionValid(Entity->Position) ? &Entity->Position : 0;
     world_position *NextP = IsWorldPositionValid(NewP) ? &NewP : 0;
@@ -115,7 +115,7 @@ internal uint32 AddLowEntity(entity_storage *Storage, entity_type Type, world_po
         StorageIndex = Storage->Count++;
     }
 
-    low_entity *Entity = Storage->LowEntities + StorageIndex;
+    low_entity *Entity = &Storage->LowEntities[StorageIndex];
 
     ZeroStruct(*Entity);
 

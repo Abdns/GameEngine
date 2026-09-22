@@ -157,10 +157,10 @@ internal loaded_hdr ParseHDR(memory_arena *Arena, void *FileData, uint32 FileSiz
             }
         }
 
-        uint16 *Row = Pixels + (memory_size)Y * Width * 4;
+        uint16 *Row = &Pixels[(memory_size)Y * Width * 4];
         for (uint32 X = 0; X < Width; ++X)
         {
-            RGBEToHalf(Scan + X * 4, Row + X * 4);
+            RGBEToHalf(&Scan[X * 4], &Row[X * 4]);
         }
     }
 

@@ -119,7 +119,7 @@ internal ui_element_state *UIGetScrollState(ui_context *UI, uint64 ID)
 	{
 		if (UI->ScrollStates[Index].ID == ID)
 		{
-			return UI->ScrollStates + Index;
+			return &UI->ScrollStates[Index];
 		}
 	}
 
@@ -129,7 +129,7 @@ internal ui_element_state *UIGetScrollState(ui_context *UI, uint64 ID)
 		return &UI->OverflowState;
 	}
 
-	ui_element_state *State = UI->ScrollStates + UI->ScrollStateCount++;
+	ui_element_state *State = &UI->ScrollStates[UI->ScrollStateCount++];
 	ZeroStruct(*State);
 	State->ID = ID;
 	return State;

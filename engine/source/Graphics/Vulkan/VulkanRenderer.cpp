@@ -127,7 +127,7 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
 
     res->VertexBuffer   = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(vertex) * commands->VertexCount);
     res->IndexBuffer    = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,   sizeof(uint32) * commands->IndexCount);
-    res->MaterialCount  = commands->MaterialCount;
+    res->MaterialBuffer = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(gpu_material) * commands->MaterialCount);
 
     gpu_buffer staging = CreateBuffer(context, Buffer_Upload, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, STAGING_MEMORY_SIZE);
 
@@ -145,7 +145,7 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
 
                 Assert(entry->MeshHandle < MAX_MESHES);
 
-                gpu_mesh *mesh = res->Meshes + entry->MeshHandle;
+                gpu_mesh *mesh = &res->Meshes[entry->MeshHandle];
                 Assert(!mesh->IndexCount);
 
                 *mesh = CreateMesh(vertices.Offset, entry->VertexCount, indices.Offset, entry->IndexCount);
@@ -182,11 +182,9 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
 
                 Assert(description->Pipeline < Pipeline_MeshCount);
                 Assert(description->TextureHandle < MAX_TEXTURES && res->Textures[description->TextureHandle].View);
-                Assert(entry->MaterialHandle < res->MaterialCount);
 
                 Assert(res->MaterialBuffer.Mapped);
                 render_material_state *state = &res->MaterialStates[entry->MaterialHandle];
-                gpu_material *gpuMaterials = (gpu_material*)res->MaterialBuffer.Mapped;
 
                 state->Pipeline   = description->Pipeline;
                 state->CullMode   = description->CullMode;
@@ -195,6 +193,7 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
                 state->DepthTest  = description->DepthTest;
                 state->DepthWrite = description->DepthWrite;
 
+                gpu_material *gpuMaterials = (gpu_material*)res->MaterialBuffer.Mapped;
                 gpu_material gpuMaterial = {};
                 gpuMaterial.BaseColor   = description->BaseColor;
                 gpuMaterial.TextureSlot = description->TextureHandle;
@@ -277,7 +276,6 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
                     command_render_skybox *skyCmd = (command_render_skybox *)cmdBase;
 
                     uint32 cubeSlot = skyCmd->CubemapHandle;
-                    Assert(cubeSlot < MAX_CUBEMAPS);
 
                     piplineId = Pipeline_Skybox;
                     pipeline = &pipelines[piplineId];
@@ -297,13 +295,10 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
                 case Render_Mesh:
                 {
                     command_render_mesh *meshCmd = (command_render_mesh *)cmdBase;
-                    Assert(meshCmd->MeshHandle < MAX_MESHES);
 
-                    gpu_mesh *mesh = res->Meshes + meshCmd->MeshHandle;
-                    Assert(mesh->IndexCount);
+                    gpu_mesh *mesh = &res->Meshes[meshCmd->MeshHandle];
 
                     uint32 materialSlot = meshCmd->MaterialHandle;
-                    Assert(materialSlot < res->MaterialCount);
 
                     render_material_state *material = &res->MaterialStates[materialSlot];
 

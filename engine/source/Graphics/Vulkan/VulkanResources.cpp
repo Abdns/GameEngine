@@ -72,7 +72,7 @@ internal uint8 *HeapSlotAddress(vulkan_context *context, descriptor_heap *heap, 
 
     memory_size descriptorSize = HeapDescriptorSize(context, HeapBindingDescs[binding].Type);
 
-    return (uint8 *)heap->Buffer.Mapped + heap->Offsets[binding] + arrayElement * descriptorSize;
+    return &((uint8 *)heap->Buffer.Mapped)[heap->Offsets[binding] + arrayElement * descriptorSize];
 }
 
 internal void WriteHeapImage(vulkan_context *context, descriptor_heap *heap, uint32 binding, uint32 arrayElement, VkImageView view)
@@ -191,7 +191,6 @@ internal vulkan_resources CreateResources(vulkan_context *context)
 
     res.FrameArena    = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, FRAME_BUFFER_SIZE);
     res.GlobalsBuffer = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(frame_globals) * MAX_FRAMES_IN_FLIGHT);
-    res.MaterialBuffer = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(gpu_material) * MAX_MATERIALS);
     res.Sampler = CreateTextureSampler(context, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT);
 
     res.Heap = CreateDescriptorHeap(context);

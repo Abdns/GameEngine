@@ -125,7 +125,7 @@ internal world_chunk *GetWorldChunk(world *World, int32 ChunkX, int32 ChunkY, in
     uint32 HashValue = (uint32)(19 * ChunkX + 7 * ChunkY + 3 * ChunkZ);
     uint32 SlotIndex = HashSlotIndex(World->HashSlots, HashValue);
 
-    world_chunk *Chunk = World->HashSlots + SlotIndex;
+    world_chunk *Chunk = &World->HashSlots[SlotIndex];
 
     while (Chunk)
     {

@@ -4,6 +4,8 @@
 #include "Types.h"
 #include "EngineMath.h"
 
+#define TEXTURE_NONE 0xFFFFFFFF
+
 enum pipeline_type
 {
     Pipeline_Unlit = 0,
@@ -30,7 +32,6 @@ enum texture_format
     TextureFormat_RGBA16F,
 };
 
-#define TEXTURE_NONE 0xFFFFFFFF
 
 enum blend_mode
 {
@@ -59,7 +60,7 @@ struct material
 
     Vector4 BaseColor;
     uint32  TextureHandle;
-    uint32  Reserved[2]; // Preserve the serialized preset layout.
+    uint32  Reserved[2];
 };
 
-#endif // RENDERDESCRIPTION_H
+#endif

@@ -139,7 +139,7 @@ internal uint32 RayGatherCandidates(ray SimRay, sim_region *Region, asset_store 
 
     for (uint32 Index = 0; Index < Region->EntityCount && Count < MaxCandidates; ++Index)
     {
-        sim_entity *Entity = Region->Entities + Index;
+        sim_entity *Entity = &Region->Entities[Index];
 
         if (!(Entity->Flags & EntityFlag_Visible) || Entity->MeshHandle >= Assets->MeshCount)
         {
@@ -157,7 +157,7 @@ internal uint32 RayGatherCandidates(ray SimRay, sim_region *Region, asset_store 
             continue;
         }
 
-        raycast_candidate *Candidate = Candidates + Count++;
+        raycast_candidate *Candidate = &Candidates[Count++];
         Candidate->EntityIndex   = Index;
         Candidate->EnterDistance = EnterDistance;
     }
@@ -196,7 +196,7 @@ internal bool32 RayCastSim(ray SimRay, sim_region *Region, asset_store *Assets, 
             break;
         }
 
-        sim_entity *Entity  = Region->Entities + Candidates[Index].EntityIndex;
+        sim_entity *Entity  = &Region->Entities[Candidates[Index].EntityIndex];
         Matrix4     ToLocal = Mat4InverseRigid(SimEntityRenderTransform(Entity, Alpha));
 
         ray LocalRay;

@@ -46,7 +46,7 @@ internal uint32 AddEntityFromPreset(game_state *GameState, uint32 PresetIndex, w
         return ENTITY_STORAGE_NONE;
     }
 
-    entity_preset *Preset = Presets->Presets + PresetIndex;
+    entity_preset *Preset = &Presets->Presets[PresetIndex];
 
     transform Pose = Preset->Pose;
     Pose.Position  = Preset->Pose.Position + Offset;
@@ -60,7 +60,7 @@ internal void ClearSpawnedEntities(game_state *GameState)
 
     for (uint32 StorageIndex = 1; StorageIndex < Storage->Count; ++StorageIndex)
     {
-        low_entity *Stored = Storage->LowEntities + StorageIndex;
+        low_entity *Stored = &Storage->LowEntities[StorageIndex];
 
         if (Stored->SimVariant.Type == Entity_Null || (Stored->SimVariant.Flags & EntityFlag_Static))
         {

@@ -17,7 +17,7 @@ struct collision
 
 inline Vector3 GetCollisionMeshVertex(collision *Mesh, uint32 Index)
 {
-    return *(Vector3 *)((uint8 *)Mesh->Vertices + (uint64)Index * Mesh->VertexStride);
+    return *(Vector3 *)&((uint8 *)Mesh->Vertices)[(uint64)Index * Mesh->VertexStride];
 }
 
 inline void ComputeWorldAABB(Vector3 Position, Quaternion Orientation, Vector3 LocalMin, Vector3 LocalMax, Vector3 *OutMin, Vector3 *OutMax)

@@ -107,7 +107,7 @@ internal void LinkPresets(preset_table *Table, asset_store *Assets, materials *M
 {
     for (uint32 Index = 0; Index < Table->Count; ++Index)
     {
-        entity_preset *Preset = Table->Presets + Index;
+        entity_preset *Preset = &Table->Presets[Index];
 
         material Material = Preset->Material;
 

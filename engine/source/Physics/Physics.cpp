@@ -84,7 +84,7 @@ internal collision_shape *PhysicsShapeFor(physics_state *Physics, sim_entity *En
     Assert(Entity->MeshHandle < Physics->ShapeCapacity);
     Assert(Physics->ShapeBuilt[Entity->MeshHandle]);
 
-    return Physics->Shapes + Entity->MeshHandle;
+    return &Physics->Shapes[Entity->MeshHandle];
 }
 
 internal void PhysicsSetMass(physics_state *Physics, sim_entity *Entity, bool32 Static)
@@ -153,7 +153,7 @@ internal bool32 PhysicsPushContact(contact *Contacts, uint32 *Count, uint32 MaxC
         }
     }
 
-    contact *Contact = Contacts + (*Count)++;
+    contact *Contact = &Contacts[(*Count)++];
 
     Contact->A                   = A;
     Contact->B                   = B;
@@ -252,7 +252,7 @@ internal real32 SATQueryFaces(collision_shape *ShapeA, sim_entity *A, collision_
             continue;
         }
 
-        shape_plane *Plane = ShapeA->Planes + Index;
+        shape_plane *Plane = &ShapeA->Planes[Index];
 
         Vector3 WorldNormal = QuatRotate(A->Current.Orientation, Plane->Normal);
         Vector3 WorldPoint  = A->Current.Position + QuatRotate(A->Current.Orientation, Plane->Normal * Plane->Distance);
@@ -275,7 +275,7 @@ internal real32 SATQueryFaces(collision_shape *ShapeA, sim_entity *A, collision_
 
 internal uint32 SATFaceWorldPolygon(collision_shape *Shape, sim_entity *Entity, uint32 FaceIndex, Vector3 *Out, uint32 MaxOut)
 {
-    shape_face *Face  = Shape->Faces + FaceIndex;
+    shape_face *Face  = &Shape->Faces[FaceIndex];
     uint32      Count = Minimum(Face->VertexCount, MaxOut);
 
     for (uint32 Index = 0; Index < Count; ++Index)
@@ -347,7 +347,7 @@ internal uint32 CollectConvexContacts(collision_shape *ShapeA, collision_shape *
         ReferenceFace   = FaceB;
     }
 
-    shape_plane *ReferencePlane = ReferenceShape->Planes + ReferenceFace;
+    shape_plane *ReferencePlane = &ReferenceShape->Planes[ReferenceFace];
 
     Vector3 ReferenceNormal = QuatRotate(ReferenceEntity->Current.Orientation, ReferencePlane->Normal);
     Vector3 ReferencePoint  = ReferenceEntity->Current.Position + QuatRotate(ReferenceEntity->Current.Orientation, ReferencePlane->Normal * ReferencePlane->Distance);
@@ -525,7 +525,7 @@ internal void PhysicsSubStep(physics_state *Physics, sim_region *Region, real32 
 {
     for (uint32 Index = 0; Index < Region->EntityCount; ++Index)
     {
-        sim_entity *Entity = Region->Entities + Index;
+        sim_entity *Entity = &Region->Entities[Index];
 
         if (!(Entity->Flags & EntityFlag_Simulates))
         {
@@ -549,15 +549,15 @@ internal void PhysicsSubStep(physics_state *Physics, sim_region *Region, real32 
     uint32 ContactCount = 0;
     for (uint32 PairIndex = 0; PairIndex < PairCount && ContactCount < Physics->ContactCapacity; ++PairIndex)
     {
-        body_pair *Pair = Physics->Broad.Pairs + PairIndex;
+        body_pair *Pair = &Physics->Broad.Pairs[PairIndex];
 
-        ContactCount += CollectPairContacts(Physics, Region->Entities + Pair->A, Region->Entities + Pair->B,
-                                            Physics->Contacts + ContactCount, Physics->ContactCapacity - ContactCount);
+        ContactCount += CollectPairContacts(Physics, &Region->Entities[Pair->A], &Region->Entities[Pair->B],
+                                            &Physics->Contacts[ContactCount], Physics->ContactCapacity - ContactCount);
     }
 
     for (uint32 Index = 0; Index < ContactCount; ++Index)
     {
-        contact *Contact = Physics->Contacts + Index;
+        contact *Contact = &Physics->Contacts[Index];
 
         real32 ApproachSpeed = -Dot(PhysicsRelativeVelocity(Contact), Contact->Normal);
         Contact->RestitutionBias = (ApproachSpeed > PHYSICS_RESTITUTION_MIN_SPEED) ? PHYSICS_RESTITUTION * ApproachSpeed : 0.0f;
@@ -568,7 +568,7 @@ internal void PhysicsSubStep(physics_state *Physics, sim_region *Region, real32 
     {
         for (uint32 Index = 0; Index < ContactCount; ++Index)
         {
-            ApplyContactImpulse(Physics->Contacts + Index, InvDt);
+            ApplyContactImpulse(&Physics->Contacts[Index], InvDt);
         }
     }
 }
@@ -599,7 +599,7 @@ internal void SimSavePreviousTransforms(sim_region *Region)
 {
     for (uint32 Index = 0; Index < Region->EntityCount; ++Index)
     {
-        sim_entity *Entity = Region->Entities + Index;
+        sim_entity *Entity = &Region->Entities[Index];
 
         Entity->Previous = Entity->Current;
     }

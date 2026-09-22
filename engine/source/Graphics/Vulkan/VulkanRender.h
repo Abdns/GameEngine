@@ -142,7 +142,6 @@ struct vulkan_resources
     gpu_image      Textures[MAX_TEXTURES];
     gpu_image      Cubemaps[MAX_CUBEMAPS];
     render_material_state MaterialStates[MAX_MATERIALS];
-    uint32         MaterialCount;
 };
 
 struct vulkan_frame

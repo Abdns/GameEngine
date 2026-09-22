@@ -59,7 +59,7 @@ internal loaded_bitmap ParseTGA(memory_arena *Arena, void *FileData, uint32 File
 
         for (uint32 i = 0; i < PixelCount; ++i)
         {
-            uint8 *d = OutBytes + i * 4;
+            uint8 *d = &OutBytes[i * 4];
             d[0] = Src[2];
             d[1] = Src[1];
             d[2] = Src[0];
@@ -95,7 +95,7 @@ internal loaded_bitmap ParseTGA(memory_arena *Arena, void *FileData, uint32 File
 
                 for (uint32 c = 0; c < Count; ++c, ++i)
                 {
-                    uint8 *d = OutBytes + i * 4;
+                    uint8 *d = &OutBytes[i * 4];
                     d[0] = R;
                     d[1] = G;
                     d[2] = B;
@@ -108,7 +108,7 @@ internal loaded_bitmap ParseTGA(memory_arena *Arena, void *FileData, uint32 File
 
                 for (uint32 c = 0; c < Count; ++c, ++i)
                 {
-                    uint8 *d = OutBytes + i * 4;
+                    uint8 *d = &OutBytes[i * 4];
                     d[0] = Src[2];
                     d[1] = Src[1];
                     d[2] = Src[0];
@@ -126,8 +126,8 @@ internal loaded_bitmap ParseTGA(memory_arena *Arena, void *FileData, uint32 File
     {
         for (uint32 y = 0; y < Height / 2; ++y)
         {
-            uint32 *RowA = Out + y * Width;
-            uint32 *RowB = Out + (Height - 1 - y) * Width;
+            uint32 *RowA = &Out[y * Width];
+            uint32 *RowB = &Out[(Height - 1 - y) * Width];
             for (uint32 x = 0; x < Width; ++x)
             {
                 uint32 t = RowA[x];
@@ -141,7 +141,7 @@ internal loaded_bitmap ParseTGA(memory_arena *Arena, void *FileData, uint32 File
     {
         for (uint32 y = 0; y < Height; ++y)
         {
-            uint32 *Row = Out + y * Width;
+            uint32 *Row = &Out[y * Width];
             for (uint32 x = 0; x < Width / 2; ++x)
             {
                 uint32 t = Row[x];
