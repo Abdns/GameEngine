@@ -272,6 +272,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     BeginInput(Controls, Input);
     BeginUI(&GameState->UI, RenderCommands, Mouse, Input->UIScale);
     BeginGizmo(Gizmo, Mouse, RenderCommands);
+    DebugUI(GameState);
 
     rectangle3  SimBounds = Rect3CenterRadius(Vector3(0.0f, 0.0f, 0.0f), SIM_HALF_DIM);
     sim_region *Region    = BeginSim(&GameState->FrameArena, GameState->World, &GameState->Storage, Camera->Position, SimBounds, SIM_MAX_ENTITIES);
@@ -301,14 +302,12 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         Vector3 CameraWorldP = WorldPositionToMeters(GameState->World, Region->Origin) + CameraSimP;
 
-        PushRenderCamera(RenderCommands, CameraView(Camera, CameraSimP), CameraWorldP, Camera->FovY);
-        PushRenderLight(RenderCommands, Vector3(0.4f, 1.0f, 0.3f));
+        PushBindCamera(RenderCommands, CameraView(Camera, CameraSimP), CameraWorldP, Camera->FovY);
+        PushBindLight(RenderCommands, Vector3(0.4f, 1.0f, 0.3f));
         PushRenderSkybox(RenderCommands, GameState->SkyHandle);
         PushEntitiesToRender(Region, RenderCommands, RenderAlpha, Gizmo->Selected, Gizmo->Style.Selected);
     }
     EndSim(Region, &GameState->WorldArena);
-
-    DebugUI(GameState);
 
     EndGizmo(Gizmo);
 }

@@ -6,21 +6,6 @@
 
 #define MAX_GAME_MATERIALS 64
 
-struct material
-{
-    pipeline_type Pipeline;
-
-    cull_mode    CullMode;
-    blend_mode   BlendMode;
-    render_queue Queue;
-    bool32       DepthTest;
-    bool32       DepthWrite;
-
-    Vector4 BaseColor;
-    uint32  TextureHandle;
-    uint32  Reserved[2]; // Preserve the serialized preset layout.
-};
-
 struct materials
 {
     uint32   Count;
@@ -75,6 +60,6 @@ internal void PushMaterialsToRender(materials* Materials, render_commands* Comma
     for (uint32 Index = 0; Index < Materials->Count; ++Index)
     {
         material* Material = Materials->Items + Index;
-        PushLoadMaterial(Commands, Index, Material->Pipeline, Material->CullMode, Material->BlendMode, Material->Queue, Material->DepthTest, Material->DepthWrite, Material->BaseColor, Material->TextureHandle);
+        PushLoadMaterial(Commands, Index, Material);
     }
 }

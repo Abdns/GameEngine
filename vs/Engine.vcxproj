@@ -69,6 +69,7 @@
     <ClInclude Include="..\engine\source\Game\include\Input.h" />
     <ClInclude Include="..\engine\source\PlatformApi\PlatformAPI.h" />
     <ClInclude Include="..\engine\source\PlatformApi\RenderCommands.h" />
+    <ClInclude Include="..\engine\source\PlatformApi\RenderDescription.h" />
     <ClInclude Include="..\shared\EngaFormat.h" />
     <ClInclude Include="..\engine\source\Physics\Physics.cpp" />
     <ClInclude Include="..\engine\source\Physics\Shapes.cpp" />

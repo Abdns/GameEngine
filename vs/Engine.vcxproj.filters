@@ -170,6 +170,9 @@
     <ClInclude Include="..\engine\source\PlatformApi\RenderCommands.h">
       <Filter>engine\source\PlatformApi</Filter>
     </ClInclude>
+    <ClInclude Include="..\engine\source\PlatformApi\RenderDescription.h">
+      <Filter>engine\source\PlatformApi</Filter>
+    </ClInclude>
     <ClInclude Include="..\engine\source\Graphics\Vulkan\Vulkan.h">
       <Filter>engine\source\Graphics\Vulkan</Filter>
     </ClInclude>

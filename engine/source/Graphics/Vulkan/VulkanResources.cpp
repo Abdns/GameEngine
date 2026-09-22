@@ -191,6 +191,7 @@ internal vulkan_resources CreateResources(vulkan_context *context)
 
     res.FrameArena    = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, FRAME_BUFFER_SIZE);
     res.GlobalsBuffer = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(frame_globals) * MAX_FRAMES_IN_FLIGHT);
+    res.MaterialBuffer = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(gpu_material) * MAX_MATERIALS);
     res.Sampler = CreateTextureSampler(context, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT);
 
     res.Heap = CreateDescriptorHeap(context);
@@ -266,28 +267,4 @@ internal gpu_image *CreateCubemap(vulkan_context *context, vulkan_resources *res
     *cube = CreateImage(context, Image_Cubemap, format, FaceSize, FaceSize, 1, mipLevels);
 
     return cube;
-}
-
-internal material_state CreateMaterialState(command_load_material *Description)
-{
-    Assert(Description->Pipeline < Pipeline_MeshCount);
-
-    material_state result;
-    result.Pipeline   = Description->Pipeline;
-    result.CullMode   = Description->CullMode;
-    result.BlendMode  = Description->BlendMode;
-    result.Queue      = Description->Queue;
-    result.DepthTest  = Description->DepthTest;
-    result.DepthWrite = Description->DepthWrite;
-
-    return result;
-}
-
-internal gpu_material CreateMaterial(command_load_material *Description)
-{
-    gpu_material result = {};
-    result.BaseColor   = Description->BaseColor;
-    result.TextureSlot = Description->TextureHandle;
-
-    return result;
 }

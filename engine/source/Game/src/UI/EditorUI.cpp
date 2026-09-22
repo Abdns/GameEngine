@@ -7,11 +7,21 @@
 
 internal void DebugUI(game_state *GameState)
 {
-	rect2 panelRect = rect2(Vector2(0.0f, 0.0f), Vector2(100.0f, 100.0f));
+    ui_scroll_list List = UIBeginScrollList(&GameState->UI, 1,
+                                           rect2(Vector2(20.0f, 20.0f), Vector2(240.0f, 140.0f)));
 
-	Panel(&GameState->UI, panelRect);
+    for (uint32 Index = 1; Index < GameState->Storage.Count; ++Index)
+    {
+        if (GameState->Storage.LowEntities[Index].SimVariant.Type == Entity_Null)
+        {
+            continue;
+        }
 
-	rect2 scrollList = rect2(Vector2(0.0f, 0.0f), Vector2(300.0f, 100.0f));
+        if (UIButton(&List, Index, 22.0f, GameState->Gizmo.Selected == Index))
+        {
+            GameState->Gizmo.Selected = Index;
+        }
+    }
 
-	ScrollList(&GameState->UI, scrollList);
+    UIEndScrollList(&List);
 }

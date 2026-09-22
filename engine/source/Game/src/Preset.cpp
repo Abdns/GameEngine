@@ -18,6 +18,8 @@
 #define PRESET_VERSION 1
 #define PRESET_PATH    ENGA_ASSET_DIR "\\presets.engp"
 
+static_assert(sizeof(material) == 52, "material layout must match version 1 presets");
+
 struct entity_preset
 {
     char Name[PRESET_MAX_NAME];

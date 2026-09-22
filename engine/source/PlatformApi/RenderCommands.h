@@ -3,61 +3,19 @@
 
 #include "Types.h"
 #include "EngineMath.h"
+#include "RenderDescription.h"
 
 enum command_type
 {
-    Render_Mesh = 0,
-    Render_Camera,
-    Render_Light,
-    Render_Skybox,
-    Render_Rect,
+    Bind_Camera = 0,
+    Bind_Light,
     Load_Mesh,
     Load_Texture,
     Load_Cubemap,
     Load_Material,
-};
-
-enum cull_mode
-{
-    Cull_None = 0,
-    Cull_Back,
-    Cull_Front,
-};
-
-enum texture_format
-{
-    TextureFormat_RGBA8 = 0,
-    TextureFormat_RGBA16F,
-};
-
-#define TEXTURE_NONE 0xFFFFFFFF
-
-enum blend_mode
-{
-    Blend_Opaque = 0,
-    Blend_Alpha,
-};
-
-enum render_queue
-{
-    Queue_Opaque = 0,
-    Queue_Transparent,
-    Queue_Overlay,
-
-    Queue_Count,
-};
-
-enum pipeline_type
-{
-    Pipeline_Unlit = 0,
-    Pipeline_Lit,
-    Pipeline_Skybox,
-    Pipeline_Post,
-    Pipeline_UI,
-    Pipeline_UIRect,
-    Pipeline_Count,
-
-    Pipeline_MeshCount = Pipeline_Skybox,
+    Render_Mesh,
+    Render_Skybox,
+    Render_Rect,
 };
 
 struct command_render_mesh
@@ -117,21 +75,12 @@ struct command_load_cubemap
 
 struct command_load_material
 {
-    command_type  Type;
-    uint32        MaterialHandle;
-
-    pipeline_type Pipeline;
-    cull_mode     CullMode;
-    blend_mode    BlendMode;
-    render_queue  Queue;
-    bool32        DepthTest;
-    bool32        DepthWrite;
-
-    Vector4       BaseColor;
-    uint32        TextureHandle;
+    command_type Type;
+    uint32       MaterialHandle;
+    material     Description;
 };
 
-struct command_render_camera
+struct command_bind_camera
 {
     command_type Type;
     Matrix4 View;
@@ -139,7 +88,7 @@ struct command_render_camera
     real32  FovY;
 };
 
-struct command_render_light
+struct command_bind_light
 {
     command_type Type;
     Vector3 Direction;
@@ -149,15 +98,15 @@ inline uint32 CommandSize(command_type Type)
 {
     switch (Type)
     {
-        case Render_Mesh:        return (uint32)sizeof(command_render_mesh);
-        case Render_Skybox:      return (uint32)sizeof(command_render_skybox);
-        case Render_Rect:        return (uint32)sizeof(command_render_rect);
-        case Render_Camera:      return (uint32)sizeof(command_render_camera);
-        case Render_Light:      return (uint32)sizeof(command_render_light);
+        case Bind_Camera:        return (uint32)sizeof(command_bind_camera);
+        case Bind_Light:         return (uint32)sizeof(command_bind_light);
         case Load_Mesh:          return (uint32)sizeof(command_load_mesh);
         case Load_Texture:       return (uint32)sizeof(command_load_texture);
         case Load_Cubemap:       return (uint32)sizeof(command_load_cubemap);
         case Load_Material:      return (uint32)sizeof(command_load_material);
+        case Render_Mesh:        return (uint32)sizeof(command_render_mesh);
+        case Render_Skybox:      return (uint32)sizeof(command_render_skybox);
+        case Render_Rect:        return (uint32)sizeof(command_render_rect);
     }
     return 0;
 }
@@ -217,9 +166,9 @@ inline command_type *NextRenderCommand(render_commands *Commands, uint32 *Offset
     return CmdBase;
 }
 
-inline void PushRenderCamera(render_commands *Commands, Matrix4 View, Vector3 WorldPosition, real32 FovY)
+inline void PushBindCamera(render_commands *Commands, Matrix4 View, Vector3 WorldPosition, real32 FovY)
 {
-    command_render_camera *cmd = (command_render_camera *)PushRenderCommand(Commands, Render_Camera);
+    command_bind_camera *cmd = (command_bind_camera *)PushRenderCommand(Commands, Bind_Camera);
     if (cmd)
     {
         cmd->View          = View;
@@ -228,9 +177,9 @@ inline void PushRenderCamera(render_commands *Commands, Matrix4 View, Vector3 Wo
     }
 }
 
-inline void PushRenderLight(render_commands* Commands, Vector3 Direction)
+inline void PushBindLight(render_commands* Commands, Vector3 Direction)
 {
-    command_render_light* cmd = (command_render_light*)PushRenderCommand(Commands, Render_Light);
+    command_bind_light* cmd = (command_bind_light*)PushRenderCommand(Commands, Bind_Light);
 
     if (cmd)
     {
@@ -243,7 +192,7 @@ inline void PushLoadMesh(render_commands *Commands, uint32 MeshHandle, void *Ver
     command_load_mesh *cmd = (command_load_mesh *)PushRenderCommand(Commands, Load_Mesh);
     if (cmd)
     {
-        cmd->MeshHandle       = MeshHandle;
+        cmd->MeshHandle  = MeshHandle;
         cmd->Vertices    = Vertices;
         cmd->VertexCount = VertexCount;
         cmd->Indices     = Indices;
@@ -290,20 +239,13 @@ inline void PushLoadCubemap(render_commands *Commands, uint32 CubemapHandle, voi
     }
 }
 
-inline void PushLoadMaterial(render_commands *Commands, uint32 MaterialHandle, pipeline_type Pipeline, cull_mode CullMode, blend_mode BlendMode, render_queue Queue, bool32 DepthTest, bool32 DepthWrite, Vector4 BaseColor, uint32 TextureHandle)
+inline void PushLoadMaterial(render_commands *Commands, uint32 MaterialHandle, const material *Material)
 {
     command_load_material *cmd = (command_load_material *)PushRenderCommand(Commands, Load_Material);
     if (cmd)
     {
         cmd->MaterialHandle = MaterialHandle;
-        cmd->Pipeline       = Pipeline;
-        cmd->CullMode       = CullMode;
-        cmd->BlendMode      = BlendMode;
-        cmd->Queue          = Queue;
-        cmd->DepthTest      = DepthTest;
-        cmd->DepthWrite     = DepthWrite;
-        cmd->BaseColor      = BaseColor;
-        cmd->TextureHandle  = TextureHandle;
+        cmd->Description    = *Material;
 
         Commands->LoadCount++;
         if (MaterialHandle >= Commands->MaterialCount)

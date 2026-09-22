@@ -39,7 +39,7 @@
             "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\ucrt\\stddef.h",
             "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\ucrt\\corecrt_wstdlib.h",
             "c:\\program files\\microsoft visual studio\\18\\community\\vc\\tools\\msvc\\14.51.36231\\include\\limits.h",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\platformapi\\rendercommands.h",
+            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\platformapi\\renderdescription.h",
             "c:\\vulkansdk\\1.4.350.0\\include\\vulkan\\vulkan.h",
             "c:\\vulkansdk\\1.4.350.0\\include\\vulkan\\vk_platform.h",
             "c:\\vulkansdk\\1.4.350.0\\include\\vulkan\\vulkan_core.h",
@@ -276,11 +276,8 @@
             "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\um\\imm.h",
             "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\um\\ime_cmodes.h",
             "c:\\vulkansdk\\1.4.350.0\\include\\vulkan\\vulkan_win32.h",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\shaderinterop.h",
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\interop\\shaderheap.h",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\interop\\shadervolumes.h",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\interop\\shaderparams.h",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\interop\\shadermath.h"
+            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\graphics\\vulkan\\shaders\\interop\\shaderparams.h"
         ],
         "ImportedModules": [],
         "ImportedHeaderUnits": []

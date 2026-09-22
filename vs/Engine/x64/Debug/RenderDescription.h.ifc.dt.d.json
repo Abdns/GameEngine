@@ -1,7 +1,7 @@
 {
     "Version": "1.2",
     "Data": {
-        "Source": "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\game\\src\\ui\\ui.cpp",
+        "Source": "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\platformapi\\renderdescription.h",
         "ProvidedModule": "",
         "Includes": [
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\shared\\types.h",
@@ -14,7 +14,6 @@
             "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\ucrt\\corecrt.h",
             "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\ucrt\\corecrt_wstdio.h",
             "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\ucrt\\corecrt_stdio_config.h",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\shared\\memory.h",
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\shared\\enginemath.h",
             "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\shared\\intrinsics.h",
             "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\ucrt\\math.h",
@@ -39,12 +38,7 @@
             "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\ucrt\\corecrt_search.h",
             "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\ucrt\\stddef.h",
             "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\ucrt\\corecrt_wstdlib.h",
-            "c:\\program files\\microsoft visual studio\\18\\community\\vc\\tools\\msvc\\14.51.36231\\include\\limits.h",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\platformapi\\platformapi.h",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\shared\\strings.h",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\platformapi\\rendercommands.h",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\platformapi\\renderdescription.h",
-            "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\game\\include\\input.h"
+            "c:\\program files\\microsoft visual studio\\18\\community\\vc\\tools\\msvc\\14.51.36231\\include\\limits.h"
         ],
         "ImportedModules": [],
         "ImportedHeaderUnits": []

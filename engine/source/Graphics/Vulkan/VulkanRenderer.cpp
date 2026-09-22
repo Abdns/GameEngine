@@ -127,7 +127,6 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
 
     res->VertexBuffer   = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(vertex) * commands->VertexCount);
     res->IndexBuffer    = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,   sizeof(uint32) * commands->IndexCount);
-    res->MaterialBuffer = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(gpu_material) * commands->MaterialCount);
     res->MaterialCount  = commands->MaterialCount;
 
     gpu_buffer staging = CreateBuffer(context, Buffer_Upload, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, STAGING_MEMORY_SIZE);
@@ -176,23 +175,30 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
                 CmdGenerateMips(cmd, cube->Image, entry->FaceSize, entry->FaceSize, 6, cube->MipLevels);
                 WriteHeapImage(context, &res->Heap, BINDING_CUBEMAPS, entry->CubemapHandle, cube->View);
             }
-        }
-
-        offset = 0;
-        for (command_type *header = NextRenderCommand(commands, &offset); header; header = NextRenderCommand(commands, &offset))
-        {
-            if (*header == Load_Material)
+            else if (*header == Load_Material)
             {
-                command_load_material *entry = (command_load_material *)header;
+                command_load_material *entry = (command_load_material*)header;
+                const material *description = &entry->Description;
 
-                Assert(entry->TextureHandle < MAX_TEXTURES && res->Textures[entry->TextureHandle].View);
+                Assert(description->Pipeline < Pipeline_MeshCount);
+                Assert(description->TextureHandle < MAX_TEXTURES && res->Textures[description->TextureHandle].View);
                 Assert(entry->MaterialHandle < res->MaterialCount);
 
-                material_state *state    = res->MaterialStates + entry->MaterialHandle;
-                gpu_alloc material = BufferSlot(&res->MaterialBuffer, entry->MaterialHandle, sizeof(gpu_material));
+                Assert(res->MaterialBuffer.Mapped);
+                render_material_state *state = &res->MaterialStates[entry->MaterialHandle];
+                gpu_material *gpuMaterials = (gpu_material*)res->MaterialBuffer.Mapped;
 
-                *state = CreateMaterialState(entry);
-                *(gpu_material *)material.Cpu = CreateMaterial(entry);
+                state->Pipeline   = description->Pipeline;
+                state->CullMode   = description->CullMode;
+                state->BlendMode  = description->BlendMode;
+                state->Queue      = description->Queue;
+                state->DepthTest  = description->DepthTest;
+                state->DepthWrite = description->DepthWrite;
+
+                gpu_material gpuMaterial = {};
+                gpuMaterial.BaseColor   = description->BaseColor;
+                gpuMaterial.TextureSlot = description->TextureHandle;
+                gpuMaterials[entry->MaterialHandle] = gpuMaterial;
             }
         }
     }
@@ -214,16 +220,16 @@ internal void FillFrameGlobals(vulkan_context *context, vulkan_resources *res, r
     {
         switch (*cmdBase)
         {
-            case Render_Light:
+            case Bind_Light:
             {
-                command_render_light *lightCmd = (command_render_light *)cmdBase;
+                command_bind_light *lightCmd = (command_bind_light *)cmdBase;
 
                 globals->LightDir = lightCmd->Direction;
             } break;
 
-            case Render_Camera:
+            case Bind_Camera:
             {
-                command_render_camera *cameraCmd = (command_render_camera *)cmdBase;
+                command_bind_camera *cameraCmd = (command_bind_camera *)cmdBase;
 
                 real32 nearPlane = 0.1f;
                 real32 farPlane  = 100.0f;
@@ -299,7 +305,7 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
                     uint32 materialSlot = meshCmd->MaterialHandle;
                     Assert(materialSlot < res->MaterialCount);
 
-                    material_state *material = &res->MaterialStates[materialSlot];
+                    render_material_state *material = &res->MaterialStates[materialSlot];
 
                     if ((uint32)material->Queue != queue)
                     {

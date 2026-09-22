@@ -3,7 +3,7 @@
 
 #include "Types.h"
 #include "EngineMath.h"
-#include "RenderCommands.h"
+#include "RenderDescription.h"
 
 #include <vulkan/vulkan.h>
 
@@ -115,7 +115,7 @@ struct descriptor_heap
     VkDeviceSize Offsets[BINDING_COUNT];
 };
 
-struct material_state
+struct render_material_state
 {
     pipeline_type Pipeline;
     cull_mode     CullMode;
@@ -141,7 +141,7 @@ struct vulkan_resources
     gpu_mesh       Meshes[MAX_MESHES];
     gpu_image      Textures[MAX_TEXTURES];
     gpu_image      Cubemaps[MAX_CUBEMAPS];
-    material_state MaterialStates[MAX_MATERIALS];
+    render_material_state MaterialStates[MAX_MATERIALS];
     uint32         MaterialCount;
 };
 

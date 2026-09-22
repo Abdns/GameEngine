@@ -177,7 +177,7 @@ internal bool32 Axis(gizmo_context *Gizmo, asset_store *Assets, ray PickRay, Vec
                 Gizmo->Active = 0;
             }
         }
-        else if (!Gizmo->Active && !Gizmo->Mouse->Consumed && GizmoRayHitsAxis(Gizmo, Assets, AxisIndex, Transform, PickRay))
+        else if (!Gizmo->Active && MouseAvailable(Gizmo->Mouse) && GizmoRayHitsAxis(Gizmo, Assets, AxisIndex, Transform, PickRay))
         {
             Gizmo->Hot             = ID;
             Gizmo->Mouse->Consumed = true;
