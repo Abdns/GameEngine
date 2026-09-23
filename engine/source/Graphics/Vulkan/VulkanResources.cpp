@@ -185,22 +185,6 @@ internal VkPipelineLayout CreatePipelineLayout(vulkan_context *context, VkDescri
     return layout;
 }
 
-internal vulkan_resources CreateResources(vulkan_context *context)
-{
-    vulkan_resources res = {};
-
-    res.FrameArena    = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, FRAME_BUFFER_SIZE);
-    res.GlobalsBuffer = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(frame_globals) * MAX_FRAMES_IN_FLIGHT);
-    res.Sampler = CreateTextureSampler(context, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT);
-
-    res.Heap = CreateDescriptorHeap(context);
-    res.PipelineLayout = CreatePipelineLayout(context, res.Heap.Layout);
-
-    WriteHeapSampler(context, &res.Heap, BINDING_SAMPLER, 0, res.Sampler);
-
-    return res;
-}
-
 internal void BindDescriptorHeap(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, VkPipelineLayout layout)
 {
     VkDescriptorBufferBindingInfoEXT binding{};

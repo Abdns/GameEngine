@@ -32,6 +32,22 @@ internal void ResizeRenderer(vulkan_renderer *renderer)
     EndSingleTimeCommands(context, setup);
 }
 
+internal vulkan_resources CreateResources(vulkan_context* context)
+{
+    vulkan_resources res = {};
+
+    res.FrameArena = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, FRAME_BUFFER_SIZE);
+    res.GlobalsBuffer = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(frame_globals) * MAX_FRAMES_IN_FLIGHT);
+    res.Sampler = CreateTextureSampler(context, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT);
+
+    res.Heap = CreateDescriptorHeap(context);
+    res.PipelineLayout = CreatePipelineLayout(context, res.Heap.Layout);
+
+    WriteHeapSampler(context, &res.Heap, BINDING_SAMPLER, 0, res.Sampler);
+
+    return res;
+}
+
 internal const char *InitVulkan(HINSTANCE hinstance, HWND hwnd)
 {
     vulkan_renderer *renderer = &GlobalRenderer;
