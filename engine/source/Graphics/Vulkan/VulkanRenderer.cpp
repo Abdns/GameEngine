@@ -392,7 +392,10 @@ internal void ExecuteUICommands(vulkan_context *context, VkCommandBuffer cmd, vu
         command_render_rect *rectCmd = (command_render_rect *)cmdBase;
 
         rect_params entry = {};
-        entry.Rect = Vector4(rectCmd->Min.X / width  * 2.0f - 1.0f, rectCmd->Min.Y / height * 2.0f - 1.0f, rectCmd->Max.X / width  * 2.0f - 1.0f, rectCmd->Max.Y / height * 2.0f - 1.0f);
+        entry.Rect = Vector4(rectCmd->Min.X / width  * 2.0f - 1.0f,
+                             rectCmd->Min.Y / height * 2.0f - 1.0f,
+                             rectCmd->Max.X / width  * 2.0f - 1.0f,
+                             rectCmd->Max.Y / height * 2.0f - 1.0f);
         entry.UVRect = rectCmd->UV;
         entry.Tint = rectCmd->Color;
         entry.TextureSlot = rectCmd->TextureSlot;

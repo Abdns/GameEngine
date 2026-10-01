@@ -7,16 +7,21 @@
 #include "RenderCommands.h"
 #include "Input.h"
 
-#define SCROLL 10
+#define UI_WHEEL_DELTA 120
+#define UI_WHEEL_STEP  24.0f
 
 struct Layout
 {
 	Vector2 Pivot;
+	real32  Width;
+	real32  DpiRatio;
+	rect2   Clip;
+	bool32  Clipped;
 };
 
 enum ui_interaction_type
 {
-	UIInteraction_One = 0,
+	UIInteraction_None = 0,
 	UIInteraction_Hover,
 	UIInteraction_Click,
 	UIInteraction_ToggleBool,
@@ -26,9 +31,7 @@ enum ui_interaction_type
 struct ui_interaction
 {
 	uint32 Type;
-	uint32 Scroll;
-	bool32 Hover;
-	bool32 Click;
+	real32 Scroll;
 };
 
 struct ui_style
@@ -45,6 +48,8 @@ struct ui_context
 	mouse_input *Mouse;
 	real32 DpiRatio;
 	ui_style Style;
+
+	real32 Scroll;
 };
 
 internal void BeginUI(ui_context *UI, render_commands *Cmd, mouse_input *Mouse, real32 DpiRatio)
@@ -66,80 +71,130 @@ internal ui_style DefaultUIStyle()
 	return Style;
 }
 
+internal rect2 DpiScaleRect(ui_context *UI, rect2 Rect)
+{
+	rect2 result = rect2(Rect.Min * UI->DpiRatio, Rect.Max * UI->DpiRatio);
 
-internal ui_interaction CheckUIInteraction(mouse_input *Mouse, rect2 PanelRect)
+	return result;
+}
+
+internal ui_interaction CheckUIInteraction(ui_context *UI, rect2 Rect)
 {
 	ui_interaction interaction = {};
 
-	interaction.Hover = PointInRect2(Mouse->Position, PanelRect);
-	if (interaction.Hover)
+	if (PointInRect2(UI->Mouse->Position, Rect))
 	{
-		interaction.Click = Mouse->Pressed;
-		interaction.Scroll = Mouse->Wheel * SCROLL;
+		interaction.Type = UIInteraction_Hover;
+		if (UI->Mouse->Pressed)
+		{
+			interaction.Type = UIInteraction_Click;
+		}
+		interaction.Scroll = (real32)UI->Mouse->Wheel / (real32)UI_WHEEL_DELTA;
 	}
 
 	return interaction;
 }
 
-internal Layout StartLayout(ui_context* UI, Vector2 Pivot)
+internal Layout CreateLayout(ui_context *UI, Vector2 Pivot)
 {
-	Vector2 pivot = Vector2(Pivot.X * UI->DpiRatio, Pivot.Y * UI->DpiRatio);
+	Layout layout = {};
 
-	Layout layout;
-	layout.Pivot = pivot;
+	layout.Pivot    = Vector2(Pivot.X * UI->DpiRatio, Pivot.Y * UI->DpiRatio);
+	layout.DpiRatio = UI->DpiRatio;
 
 	return layout;
 }
 
-internal void EndLayout()
+internal rect2 LayoutRow(Layout *layout, real32 Height)
 {
+	rect2 rect = rect2(layout->Pivot, Vector2(layout->Pivot.X + layout->Width, layout->Pivot.Y + Height * layout->DpiRatio));
 
+	layout->Pivot.Y = rect.Max.Y;
+
+	return rect;
+}
+
+internal rect2 ClipRect(rect2 Rect, rect2 Clip)
+{
+	Rect.Min.X = Maximum(Rect.Min.X, Clip.Min.X);
+	Rect.Min.Y = Maximum(Rect.Min.Y, Clip.Min.Y);
+	Rect.Max.X = Minimum(Rect.Max.X, Clip.Max.X);
+	Rect.Max.Y = Minimum(Rect.Max.Y, Clip.Max.Y);
+
+	return Rect;
 }
 
 internal void Panel(ui_context *UI, rect2 PanelRect)
 {
-	rect2 rect = rect2(PanelRect.Min * UI->DpiRatio, PanelRect.Max * UI->DpiRatio);
-	Vector4 color = UI->Style.PanelColor;
+	rect2 rect = DpiScaleRect(UI, PanelRect);
 
-	PushRenderRect(UI->Cmd, rect.Min, rect.Max, color);
+	PushRenderRect(UI->Cmd, rect.Min, rect.Max, UI->Style.PanelColor);
 }
 
-internal void Button(ui_context* UI, rect2 ButtonRect)
+internal bool32 Button(ui_context *UI, Layout layout, rect2 ButtonRect, bool32 Selected)
 {
-	rect2 rect = rect2(ButtonRect.Min * UI->DpiRatio, ButtonRect.Max * UI->DpiRatio);
-	Vector4 color = UI->Style.PanelColor;
+	if (layout.Clipped)
+	{
+		ButtonRect = ClipRect(ButtonRect, layout.Clip);
 
-	ui_interaction interaction = CheckUIInteraction(UI->Mouse, rect);
+		if (ButtonRect.Max.X <= ButtonRect.Min.X || ButtonRect.Max.Y <= ButtonRect.Min.Y)
+		{
+			return false;
+		}
+	}
 
-	if (interaction.Hover)
+	rect2 rect = ButtonRect;
+
+	ui_interaction interaction = CheckUIInteraction(UI, ButtonRect);
+
+	Vector4 color = Selected ? UI->Style.ActiveColor : UI->Style.WidgetColor;
+	bool32 clicked = false;
+
+	if (interaction.Type != UIInteraction_None)
 	{
 		UI->Mouse->OverUI = true;
+	}
+
+	if (interaction.Type == UIInteraction_Hover)
+	{
 		color = UI->Style.HotColor;
 	}
 
-	if (interaction.Click)
+	if (interaction.Type == UIInteraction_Click)
 	{
-		UI->Mouse->OverUI = true;
-		color = UI->Style.ActiveColor;
+		color   = UI->Style.ActiveColor;
+		clicked = true;
 	}
 
 	PushRenderRect(UI->Cmd, rect.Min, rect.Max, color);
+
+	return clicked;
 }
 
-internal void ScrollList(ui_context* UI, rect2 ScrollRect)
+internal Layout ScrollList(ui_context *UI, Layout layout, rect2 ScrollRect)
 {
-	rect2 rect = rect2(ScrollRect.Min * UI->DpiRatio, ScrollRect.Max * UI->DpiRatio);
-	Vector4 color = UI->Style.PanelColor;
+	rect2 rect = DpiScaleRect(UI, ScrollRect);
 
-	ui_interaction interaction = CheckUIInteraction(UI->Mouse, rect);
+	ui_interaction interaction = CheckUIInteraction(UI, rect);
+	if (interaction.Type != UIInteraction_None)
+	{
+		UI->Mouse->OverUI = true;
+	}
 
-	rect.Min.Y += interaction.Scroll;
-	rect.Max.Y += interaction.Scroll;
+	UI->Scroll -= interaction.Scroll * UI_WHEEL_STEP * UI->DpiRatio;
+	UI->Scroll  = Maximum(0.0f, UI->Scroll);
 
-	PushRenderRect(UI->Cmd, rect.Min, rect.Max, color);
+	layout.Pivot   = Vector2(rect.Min.X, rect.Min.Y - UI->Scroll);
+	layout.Width   = rect.Max.X - rect.Min.X;
+	layout.Clip    = rect;
+	layout.Clipped = true;
+
+	PushRenderRect(UI->Cmd, rect.Min, rect.Max, UI->Style.PanelColor);
+
+	return layout;
 }
 
-internal void Image(ui_context* UI, rect2 PanelRect)
+internal void Image(ui_context *UI, rect2 PanelRect)
 {
-	rect2 rect = rect2(PanelRect.Min * UI->DpiRatio, PanelRect.Max * UI->DpiRatio);
+	rect2 rect = DpiScaleRect(UI, PanelRect);
 }

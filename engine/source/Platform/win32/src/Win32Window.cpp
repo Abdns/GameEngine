@@ -124,7 +124,7 @@ void Win32ProcessPendingMessages(win32_state* State, game_input* Input)
 
             case WM_MOUSEWHEEL:
             {
-                Input->MouseZ += GET_WHEEL_DELTA_WPARAM(Message.wParam) / WHEEL_DELTA;
+                Input->MouseZ += GET_WHEEL_DELTA_WPARAM(Message.wParam);
             } break;
 
             case WM_SYSKEYDOWN:
