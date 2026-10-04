@@ -7,7 +7,6 @@
 #include "AssetStore.cpp"
 #include "Material.cpp"
 #include "EntityStorage.cpp"
-#include "Preset.cpp"
 #include "Physics.cpp"
 #include "Camera.cpp"
 #include "UI.cpp"
@@ -24,7 +23,6 @@ struct game_state
     asset_store    Assets;
     materials      Materials;
     entity_storage Storage;
-    preset_table   Presets;
     physics_state  Physics;
 
     uint32 SkyHandle;

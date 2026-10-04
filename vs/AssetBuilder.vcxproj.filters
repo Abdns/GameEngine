@@ -79,9 +79,6 @@
     <None Include="..\assets\models\TestShapes\TestShapes.bin">
       <Filter>assets\models\TestShapes</Filter>
     </None>
-    <None Include="..\assets\models\TestShapes\TestTexture.tga">
-      <Filter>assets\models\TestShapes</Filter>
-    </None>
     <None Include="..\assets\models\Gizmo\Gizmo.gltf">
       <Filter>assets\models\Gizmo</Filter>
     </None>
@@ -89,6 +86,12 @@
       <Filter>assets\models\Gizmo</Filter>
     </None>
     <None Include="..\assets\images\sky.hdr">
+      <Filter>assets\images</Filter>
+    </None>
+    <None Include="..\assets\images\TestTexture.tga">
+      <Filter>assets\images</Filter>
+    </None>
+    <None Include="..\assets\images\font_atlas.tga">
       <Filter>assets\images</Filter>
     </None>
     <None Include="..\EngaAsset\assets.enga">

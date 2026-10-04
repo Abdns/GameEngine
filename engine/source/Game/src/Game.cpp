@@ -12,7 +12,6 @@
 #include "Input.cpp"
 #include "Camera.cpp"
 #include "Material.cpp"
-#include "Preset.cpp"
 #include "UI.cpp"
 #include "Gizmo.cpp"
 
@@ -141,25 +140,6 @@ internal uint32 PickAndShoot(game_state *GameState, sim_region *Region, ray Pick
     return HitIndex;
 }
 
-internal void InitPresets(game_state *GameState, game_memory *Memory)
-{
-    preset_table *Presets = &GameState->Presets;
-
-    if (!LoadPresets(Presets, Memory, PRESET_PATH))
-    {
-        material Textured = UnlitMaterial(Vector4(1.0f, 1.0f, 1.0f, 1.0f), 0);
-
-        AddPreset(Presets, MakePreset("cube", Entity_Prop, "cube",   "test", TransformAt(Vector3(0.0f, 3.0f, 0.0f)), false, Textured));
-        AddPreset(Presets, MakePreset("ball", Entity_Ball, "sphere", "test", TransformIdentity(), false, Textured));
-
-#if ENGINE_INTERNAL
-        SavePresets(Presets, Memory, PRESET_PATH);
-#endif
-    }
-
-    LinkPresets(Presets, &GameState->Assets, &GameState->Materials);
-}
-
 internal void InitTools(game_state *GameState)
 {
     asset_store *Assets    = &GameState->Assets;
@@ -170,11 +150,13 @@ internal void InitTools(game_state *GameState)
     AxisMeshes[1] = GetAssetMeshHandle(Assets, "gizmo_axis_y");
     AxisMeshes[2] = GetAssetMeshHandle(Assets, "gizmo_axis_z");
 
-    uint32 GizmoMaterial = AddMaterial(Materials, OverlayMaterial(Vector4(1.0f, 1.0f, 1.0f, 1.0f), GetAssetTextureHandle(Assets, "test")));
+    uint32 GizmoMaterial = AddMaterial(Materials, OverlayMaterial(Vector4(1.0f, 1.0f, 1.0f, 1.0f), GetAssetTextureHandle(Assets, "TestTexture")));
 
     GameState->UI.Style = DefaultUIStyle();
     GameState->Gizmo.Style    = DefaultGizmoStyle(AxisMeshes, GizmoMaterial);
     GameState->Gizmo.Selected = ENTITY_STORAGE_NONE;
+
+    //uint32 FontTexture = GetAssetTextureHandle(&GameState->Assets, "font_atlas");
 }
 
 internal void BuildTestScene(game_state *GameState)
@@ -182,7 +164,7 @@ internal void BuildTestScene(game_state *GameState)
     asset_store *Assets    = &GameState->Assets;
     materials   *Materials = &GameState->Materials;
 
-    uint32 TestTextureHandle = GetAssetTextureHandle(Assets, "test");
+    uint32 TestTextureHandle = GetAssetTextureHandle(Assets, "TestTexture");
 
     GameState->SpawnMaterialHandles[0] = AddMaterial(Materials, UnlitMaterial(Vector4(1.0f, 1.0f, 1.0f, 1.0f), TestTextureHandle));
     GameState->SpawnMaterialHandles[1] = GameState->SpawnMaterialHandles[0];
@@ -238,7 +220,6 @@ internal void InitGame(game_memory *Memory, game_state *GameState, render_comman
 
     InitTools(GameState);
     BuildTestScene(GameState);
-    InitPresets(GameState, Memory);
     PushMaterialsToRender(&GameState->Materials, RenderCommands);    
     
     InitCamera(&GameState->Camera, MapIntoChunkSpace(GameState->World, WorldOrigin(), Vector3(0.0f, 0.0f, 4.0f)), DegToRad(75.0f));

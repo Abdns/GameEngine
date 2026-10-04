@@ -28,5 +28,5 @@
     {"name": "sphere", "primitives": [{"attributes": {"POSITION": 3, "TEXCOORD_0": 4}, "indices": 5}]},
     {"name": "plane", "primitives": [{"attributes": {"POSITION": 6, "TEXCOORD_0": 7}, "indices": 8}]}
   ],
-  "images": [{"name": "test", "uri": "TestTexture.tga"}]
+  "images": [{"name": "TestTexture", "uri": "../../images/TestTexture.tga"}]
 }

@@ -1,0 +1,20 @@
+# Visual Studio extension: VSERunOnSave (Bayaraa).
+# Build settings, including HOT_RELOAD, live in build.bat.
+root = true
+
+[*.{cpp,c,h,hpp,inl}]
+ext_command_after = cmd.exe /d /s /c ""$(SolutionDir)\..\build.bat" on-save"
+ext_command_timeout = 120
+
+# These files belong to Engine.exe or offline tools, not Game.dll.
+[engine/source/{Platform,Graphics}/**]
+ext_command_after = unset
+
+[tools/**]
+ext_command_after = unset
+
+[build/**]
+ext_command_after = unset
+
+[vs/**]
+ext_command_after = unset

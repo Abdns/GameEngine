@@ -69,6 +69,9 @@
     <ClCompile Include="..\engine\source\Graphics\Vulkan\VulkanRenderer.cpp">
       <Filter>engine\source\Graphics\Vulkan</Filter>
     </ClCompile>
+    <ClCompile Include="..\engine\source\Game\src\UI\Text.cpp">
+      <Filter>engine\source\Game\src\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanCore.cpp">
@@ -245,5 +248,6 @@
       <Filter>EngaAsset</Filter>
     </None>
     <None Include="..\build.bat" />
+    <None Include="..\.vserunonsave" />
   </ItemGroup>
 </Project>

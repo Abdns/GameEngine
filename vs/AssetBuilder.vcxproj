@@ -49,10 +49,11 @@
   <ItemGroup>
     <None Include="..\assets\models\TestShapes\TestShapes.gltf" />
     <None Include="..\assets\models\TestShapes\TestShapes.bin" />
-    <None Include="..\assets\models\TestShapes\TestTexture.tga" />
     <None Include="..\assets\models\Gizmo\Gizmo.gltf" />
     <None Include="..\assets\models\Gizmo\Gizmo.bin" />
     <None Include="..\assets\images\sky.hdr" />
+    <None Include="..\assets\images\TestTexture.tga" />
+    <None Include="..\assets\images\font_atlas.tga" />
     <None Include="..\EngaAsset\assets.enga" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

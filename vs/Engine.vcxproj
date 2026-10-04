@@ -32,6 +32,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\engine\source\Game\src\Game.cpp" />
+    <ClCompile Include="..\engine\source\Game\src\UI\Text.cpp" />
     <ClCompile Include="..\engine\source\Platform\win32\Program.cpp" />
     <ClCompile Include="..\engine\source\Graphics\Vulkan\VulkanRenderer.cpp" />
   </ItemGroup>
@@ -96,6 +97,7 @@
     <None Include="..\engine\source\Graphics\Vulkan\shaders\uirect.hlsl" />
     <None Include="..\EngaAsset\assets.enga" />
     <None Include="..\build.bat" />
+    <None Include="..\.vserunonsave" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
