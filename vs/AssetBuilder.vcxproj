@@ -18,12 +18,12 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <NMakeBuildCommandLine>cmd /d /c "cd /d "$(ProjectDir).." &amp;&amp; call "$(ProjectDir)..\build.bat""</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>cmd /d /c "cd /d "$(ProjectDir).." &amp;&amp; call "$(ProjectDir)..\build.bat""</NMakeReBuildCommandLine>
+    <NMakeBuildCommandLine>cmd /d /c "cd /d "$(ProjectDir).." &amp;&amp; call "$(ProjectDir)..\build.bat" assets"</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>cmd /d /c "cd /d "$(ProjectDir).." &amp;&amp; call "$(ProjectDir)..\build.bat" assets"</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>if exist "$(ProjectDir)..\build" rd /s /q "$(ProjectDir)..\build"</NMakeCleanCommandLine>
     <NMakeOutput>$(ProjectDir)..\build\AssetBuilder.exe</NMakeOutput>
     <NMakePreprocessorDefinitions>ENGINE_INTERNAL=1;ENGINE_SLOW=1;ENGINE_WIN32=1;UNICODE;_UNICODE;_DEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
-    <NMakeIncludeSearchPath>$(ProjectDir)..\tools\AssetBuilder;$(ProjectDir)..\shared;$(VC_IncludePath);$(WindowsSDK_IncludePath);$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
+    <NMakeIncludeSearchPath>$(ProjectDir)..\tools\AssetBuilder;$(ProjectDir)..\shared;$(VC_IncludePath);$(WindowsSdkDir_10)Include\$(TargetPlatformVersion)\um;$(WindowsSdkDir_10)Include\$(TargetPlatformVersion)\shared;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
     <LocalDebuggerCommand>$(ProjectDir)..\build\AssetBuilder.exe</LocalDebuggerCommand>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)..\build</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
@@ -35,7 +35,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\tools\AssetBuilder\Loaders\TGA.h" />
-    <ClInclude Include="..\tools\AssetBuilder\Loaders\GLTF.h" />
+    <ClInclude Include="..\tools\AssetBuilder\Loaders\GLB.h" />
     <ClInclude Include="..\tools\AssetBuilder\Loaders\HDR.h" />
     <ClInclude Include="..\tools\AssetBuilder\Loaders\Cubemap.h" />
     <ClInclude Include="..\tools\AssetBuilder\Loaders\Json.h" />
@@ -47,10 +47,8 @@
     <ClInclude Include="..\shared\Win32FileIO.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\assets\models\TestShapes\TestShapes.gltf" />
-    <None Include="..\assets\models\TestShapes\TestShapes.bin" />
-    <None Include="..\assets\models\Gizmo\Gizmo.gltf" />
-    <None Include="..\assets\models\Gizmo\Gizmo.bin" />
+    <None Include="..\assets\models\TestShapes\TestShapes.glb" />
+    <None Include="..\assets\models\Gizmo\Gizmo.glb" />
     <None Include="..\assets\images\sky.hdr" />
     <None Include="..\assets\images\TestTexture.tga" />
     <None Include="..\assets\images\font_atlas.tga" />

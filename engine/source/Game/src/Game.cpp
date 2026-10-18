@@ -75,7 +75,27 @@ internal void BuildMeshShapes(game_state *GameState, memory_arena *Arena)
     }
 }
 
-internal void PushEntitiesToRender(sim_region *Region, render_commands *Commands, real32 Alpha, uint32 HighlightIndex, Vector4 HighlightColor)
+internal void AnimateEntities(sim_region *Region, asset_store *Assets, real32 dt)
+{
+    for (uint32 Index = 0; Index < Region->EntityCount; ++Index)
+    {
+        sim_entity *Entity = &Region->Entities[Index];
+        if (Entity->AnimationHandle == ASSET_HANDLE_NONE)
+        {
+            continue;
+        }
+
+        real32 Duration = Assets->AnimationDuration[Entity->AnimationHandle];
+
+        Entity->AnimationTime += dt;
+        while (Duration > 0.0f && Entity->AnimationTime >= Duration)
+        {
+            Entity->AnimationTime -= Duration;
+        }
+    }
+}
+
+internal void PushEntitiesToRender(sim_region *Region, asset_store *Assets, memory_arena *FrameArena, render_commands *Commands, real32 Alpha, uint32 HighlightIndex, Vector4 HighlightColor)
 {
     for (uint32 Index = 0; Index < Region->EntityCount; ++Index)
     {
@@ -92,7 +112,13 @@ internal void PushEntitiesToRender(sim_region *Region, render_commands *Commands
             Tint = Vector4(HighlightColor.X, HighlightColor.Y, HighlightColor.Z, Tint.W);
         }
 
-        PushRenderMesh(Commands, SimEntityRenderTransform(Entity, Alpha), Tint, Entity->MeshHandle, Entity->MaterialHandle);
+        enga_vertex *PosedVertices = 0;
+        if (Entity->AnimationHandle != ASSET_HANDLE_NONE)
+        {
+            PosedVertices = AssetPoseMesh(Assets, FrameArena, Entity->MeshHandle, Entity->AnimationHandle, Entity->AnimationTime);
+        }
+
+        PushRenderPosedMesh(Commands, SimEntityRenderTransform(Entity, Alpha), Tint, Entity->MeshHandle, Entity->MaterialHandle, PosedVertices);
     }
 }
 
@@ -190,6 +216,12 @@ internal void BuildTestScene(game_state *GameState)
 
     AddEntity(GameState, Entity_Prop, TransformAt(Vector3(-2.5f, 0.0f, 0.0f)), GameState->SpawnMeshHandles[1], LitHandle, false, 0);
     AddEntity(GameState, Entity_Prop, TransformAt(Vector3( 2.5f, 0.0f, 0.0f)), GameState->SpawnMeshHandles[0], LitHandle, false, 0);
+
+    uint32 Rigged = AddEntity(GameState, Entity_Prop, TransformAt(Vector3(0.0f, -2.1f, -2.0f)), GetAssetMeshHandle(Assets, "RiggedColumn"), LitHandle, true, "rigged column");
+    if (Rigged != ENTITY_STORAGE_NONE)
+    {
+        GetLowEntity(&GameState->Storage, Rigged)->SimVariant.AnimationHandle = GetAssetAnimationHandle(Assets, "RiggedColumnBend");
+    }
 }
 
 internal void InitGame(game_memory *Memory, game_state *GameState, render_commands *RenderCommands)
@@ -286,7 +318,12 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         PushBindCamera(RenderCommands, CameraView(Camera, CameraSimP), CameraWorldP, Camera->FovY);
         PushBindLight(RenderCommands, Vector3(0.4f, 1.0f, 0.3f));
         PushRenderSkybox(RenderCommands, GameState->SkyHandle);
-        PushEntitiesToRender(Region, RenderCommands, RenderAlpha, Gizmo->Selected, Gizmo->Style.Selected);
+        if (!GameState->Paused)
+        {
+            AnimateEntities(Region, &GameState->Assets, Controls->dtForFrame);
+        }
+
+        PushEntitiesToRender(Region, &GameState->Assets, &GameState->FrameArena, RenderCommands, RenderAlpha, Gizmo->Selected, Gizmo->Style.Selected);
     }
     EndSim(Region, &GameState->WorldArena);
 

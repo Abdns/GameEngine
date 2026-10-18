@@ -1,6 +1,8 @@
 #ifndef JSON_H
 #define JSON_H
 
+#include <stdlib.h>
+
 #include "Types.h"
 #include "Memory.h"
 #include "Strings.h"
@@ -15,22 +17,13 @@ enum json_type
     JSON_Object,
 };
 
-struct json_value;
-
-struct json_member
+struct json_token
 {
-    char        *Key;
-    json_value  *Value;
-    json_member *Next;
-};
-
-struct json_value
-{
-    uint32       Type;
-    real64       Number;
-    char        *String;
-    json_member *First;
-    uint32       Count;
+    char   *Text;
+    uint32  Length;
+    uint32  Type;
+    uint32  Count;
+    uint32  Span;
 };
 
 struct json_parser
@@ -38,71 +31,73 @@ struct json_parser
     char         *At;
     char         *End;
     memory_arena *Arena;
+    json_token   *Tokens;
+    uint32        TokenCount;
     bool32        Error;
 };
 
-internal json_value *JsonParseValue(json_parser *P);
-
-internal void JsonSkipWhitespace(json_parser *P)
+internal void JsonSkipWhitespace(json_parser *Parser)
 {
-    while (P->At < P->End && (*P->At == ' ' || *P->At == '\t' || *P->At == '\r' || *P->At == '\n'))
+    while (Parser->At < Parser->End && (*Parser->At == ' ' || *Parser->At == '\t' || *Parser->At == '\r' || *Parser->At == '\n'))
     {
-        P->At++;
+        Parser->At++;
     }
 }
 
-internal bool32 JsonExpect(json_parser *P, char C)
+internal char JsonPeekChar(json_parser *Parser)
 {
-    JsonSkipWhitespace(P);
-    if (P->At < P->End && *P->At == C)
+    JsonSkipWhitespace(Parser);
+    return (Parser->At < Parser->End) ? *Parser->At : 0;
+}
+
+internal bool32 JsonExpect(json_parser *Parser, char C)
+{
+    if (JsonPeekChar(Parser) == C)
     {
-        P->At++;
+        Parser->At++;
+
         return true;
     }
 
-    P->Error = true;
+    Parser->Error = true;
+
     return false;
 }
 
-internal json_value *JsonNewValue(json_parser *P, uint32 Type)
+internal json_token *JsonPushToken(json_parser *Parser, uint32 Type)
 {
-    json_value *Result = PushStruct(P->Arena, json_value);
-    ZeroStruct(*Result);
-    Result->Type = Type;
-    return Result;
+    json_token *Token = PushStruct(Parser->Arena, json_token);
+    if (!Parser->Tokens)
+    {
+        Parser->Tokens = Token;
+    }
+    Assert(Token == Parser->Tokens + Parser->TokenCount);
+
+    ZeroStruct(*Token);
+    Token->Type = Type;
+    Token->Text = Parser->At;
+
+    Parser->TokenCount++;
+
+    return Token;
 }
 
-internal char *JsonParseString(json_parser *P)
+internal void JsonParseString(json_parser *P)
 {
     if (!JsonExpect(P, '"'))
     {
-        return 0;
+        return;
     }
 
-    char *Start = P->At;
+    json_token *Token = JsonPushToken(P, JSON_String);
+    char *Out = P->At;
     while (P->At < P->End && *P->At != '"')
     {
-        if (*P->At == '\\')
+        char Ch = *P->At++;
+        if (Ch == '\\' && P->At < P->End)
         {
-            P->At++;
-        }
-        P->At++;
-    }
-
-    Assert(P->At < P->End);
-
-    char *OnePastLast = P->At;
-    P->At++;
-
-    char *Result = PushArray(P->Arena, (memory_size)(OnePastLast - Start) + 1, char);
-    uint32 Length = 0;
-    for (char *C = Start; C < OnePastLast; ++C)
-    {
-        char Ch = *C;
-        if (Ch == '\\' && C + 1 < OnePastLast)
-        {
-            ++C;
-            switch (*C)
+            Ch = *P->At++;
+            switch (Ch)
             {
                 case 'n': Ch = '\n'; break;
                 case 't': Ch = '\t'; break;
@@ -112,259 +107,123 @@ internal char *JsonParseString(json_parser *P)
                 case 'u':
                 {
                     Ch = '?';
-                    C += 4;
-                    if (C >= OnePastLast)
-                    {
-                        C = OnePastLast - 1;
-                    }
-                } break;
-                default:
-                {
-                    Ch = *C;
+                    P->At = (P->End - P->At > 4) ? P->At + 4 : P->End;
                 } break;
             }
         }
-        Result[Length++] = Ch;
+        *Out++ = Ch;
     }
-    Result[Length] = 0;
 
-    return Result;
+    if (P->At >= P->End)
+    {
+        P->Error = true;
+        return;
+    }
+
+    *Out = 0;
+    Token->Length = (uint32)(Out - Token->Text);
+    Token->Span   = 1;
+    P->At++;
 }
 
-internal real64 JsonParseNumber(json_parser *P)
+internal void JsonParseLiteral(json_parser *P, uint32 Type, const char *Word)
 {
-    real64 Sign = 1.0;
-    if (P->At < P->End && *P->At == '-')
-    {
-        Sign = -1.0;
-        P->At++;
-    }
-
-    real64 Value = 0.0;
-    while (P->At < P->End && *P->At >= '0' && *P->At <= '9')
-    {
-        Value = Value * 10.0 + (*P->At - '0');
-        P->At++;
-    }
-
-    if (P->At < P->End && *P->At == '.')
-    {
-        P->At++;
-        real64 Scale = 0.1;
-        while (P->At < P->End && *P->At >= '0' && *P->At <= '9')
-        {
-            Value += Scale * (*P->At - '0');
-            Scale *= 0.1;
-            P->At++;
-        }
-    }
-
-    if (P->At < P->End && (*P->At == 'e' || *P->At == 'E'))
-    {
-        P->At++;
-        bool32 ExpNegative = false;
-        if (P->At < P->End && (*P->At == '+' || *P->At == '-'))
-        {
-            ExpNegative = (*P->At == '-');
-            P->At++;
-        }
-
-        int32 Exp = 0;
-        while (P->At < P->End && *P->At >= '0' && *P->At <= '9')
-        {
-            Exp = Exp * 10 + (*P->At - '0');
-            P->At++;
-        }
-
-        real64 Power = 1.0;
-        for (int32 i = 0; i < Exp; ++i)
-        {
-            Power *= 10.0;
-        }
-        Value = ExpNegative ? Value / Power : Value * Power;
-    }
-
-    return Sign * Value;
-}
-
-internal bool32 JsonMatch(json_parser *P, const char *Word)
-{
-    char *At = P->At;
+    json_token *Token = JsonPushToken(P, Type);
     while (*Word)
     {
-        Assert(At < P->End && *At == *Word);
-
-        At++;
+        if (P->At >= P->End || *P->At != *Word)
+        {
+            P->Error = true;
+            return;
+        }
+        P->At++;
         Word++;
     }
 
-    P->At = At;
-    return true;
+    Token->Length = (uint32)(P->At - Token->Text);
+    Token->Span   = 1;
 }
 
-internal void JsonAppendMember(json_parser *P, json_value *Container, json_member **Last, char *Key, json_value *Value)
+internal void JsonParseNumber(json_parser *P)
 {
-    json_member *Member = PushStruct(P->Arena, json_member);
-    Member->Key   = Key;
-    Member->Value = Value;
-    Member->Next  = 0;
-
-    if (*Last)
+    json_token *Token = JsonPushToken(P, JSON_Number);
+    while (P->At < P->End && ((*P->At >= '0' && *P->At <= '9') || *P->At == '-' || *P->At == '+' || *P->At == '.' || *P->At == 'e' || *P->At == 'E'))
     {
-        (*Last)->Next = Member;
+        P->At++;
+    }
+
+    Token->Length = (uint32)(P->At - Token->Text);
+    Token->Span   = 1;
+    if (!Token->Length)
+    {
+        P->Error = true;
+    }
+}
+
+internal void JsonParseValue(json_parser *Parser)
+{
+    char JChar = JsonPeekChar(Parser);
+
+    if (JChar == '{' || JChar == '[')
+    {
+        char Close = (JChar == '{') ? '}' : ']';
+
+        uint32 Index = Parser->TokenCount;
+        JsonPushToken(Parser, (JChar == '{') ? JSON_Object : JSON_Array);
+        Parser->At++;
+
+        while (!Parser->Error)
+        {
+            if (JsonPeekChar(Parser) == Close)
+            {
+                Parser->At++;
+                break;
+            }
+            if (Parser->Tokens[Index].Count)
+            {
+                JsonExpect(Parser, ',');
+            }
+            if (JChar == '{')
+            {
+                JsonParseString(Parser);
+                JsonExpect(Parser, ':');
+            }
+            JsonParseValue(Parser);
+            Parser->Tokens[Index].Count++;
+        }
+
+        Parser->Tokens[Index].Span = Parser->TokenCount - Index;
+    }
+    else if (JChar == '"')
+    {
+        JsonParseString(Parser);
+    }
+    else if (JChar == 't')
+    {
+        JsonParseLiteral(Parser, JSON_Bool, "true");
+    }
+    else if (JChar == 'f')
+    {
+        JsonParseLiteral(Parser, JSON_Bool, "false");
+    }
+    else if (JChar == 'n')
+    {
+        JsonParseLiteral(Parser, JSON_Null, "null");
     }
     else
     {
-        Container->First = Member;
-    }
-    *Last = Member;
-    Container->Count++;
-}
-
-internal json_value *JsonParseObject(json_parser *P)
-{
-    json_value *Result = JsonNewValue(P, JSON_Object);
-    P->At++;
-
-    JsonSkipWhitespace(P);
-    if (P->At < P->End && *P->At == '}')
-    {
-        P->At++;
-        return Result;
-    }
-
-    json_member *Last = 0;
-    for (;;)
-    {
-        char *Key = JsonParseString(P);
-        if (P->Error || !JsonExpect(P, ':'))
-        {
-            return Result;
-        }
-
-        json_value *Value = JsonParseValue(P);
-        if (P->Error)
-        {
-            return Result;
-        }
-
-        JsonAppendMember(P, Result, &Last, Key, Value);
-
-        JsonSkipWhitespace(P);
-        if (P->At < P->End && *P->At == ',')
-        {
-            P->At++;
-            continue;
-        }
-        if (P->At < P->End && *P->At == '}')
-        {
-            P->At++;
-            return Result;
-        }
-
-        Assert(!"malformed JSON object");
-        return Result;
+        JsonParseNumber(Parser);
     }
 }
 
-internal json_value *JsonParseArray(json_parser *P)
-{
-    json_value *Result = JsonNewValue(P, JSON_Array);
-    P->At++;
-
-    JsonSkipWhitespace(P);
-    if (P->At < P->End && *P->At == ']')
-    {
-        P->At++;
-        return Result;
-    }
-
-    json_member *Last = 0;
-    for (;;)
-    {
-        json_value *Value = JsonParseValue(P);
-        if (P->Error)
-        {
-            return Result;
-        }
-
-        JsonAppendMember(P, Result, &Last, 0, Value);
-
-        JsonSkipWhitespace(P);
-        if (P->At < P->End && *P->At == ',')
-        {
-            P->At++;
-            continue;
-        }
-        if (P->At < P->End && *P->At == ']')
-        {
-            P->At++;
-            return Result;
-        }
-
-        Assert(!"malformed JSON array");
-        return Result;
-    }
-}
-
-internal json_value *JsonParseValue(json_parser *P)
-{
-    JsonSkipWhitespace(P);
-    Assert(P->At < P->End);
-
-    char C = *P->At;
-    if (C == '{')
-    {
-        return JsonParseObject(P);
-    }
-    if (C == '[')
-    {
-        return JsonParseArray(P);
-    }
-    if (C == '"')
-    {
-        json_value *Result = JsonNewValue(P, JSON_String);
-        Result->String = JsonParseString(P);
-        return Result;
-    }
-    if (C == 't')
-    {
-        json_value *Result = JsonNewValue(P, JSON_Bool);
-        Result->Number = 1.0;
-        JsonMatch(P, "true");
-        return Result;
-    }
-    if (C == 'f')
-    {
-        json_value *Result = JsonNewValue(P, JSON_Bool);
-        JsonMatch(P, "false");
-        return Result;
-    }
-    if (C == 'n')
-    {
-        json_value *Result = JsonNewValue(P, JSON_Null);
-        JsonMatch(P, "null");
-        return Result;
-    }
-    if (C == '-' || (C >= '0' && C <= '9'))
-    {
-        json_value *Result = JsonNewValue(P, JSON_Number);
-        Result->Number = JsonParseNumber(P);
-        return Result;
-    }
-
-    Assert(!"unexpected character in JSON");
-    return 0;
-}
-
-internal json_value *JsonParse(memory_arena *Arena, void *Data, uint32 Size, uint32 *OutErrorOffset)
+internal json_token *JsonParse(memory_arena *Arena, void *Data, uint32 Size, uint32 *OutErrorOffset)
 {
     json_parser Parser = {};
     Parser.At    = (char *)Data;
     Parser.End   = Parser.At + Size;
     Parser.Arena = Arena;
 
-    json_value *Result = JsonParseValue(&Parser);
+    JsonParseValue(&Parser);
     if (Parser.Error)
     {
         if (OutErrorOffset)
@@ -374,48 +233,71 @@ internal json_value *JsonParse(memory_arena *Arena, void *Data, uint32 Size, uin
         return 0;
     }
 
-    return Result;
+    return Parser.Tokens;
 }
 
-internal json_value *JsonGet(json_value *Object, const char *Key)
+internal json_token *JsonGet(json_token *Object, const char *Key)
 {
     if (Object && Object->Type == JSON_Object)
     {
-        for (json_member *Member = Object->First; Member; Member = Member->Next)
+        json_token *Token = Object + 1;
+        for (uint32 i = 0; i < Object->Count; ++i)
         {
-            if (StringsAreEqual(Member->Key, Key))
+            json_token *Value = Token + 1;
+            if (StringsAreEqual(Token->Text, Key))
             {
-                return Member->Value;
+                return Value;
             }
+            Token = Value + Value->Span;
         }
     }
 
     return 0;
 }
 
-internal json_value *JsonAt(json_value *Array, uint32 Index)
+internal json_token *JsonAt(json_token *Array, uint32 Index)
 {
-    if (Array && Index < Array->Count)
+    if (Array && Array->Type == JSON_Array && Index < Array->Count)
     {
-        json_member *Member = Array->First;
+        json_token *Token = Array + 1;
         for (uint32 i = 0; i < Index; ++i)
         {
-            Member = Member->Next;
+            Token += Token->Span;
         }
-        return Member->Value;
+        return Token;
     }
 
     return 0;
 }
 
-internal uint32 JsonU32(json_value *Value, uint32 Default)
+internal uint32 JsonU32(json_token *Value, uint32 Default)
 {
-    return (Value && Value->Type == JSON_Number) ? (uint32)Value->Number : Default;
+    return (Value && Value->Type == JSON_Number) ? (uint32)strtod(Value->Text, 0) : Default;
 }
 
-internal char *JsonCString(json_value *Value)
+internal real32 JsonR32(json_token *Value, real32 Default)
 {
-    return (Value && Value->Type == JSON_String) ? Value->String : 0;
+    return (Value && Value->Type == JSON_Number) ? (real32)strtod(Value->Text, 0) : Default;
+}
+
+internal bool32 JsonR32Array(json_token *Array, real32 *Out, uint32 Count)
+{
+    if (!Array || Array->Type != JSON_Array || Array->Count != Count)
+    {
+        return false;
+    }
+
+    for (uint32 i = 0; i < Count; ++i)
+    {
+        Out[i] = JsonR32(JsonAt(Array, i), 0.0f);
+    }
+
+    return true;
+}
+
+internal char *JsonCString(json_token *Value)
+{
+    return (Value && Value->Type == JSON_String) ? Value->Text : 0;
 }
 
 #endif

@@ -41,7 +41,7 @@
     <ClInclude Include="..\tools\AssetBuilder\Loaders\TGA.h">
       <Filter>tools\AssetBuilder\Loaders</Filter>
     </ClInclude>
-    <ClInclude Include="..\tools\AssetBuilder\Loaders\GLTF.h">
+    <ClInclude Include="..\tools\AssetBuilder\Loaders\GLB.h">
       <Filter>tools\AssetBuilder\Loaders</Filter>
     </ClInclude>
     <ClInclude Include="..\tools\AssetBuilder\Loaders\HDR.h">
@@ -73,16 +73,10 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\assets\models\TestShapes\TestShapes.gltf">
+    <None Include="..\assets\models\TestShapes\TestShapes.glb">
       <Filter>assets\models\TestShapes</Filter>
     </None>
-    <None Include="..\assets\models\TestShapes\TestShapes.bin">
-      <Filter>assets\models\TestShapes</Filter>
-    </None>
-    <None Include="..\assets\models\Gizmo\Gizmo.gltf">
-      <Filter>assets\models\Gizmo</Filter>
-    </None>
-    <None Include="..\assets\models\Gizmo\Gizmo.bin">
+    <None Include="..\assets\models\Gizmo\Gizmo.glb">
       <Filter>assets\models\Gizmo</Filter>
     </None>
     <None Include="..\assets\images\sky.hdr">

@@ -8,15 +8,25 @@ rem Changing other settings requires a full build and engine restart.
 set "HOT_RELOAD=1"
 set "ENGINE_INTERNAL=1"
 set "ENGINE_SLOW=1"
-rem Shaders and assets are rebuilt only during a full build.
+rem These toggles apply to full builds. Explicit shaders/assets modes always run.
 set "BUILD_SHADERS=1"
 set "BUILD_ASSETS=1"
 
-rem No argument: full build. "game": DLL only. "on-save": DLL if enabled.
+rem No argument or "all": full build. "game": DLL only.
+rem "shaders" and "assets": just that stage. "on-save": DLL if enabled.
 set "BuildMode=full"
 if "%~1"=="" goto :mode_ready
+if /i "%~1"=="all" goto :mode_ready
 if /i "%~1"=="game" (
     set "BuildMode=game"
+    goto :mode_ready
+)
+if /i "%~1"=="shaders" (
+    set "BuildMode=shaders"
+    goto :mode_ready
+)
+if /i "%~1"=="assets" (
+    set "BuildMode=assets"
     goto :mode_ready
 )
 if /i "%~1"=="on-save" (
@@ -24,7 +34,7 @@ if /i "%~1"=="on-save" (
     set "BuildMode=game"
     goto :mode_ready
 )
-echo Usage: build.bat [game ^| on-save]
+echo Usage: build.bat [game ^| shaders ^| assets ^| all ^| on-save]
 exit /b 2
 
 :mode_ready
@@ -33,7 +43,7 @@ if not exist "%BuildRoot%build\" mkdir "%BuildRoot%build"
 if not exist "%BuildRoot%build\" exit /b 1
 set "LockAttempts=0"
 
-rem An open file handle serializes saves and full builds; exit releases it.
+rem An open file handle serializes all build modes; exit releases it.
 rem The guard file stays on disk. Its existence does not mean a build is active.
 :acquire_lock
 set "BuildEntered="
@@ -58,10 +68,11 @@ exit /b %ERRORLEVEL%
 
 :build
 set "VSLANG=1033"
-call :setup_compiler
-if errorlevel 1 exit /b 1
 pushd "%BuildRoot%build"
 if errorlevel 1 exit /b 1
+if /i "%BuildMode%"=="shaders" goto :shaders
+call :setup_compiler
+if errorlevel 1 goto :failed
 
 set "WindowsSDKVersion="
 for /f "tokens=2*" %%A in ('reg query "HKLM\SOFTWARE\Microsoft\Windows Kits\Installed Roots" /v KitsRoot10 2^>nul') do set "WindowsSdkDir=%%B"
@@ -81,12 +92,22 @@ set "LIB=%WindowsSdkDir%Lib\%WindowsSDKVersion%ucrt\x64;%WindowsSdkDir%Lib\%Wind
 set "LIBPATH=%WindowsSdkDir%Lib\%WindowsSDKVersion%ucrt\x64;%WindowsSdkDir%Lib\%WindowsSDKVersion%um\x64;%LIBPATH%"
 
 if /i "%BuildMode%"=="game" goto :compiler_flags
+if /i "%BuildMode%"=="assets" goto :compiler_flags
 if not "%BUILD_SHADERS%"=="1" goto :compiler_flags
+
+:shaders
+echo [shaders] Compiling HLSL shaders...
+if not exist "%VULKAN_SDK%\Bin\dxc.exe" (
+    echo Shader compiler not found: "%VULKAN_SDK%\Bin\dxc.exe"
+    goto :failed
+)
 if not exist CompiledShaders mkdir CompiledShaders
+if not exist CompiledShaders goto :failed
 for %%f in (..\engine\source\Graphics\Vulkan\shaders\*.hlsl) do (
     "%VULKAN_SDK%\Bin\dxc.exe" -spirv -fvk-use-dx-layout -fspv-target-env=vulkan1.3 -T vs_6_0 -E VSMain "%%f" -Fo "CompiledShaders\%%~nf.vert.spv" || goto :failed
     "%VULKAN_SDK%\Bin\dxc.exe" -spirv -fvk-use-dx-layout -fspv-target-env=vulkan1.3 -T ps_6_0 -E PSMain "%%f" -Fo "CompiledShaders\%%~nf.frag.spv" || goto :failed
 )
+if /i "%BuildMode%"=="shaders" goto :success
 
 :compiler_flags
 set CommonCompilerFlags=-MTd^
@@ -129,8 +150,13 @@ set CommonLinkerFlags=-incremental:no^
  -LIBPATH:"%VULKAN_SDK%\Lib"
 
 if /i "%BuildMode%"=="game" goto :game
+if /i "%BuildMode%"=="assets" goto :assets
 if not "%BUILD_ASSETS%"=="1" goto :game
+
+:assets
+echo [assets] Building AssetBuilder and packing assets...
 if not exist "%BuildRoot%EngaAsset\" mkdir "%BuildRoot%EngaAsset"
+if not exist "%BuildRoot%EngaAsset\" goto :failed
 cl %CommonCompilerFlags%^
  ..\tools\AssetBuilder\AssetBuilder.cpp^
  -FeAssetBuilder.exe^
@@ -138,8 +164,10 @@ cl %CommonCompilerFlags%^
 if errorlevel 1 goto :failed
 .\AssetBuilder.exe
 if errorlevel 1 goto :failed
+if /i "%BuildMode%"=="assets" goto :success
 
 :game
+echo [game] Building Game.dll...
 rem Publish a complete DLL only after a successful compile and link.
 echo WAITING_FOR_PDB > lock.tmp
 del Game_build.dll >nul 2>nul
@@ -158,6 +186,7 @@ if errorlevel 1 goto :failed
 del lock.tmp >nul 2>nul
 if /i "%BuildMode%"=="game" goto :success
 
+echo [platform] Building Engine.exe...
 cl %CommonCompilerFlags%^
  ..\engine\source\Platform\win32\Program.cpp^
  -FmEngine.map^
@@ -175,6 +204,7 @@ cl %CommonCompilerFlags%^
 if errorlevel 1 goto :failed
 
 :success
+echo Build complete: %BuildMode%.
 popd
 exit /b 0
 

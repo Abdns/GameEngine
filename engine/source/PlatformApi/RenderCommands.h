@@ -25,6 +25,7 @@ struct command_render_mesh
     Vector4        Tint;
     uint32         MeshHandle;
     uint32         MaterialHandle;
+    void          *PosedVertices;
 };
 
 struct command_render_skybox
@@ -284,7 +285,7 @@ inline void PushRenderSkybox(render_commands *Commands, uint32 Cubemap)
     }
 }
 
-inline void PushRenderMesh(render_commands *Commands, Matrix4 Transform, Vector4 Tint, uint32 Mesh, uint32 Material)
+inline void PushRenderPosedMesh(render_commands *Commands, Matrix4 Transform, Vector4 Tint, uint32 Mesh, uint32 Material, void *PosedVertices)
 {
     command_render_mesh* cmd = (command_render_mesh *)PushRenderCommand(Commands, Render_Mesh);
     if (cmd)
@@ -293,7 +294,13 @@ inline void PushRenderMesh(render_commands *Commands, Matrix4 Transform, Vector4
         cmd->Tint           = Tint;
         cmd->MeshHandle     = Mesh;
         cmd->MaterialHandle = Material;
+        cmd->PosedVertices  = PosedVertices;
     }
+}
+
+inline void PushRenderMesh(render_commands *Commands, Matrix4 Transform, Vector4 Tint, uint32 Mesh, uint32 Material)
+{
+    PushRenderPosedMesh(Commands, Transform, Tint, Mesh, Material, 0);
 }
 
 #endif

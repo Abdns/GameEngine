@@ -39,6 +39,9 @@ struct sim_entity
     uint32      MaterialHandle;
     Vector4     Tint;
 
+    uint32      AnimationHandle;
+    real32      AnimationTime;
+
     rectangle3  Bounds;
 
     bool32      Updatable;

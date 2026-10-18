@@ -5,7 +5,7 @@
 #include "Strings.h"
 #include "Win32FileIO.h"
 #include "EngaFormat.h"
-#include "Loaders/GLTF.h"
+#include "Loaders/GLB.h"
 #include "Loaders/TGA.h"
 #include "Loaders/HDR.h"
 #include "Loaders/Cubemap.h"
@@ -26,8 +26,10 @@ struct asset_source
     void       *Data;
     union
     {
-        asset_mesh_info  Mesh;
-        asset_image_info Image;
+        asset_mesh_info      Mesh;
+        asset_image_info     Image;
+        asset_skeleton_info  Skeleton;
+        asset_animation_info Animation;
     };
 };
 
@@ -41,29 +43,6 @@ internal file_data ReadAssetFile(const char *Path)
     }
 
     return Result;
-}
-
-internal file_data ReadRelativeFile(const char *BasePath, const char *Uri)
-{
-    char Path[512];
-    uint32 DirLength = 0;
-    for (uint32 i = 0; BasePath[i]; ++i)
-    {
-        if (BasePath[i] == '\\' || BasePath[i] == '/')
-        {
-            DirLength = i + 1;
-        }
-    }
-
-    uint32 At = 0;
-    for (; At < DirLength && At < (uint32)ArrayCount(Path) - 1; ++At)
-    {
-        Path[At] = BasePath[At];
-    }
-    Path[At] = 0;
-    AppendString(Path, (uint32)ArrayCount(Path), At, Uri);
-
-    return ReadAssetFile(Path);
 }
 
 internal void AddAsset(enga_asset_table *Table, asset_source Source)
@@ -84,8 +63,23 @@ internal void AddAsset(enga_asset_table *Table, asset_source Source)
             Assert(Source.Mesh.VertexCount);
 
             Entry->Mesh = Source.Mesh;
-            Entry->Size = (uint64)Source.Mesh.VertexCount * sizeof(enga_vertex) +
-                          (uint64)Source.Mesh.IndexCount * sizeof(uint32);
+            Entry->Size = AssetMeshBytes(Source.Mesh);
+        } break;
+
+        case Asset_Skeleton:
+        {
+            Assert(Source.Skeleton.JointCount);
+
+            Entry->Skeleton = Source.Skeleton;
+            Entry->Size     = (uint64)Source.Skeleton.JointCount * sizeof(enga_joint);
+        } break;
+
+        case Asset_Animation:
+        {
+            Assert(Source.Animation.ChannelCount);
+
+            Entry->Animation = Source.Animation;
+            Entry->Size      = AssetAnimationBytes(Source.Animation);
         } break;
 
         case Asset_Image:
@@ -268,33 +262,42 @@ internal bool32 LoadImages(enga_asset_table *Table, memory_arena *Arena, const c
     return true;
 }
 
-internal void LoadGLTF(enga_asset_table *Table, memory_arena *Arena, const char *Path)
+internal void LoadGLB(enga_asset_table *Table, memory_arena *Arena, const char *Path)
 {
     file_data File = ReadAssetFile(Path);
 
-    gltf_file Gltf = ParseGLTF(Arena, File.Data, File.Size);
-    Assert(Gltf.Root);
+    glb_file Glb = ParseGLB(Arena, File.Data, File.Size);
+    Assert(Glb.Root);
 
-    if (!Gltf.Bin)
+    json_token *Skins = JsonGet(Glb.Root, "skins");
+
+    uint32 SkeletonCount = Skins ? Skins->Count : 0;
+    glb_skeleton *Skeletons = SkeletonCount ? PushArray(Arena, SkeletonCount, glb_skeleton) : 0;
+    for (uint32 SkinIndex = 0; SkinIndex < SkeletonCount; ++SkinIndex)
     {
-        char *Uri = JsonCString(JsonGet(JsonAt(JsonGet(Gltf.Root, "buffers"), 0), "uri"));
-        Assert(Uri);
+        glb_skeleton *Skeleton = &Skeletons[SkinIndex];
+        *Skeleton = GLBSkinSkeleton(Arena, &Glb, JsonAt(Skins, SkinIndex));
+        Assert(Skeleton->Name);
 
-        file_data Bin = ReadRelativeFile(Path, Uri);
+        asset_source SkeletonAsset = {};
+        SkeletonAsset.Type                = Asset_Skeleton;
+        SkeletonAsset.Name                = Skeleton->Name;
+        SkeletonAsset.Data                = Skeleton->Joints;
+        SkeletonAsset.Skeleton.JointCount = Skeleton->JointCount;
+        AddAsset(Table, SkeletonAsset);
 
-        Gltf.Bin     = (uint8 *)Bin.Data;
-        Gltf.BinSize = Bin.Size;
+        DebugLog("AssetBuilder: skeleton '%s' with %u joints\n", Skeleton->Name, Skeleton->JointCount);
     }
 
-    json_value *Meshes = JsonGet(Gltf.Root, "meshes");
-    for (json_member *Member = Meshes ? Meshes->First : 0; Member; Member = Member->Next)
+    json_token *Meshes = JsonGet(Glb.Root, "meshes");
+    for (uint32 MeshIndex = 0; MeshIndex < (Meshes ? Meshes->Count : 0); ++MeshIndex)
     {
-        json_value *Mesh = Member->Value;
+        json_token *Mesh = JsonAt(Meshes, MeshIndex);
 
         char *Name = JsonCString(JsonGet(Mesh, "name"));
         Assert(Name);
 
-        gltf_geometry Geometry = GLTFMeshGeometry(Arena, &Gltf, Mesh);
+        glb_geometry Geometry = GLBMeshGeometry(Arena, &Glb, Mesh);
         Assert(Geometry.Blob);
 
         asset_source MeshAsset = {};
@@ -303,9 +306,47 @@ internal void LoadGLTF(enga_asset_table *Table, memory_arena *Arena, const char 
         MeshAsset.Data             = Geometry.Blob;
         MeshAsset.Mesh.VertexCount = Geometry.VertexCount;
         MeshAsset.Mesh.IndexCount  = Geometry.IndexCount;
+        MeshAsset.Mesh.IsSkinned   = (Geometry.Skin != 0);
         AddAsset(Table, MeshAsset);
     }
 
+    json_token *Animations = JsonGet(Glb.Root, "animations");
+    for (uint32 AnimationIndex = 0; AnimationIndex < (Animations ? Animations->Count : 0); ++AnimationIndex)
+    {
+        json_token *Animation = JsonAt(Animations, AnimationIndex);
+
+        char *Name = JsonCString(JsonGet(Animation, "name"));
+        Assert(Name);
+
+        bool32 Added = false;
+        for (uint32 SkinIndex = 0; SkinIndex < SkeletonCount; ++SkinIndex)
+        {
+            glb_animation Clip = GLBSkeletonAnimation(Arena, &Glb, Animation, &Skeletons[SkinIndex]);
+            if (!Clip.Blob)
+            {
+                continue;
+            }
+
+            asset_source AnimationAsset = {};
+            AnimationAsset.Type                   = Asset_Animation;
+            AnimationAsset.Name                   = Name;
+            AnimationAsset.Data                   = Clip.Blob;
+            AnimationAsset.Animation.Duration     = Clip.Duration;
+            AnimationAsset.Animation.ChannelCount = Clip.ChannelCount;
+            AnimationAsset.Animation.FloatCount   = Clip.FloatCount;
+            AppendString(AnimationAsset.Animation.Skeleton, ENGA_MAX_ASSET_NAME, 0, Skeletons[SkinIndex].Name);
+            AddAsset(Table, AnimationAsset);
+            Added = true;
+
+            DebugLog("AssetBuilder: animation '%s' (%u channels, %.2fs) for skeleton '%s'\n", Name, Clip.ChannelCount, Clip.Duration, Skeletons[SkinIndex].Name);
+            break;
+        }
+
+        if (!Added)
+        {
+            DebugLog("GLB: animation '%s' does not drive any skeleton, skipped\n", Name);
+        }
+    }
 }
 
 internal void CreateENGA(enga_asset_table *Table, const char *Path)
@@ -356,8 +397,9 @@ int main(int ArgCount, char **Args)
 
     enga_asset_table Table = {};
 
-    LoadGLTF(&Table, &Arena, "..\\assets\\models\\TestShapes\\TestShapes.gltf");
-    LoadGLTF(&Table, &Arena, "..\\assets\\models\\Gizmo\\Gizmo.gltf");
+    LoadGLB(&Table, &Arena, "..\\assets\\models\\TestShapes\\TestShapes.glb");
+    LoadGLB(&Table, &Arena, "..\\assets\\models\\Gizmo\\Gizmo.glb");
+    LoadGLB(&Table, &Arena, "..\\assets\\models\\RiggedColumn\\RiggedColumn.glb");
     if (!LoadImages(&Table, &Arena, "..\\assets\\images")) return 1;
     CreateENGA(&Table, OutPath);
 

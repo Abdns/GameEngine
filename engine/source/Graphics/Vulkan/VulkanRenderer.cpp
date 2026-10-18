@@ -343,16 +343,24 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
 
                     ApplyRenderState(context, cmd, &current, &wanted);
 
+                    VkDeviceAddress vertices    = res->VertexBuffer.Address;
+                    int32           firstVertex = (int32)mesh->FirstVertex;
+                    if (meshCmd->PosedVertices)
+                    {
+                        vertices    = BufferWrite(&res->FrameArena, meshCmd->PosedVertices, mesh->VertexCount * sizeof(vertex), 16).Gpu;
+                        firstVertex = 0;
+                    }
+
                     draw_params params = {};
                     params.Model         = meshCmd->Transform;
                     params.Tint          = meshCmd->Tint;
-                    params.Vertices      = res->VertexBuffer.Address;
+                    params.Vertices      = vertices;
                     params.Materials     = res->MaterialBuffer.Address;
                     params.MaterialSlot  = materialSlot;
 
                     PushPassParams(cmd, res, params);
 
-                    vkCmdDrawIndexed(cmd, mesh->IndexCount, 1, mesh->FirstIndex, (int32)mesh->FirstVertex, 0);
+                    vkCmdDrawIndexed(cmd, mesh->IndexCount, 1, mesh->FirstIndex, firstVertex, 0);
                 } break;
             }
         }

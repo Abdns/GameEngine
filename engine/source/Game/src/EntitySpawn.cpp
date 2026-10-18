@@ -23,6 +23,8 @@ internal uint32 AddEntityAt(game_state *GameState, entity_type Type, world_posit
     Stored->SimVariant.Flags          = EntityFlag_Visible | EntityFlag_Simulates | (Static ? EntityFlag_Static : 0);
     Stored->SimVariant.MeshHandle     = MeshHandle;
     Stored->SimVariant.MaterialHandle = MaterialHandle;
+    Stored->SimVariant.AnimationHandle = ASSET_HANDLE_NONE;
+    Stored->SimVariant.AnimationTime   = 0.0f;
 
     SimEntitySetOrientation(&Stored->SimVariant, Pose.Orientation);
     SimEntitySetScale(&Stored->SimVariant, Pose.Scale);
