@@ -360,6 +360,41 @@ internal enga_skin_vertex *AssetMeshSkinVertices(asset_store *Store, uint32 Hand
     return (First != ASSET_HANDLE_NONE) ? &Store->SkinVertices[First] : 0;
 }
 
+internal collision AssetCollisionBox(asset_store *Store, memory_arena *Arena, uint32 MeshHandle)
+{
+    local_persist uint32 BoxIndices[36] =
+    {
+        0, 2, 6,  0, 6, 4,
+        1, 5, 7,  1, 7, 3,
+        0, 4, 5,  0, 5, 1,
+        2, 3, 7,  2, 7, 6,
+        0, 1, 3,  0, 3, 2,
+        4, 6, 7,  4, 7, 5,
+    };
+
+    Vector3 Min = Store->MeshBoundsMin[MeshHandle];
+    Vector3 Max = Store->MeshBoundsMax[MeshHandle];
+
+    Vector3 *Corners = PushArray(Arena, 8, Vector3);
+    for (uint32 Corner = 0; Corner < 8; ++Corner)
+    {
+        Corners[Corner] = Vector3((Corner & 1) ? Max.X : Min.X,
+                                  (Corner & 2) ? Max.Y : Min.Y,
+                                  (Corner & 4) ? Max.Z : Min.Z);
+    }
+
+    collision Box = {};
+    Box.Vertices     = Corners;
+    Box.VertexStride = sizeof(Vector3);
+    Box.VertexCount  = 8;
+    Box.Indices      = BoxIndices;
+    Box.IndexCount   = ArrayCount(BoxIndices);
+    Box.BoundsMin    = Min;
+    Box.BoundsMax    = Max;
+
+    return Box;
+}
+
 internal uint32 AssetAddMesh(asset_store *Store, const char *Name, enga_vertex *Vertices, uint32 VertexCount, uint32 *Indices, uint32 IndexCount, enga_skin_vertex *Skin)
 {
     Assert(Store->MeshCount < Store->MeshCapacity);

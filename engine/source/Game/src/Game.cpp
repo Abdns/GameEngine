@@ -71,7 +71,9 @@ internal void BuildMeshShapes(game_state *GameState, memory_arena *Arena)
 
     for (uint32 MeshHandle = 0; MeshHandle < Assets->MeshCount; ++MeshHandle)
     {
-        PhysicsSetMeshShape(&GameState->Physics, Arena, MeshHandle, AssetCollisionMesh(Assets, MeshHandle));
+        collision Mesh = AssetMeshSkinVertices(Assets, MeshHandle) ? AssetCollisionBox(Assets, Arena, MeshHandle) : AssetCollisionMesh(Assets, MeshHandle);
+
+        PhysicsSetMeshShape(&GameState->Physics, Arena, MeshHandle, Mesh);
     }
 }
 
@@ -221,6 +223,12 @@ internal void BuildTestScene(game_state *GameState)
     if (Rigged != ENTITY_STORAGE_NONE)
     {
         GetLowEntity(&GameState->Storage, Rigged)->SimVariant.AnimationHandle = GetAssetAnimationHandle(Assets, "RiggedColumnBend");
+    }
+
+    uint32 Runner = AddEntity(GameState, Entity_Prop, TransformAt(Vector3(-0.9f, -2.1f, 1.6f)), GetAssetMeshHandle(Assets, "TestMale"), FloorHandle, true, "test male");
+    if (Runner != ENTITY_STORAGE_NONE)
+    {
+        GetLowEntity(&GameState->Storage, Runner)->SimVariant.AnimationHandle = GetAssetAnimationHandle(Assets, "TestMaleRun");
     }
 }
 

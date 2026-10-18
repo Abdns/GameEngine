@@ -1,0 +1,15 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "AssetBuilder\\x64\\Debug\\Memory.obj",
+            "outputs": [
+                "AssetBuilder\\x64\\Debug\\Memory.h.ifc.dt.module.json",
+                "AssetBuilder\\x64\\Debug\\Memory.h.ifc.dt.d.json",
+                "AssetBuilder\\x64\\Debug\\AssetBuilder.pch"
+            ],
+            "requires": []
+        }
+    ]
+}

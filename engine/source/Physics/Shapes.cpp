@@ -65,63 +65,22 @@ internal void ShapeBuildFaces(memory_arena *Arena, collision_shape *Shape)
     Shape->Faces           = PushArray(Arena, Shape->PlaneCount, shape_face);
     Shape->FaceVertexCount = 0;
 
-    temporary_memory Scratch = BeginTemporaryMemory(Arena);
-
-    uint32 *Scratchpad = PushArray(Arena, (memory_size)Shape->PlaneCount * Shape->VertexCount, uint32);
-    real32 *Angles     = PushArray(Arena, Shape->VertexCount, real32);
-
     for (uint32 PlaneIndex = 0; PlaneIndex < Shape->PlaneCount; ++PlaneIndex)
     {
         shape_plane *Plane = &Shape->Planes[PlaneIndex];
-        uint32      *Loop  = &Scratchpad[(memory_size)PlaneIndex * Shape->VertexCount];
         uint32       Count = 0;
-
-        Vector3 Centroid = Vector3(0.0f, 0.0f, 0.0f);
 
         for (uint32 Index = 0; Index < Shape->VertexCount; ++Index)
         {
-            if (Abs(Dot(Plane->Normal, Shape->Vertices[Index]) - Plane->Distance) > SHAPE_FACE_TOLERANCE)
+            if (Abs(Dot(Plane->Normal, Shape->Vertices[Index]) - Plane->Distance) <= SHAPE_FACE_TOLERANCE)
             {
-                continue;
+                ++Count;
             }
-
-            Loop[Count++] = Index;
-            Centroid += Shape->Vertices[Index];
         }
 
         if (Count < 3)
         {
-            Shape->Faces[PlaneIndex].FirstVertex = 0;
-            Shape->Faces[PlaneIndex].VertexCount = 0;
-            continue;
-        }
-
-        Centroid = (1.0f / (real32)Count) * Centroid;
-
-        Vector3 Tangent   = ShapePerpendicular(Plane->Normal);
-        Vector3 Bitangent = Cross(Plane->Normal, Tangent);
-
-        for (uint32 Index = 0; Index < Count; ++Index)
-        {
-            Vector3 Delta = Shape->Vertices[Loop[Index]] - Centroid;
-            Angles[Index] = ATan2(Dot(Delta, Bitangent), Dot(Delta, Tangent));
-        }
-
-        for (uint32 Index = 1; Index < Count; ++Index)
-        {
-            uint32 Vertex = Loop[Index];
-            real32 Angle  = Angles[Index];
-
-            uint32 Scan = Index;
-            while (Scan > 0 && Angles[Scan - 1] > Angle)
-            {
-                Loop[Scan]   = Loop[Scan - 1];
-                Angles[Scan] = Angles[Scan - 1];
-                --Scan;
-            }
-
-            Loop[Scan]   = Vertex;
-            Angles[Scan] = Angle;
+            Count = 0;
         }
 
         Shape->Faces[PlaneIndex].FirstVertex = Shape->FaceVertexCount;
@@ -129,13 +88,12 @@ internal void ShapeBuildFaces(memory_arena *Arena, collision_shape *Shape)
         Shape->FaceVertexCount += Count;
     }
 
-    EndTemporaryMemory(Scratch);
-
     Shape->FaceVertices = PushArray(Arena, Shape->FaceVertexCount, uint32);
 
-    Scratch    = BeginTemporaryMemory(Arena);
-    Scratchpad = PushArray(Arena, (memory_size)Shape->PlaneCount * Shape->VertexCount, uint32);
-    Angles     = PushArray(Arena, Shape->VertexCount, real32);
+    temporary_memory Scratch = BeginTemporaryMemory(Arena);
+
+    uint32 *Loop   = PushArray(Arena, Shape->VertexCount, uint32);
+    real32 *Angles = PushArray(Arena, Shape->VertexCount, real32);
 
     for (uint32 PlaneIndex = 0; PlaneIndex < Shape->PlaneCount; ++PlaneIndex)
     {
@@ -147,8 +105,7 @@ internal void ShapeBuildFaces(memory_arena *Arena, collision_shape *Shape)
             continue;
         }
 
-        uint32 *Loop  = Scratchpad;
-        uint32  Count = 0;
+        uint32 Count = 0;
 
         Vector3 Centroid = Vector3(0.0f, 0.0f, 0.0f);
 
