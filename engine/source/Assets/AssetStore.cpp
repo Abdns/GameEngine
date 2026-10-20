@@ -5,7 +5,6 @@
 #include "Strings.h"
 #include "EngineMath.h"
 #include "EngaFormat.h"
-#include "Collider.h"
 
 #define ASSET_HANDLE_NONE 0xFFFFFFFF
 
@@ -85,111 +84,7 @@ struct asset_store
     uint32  CubemapCount, CubemapCapacity;
 };
 
-struct asset_pack
-{
-    uint8            *Data;
-    uint32            Size;
-    asset_descriptor *Entries;
-    uint32            Count;
-};
-
-internal asset_pack AssetPackFromMemory(void *Data, uint32 Size)
-{
-    asset_pack Result = {};
-
-    if (!Data || Size < sizeof(asset_file_header))
-    {
-        DebugLog("Asset pack is missing or too small\n");
-        return Result;
-    }
-
-    asset_file_header *Header = (asset_file_header *)Data;
-
-    uint64 TableEnd = (uint64)Header->AssetTableOffset + (uint64)Header->AssetCount * sizeof(asset_descriptor);
-    if (Header->Magic != ENGA_MAGIC || Header->Version != ENGA_VERSION || TableEnd > Size)
-    {
-        DebugLog("Asset pack is corrupt\n");
-        return Result;
-    }
-
-    Result.Data    = (uint8 *)Data;
-    Result.Size    = Size;
-    Result.Entries = (asset_descriptor *)((uint8 *)Data + Header->AssetTableOffset);
-    Result.Count   = Header->AssetCount;
-
-    return Result;
-}
-
-internal void *AssetPackData(asset_pack *Pack, asset_descriptor *Entry)
-{
-    if (Entry->Offset + Entry->Size > Pack->Size)
-    {
-        return 0;
-    }
-
-    return Pack->Data + Entry->Offset;
-}
-
-internal asset_store_budget AssetStoreBudgetFromPack(void *PackData, uint32 PackSize)
-{
-    asset_store_budget Budget = {};
-
-    asset_pack Pack = AssetPackFromMemory(PackData, PackSize);
-
-    for (uint32 Index = 0; Index < Pack.Count; ++Index)
-    {
-        asset_descriptor *Entry = &Pack.Entries[Index];
-
-        switch ((asset_type)Entry->Type)
-        {
-            case Asset_Mesh:
-            {
-                Budget.MeshCount++;
-                Budget.VertexCount += Entry->Mesh.VertexCount;
-                Budget.IndexCount  += Entry->Mesh.IndexCount;
-                if (Entry->Mesh.IsSkinned)
-                {
-                    Budget.SkinVertexCount += Entry->Mesh.VertexCount;
-                }
-            } break;
-
-            case Asset_Skeleton:
-            {
-                Budget.SkeletonCount++;
-                Budget.JointCount += Entry->Skeleton.JointCount;
-            } break;
-
-            case Asset_Animation:
-            {
-                Budget.AnimationCount++;
-                Budget.ChannelCount        += Entry->Animation.ChannelCount;
-                Budget.AnimationFloatCount += Entry->Animation.FloatCount;
-            } break;
-
-            case Asset_Image:
-            {
-                uint64 FormatBytes = AssetImageFormatBytes((asset_image_format)Entry->Image.Format);
-
-                if (Entry->Image.Layers == 6)
-                {
-                    Budget.CubemapCount++;
-                    Budget.PixelByteCount += (uint64)Entry->Image.Width * Entry->Image.Width * 6 * FormatBytes;
-                }
-                else
-                {
-                    Budget.TextureCount++;
-                    Budget.PixelByteCount += (uint64)Entry->Image.Width * Entry->Image.Height * FormatBytes;
-                }
-            } break;
-
-            default:
-            {
-            } break;
-        }
-    }
-
-    return Budget;
-}
+// Memory budget and arena allocation.
 
 internal asset_store_budget AssetStoreBudgetAdd(asset_store_budget A, asset_store_budget B)
 {
@@ -314,6 +209,8 @@ internal void AssetStoreInit(asset_store *Store, memory_arena *Arena, asset_stor
     }
 }
 
+// Mesh data.
+
 inline Vector3 EngaVertexPosition(enga_vertex *Vertex)
 {
     return Vector3(Vertex->Pos[0], Vertex->Pos[1], Vertex->Pos[2]);
@@ -329,70 +226,10 @@ internal uint32 *AssetMeshIndices(asset_store *Store, uint32 Handle)
     return &Store->Indices[Store->MeshFirstIndex[Handle]];
 }
 
-internal uint8 *AssetTexturePixels(asset_store *Store, uint32 Handle)
-{
-    return Store->Pixels + Store->TextureFirstByte[Handle];
-}
-
-internal uint8 *AssetCubemapPixels(asset_store *Store, uint32 Handle)
-{
-    return Store->Pixels + Store->CubemapFirstByte[Handle];
-}
-
-internal collision AssetCollisionMesh(asset_store *Store, uint32 MeshHandle)
-{
-    collision Mesh = {};
-
-    Mesh.Vertices     = AssetMeshVertices(Store, MeshHandle);
-    Mesh.VertexStride = sizeof(enga_vertex);
-    Mesh.VertexCount  = Store->MeshVertexCount[MeshHandle];
-    Mesh.Indices      = AssetMeshIndices(Store, MeshHandle);
-    Mesh.IndexCount   = Store->MeshIndexCount[MeshHandle];
-    Mesh.BoundsMin    = Store->MeshBoundsMin[MeshHandle];
-    Mesh.BoundsMax    = Store->MeshBoundsMax[MeshHandle];
-
-    return Mesh;
-}
-
 internal enga_skin_vertex *AssetMeshSkinVertices(asset_store *Store, uint32 Handle)
 {
     uint32 First = Store->MeshFirstSkinVertex[Handle];
     return (First != ASSET_HANDLE_NONE) ? &Store->SkinVertices[First] : 0;
-}
-
-internal collision AssetCollisionBox(asset_store *Store, memory_arena *Arena, uint32 MeshHandle)
-{
-    local_persist uint32 BoxIndices[36] =
-    {
-        0, 2, 6,  0, 6, 4,
-        1, 5, 7,  1, 7, 3,
-        0, 4, 5,  0, 5, 1,
-        2, 3, 7,  2, 7, 6,
-        0, 1, 3,  0, 3, 2,
-        4, 6, 7,  4, 7, 5,
-    };
-
-    Vector3 Min = Store->MeshBoundsMin[MeshHandle];
-    Vector3 Max = Store->MeshBoundsMax[MeshHandle];
-
-    Vector3 *Corners = PushArray(Arena, 8, Vector3);
-    for (uint32 Corner = 0; Corner < 8; ++Corner)
-    {
-        Corners[Corner] = Vector3((Corner & 1) ? Max.X : Min.X,
-                                  (Corner & 2) ? Max.Y : Min.Y,
-                                  (Corner & 4) ? Max.Z : Min.Z);
-    }
-
-    collision Box = {};
-    Box.Vertices     = Corners;
-    Box.VertexStride = sizeof(Vector3);
-    Box.VertexCount  = 8;
-    Box.Indices      = BoxIndices;
-    Box.IndexCount   = ArrayCount(BoxIndices);
-    Box.BoundsMin    = Min;
-    Box.BoundsMax    = Max;
-
-    return Box;
 }
 
 internal uint32 AssetAddMesh(asset_store *Store, const char *Name, enga_vertex *Vertices, uint32 VertexCount, uint32 *Indices, uint32 IndexCount, enga_skin_vertex *Skin)
@@ -445,6 +282,18 @@ internal uint32 AssetAddMesh(asset_store *Store, const char *Name, enga_vertex *
     return Handle;
 }
 
+// Image data.
+
+internal uint8 *AssetTexturePixels(asset_store *Store, uint32 Handle)
+{
+    return Store->Pixels + Store->TextureFirstByte[Handle];
+}
+
+internal uint8 *AssetCubemapPixels(asset_store *Store, uint32 Handle)
+{
+    return Store->Pixels + Store->CubemapFirstByte[Handle];
+}
+
 internal uint32 AssetAddTexture(asset_store *Store, const char *Name, void *Pixels, uint32 Width, uint32 Height, bool32 SRGB, asset_image_format Format)
 {
     Assert(Store->TextureCount < Store->TextureCapacity);
@@ -489,18 +338,7 @@ internal uint32 AssetAddCubemap(asset_store *Store, const char *Name, void *Pixe
     return Handle;
 }
 
-internal uint32 AssetHandleByName(char *Names, uint32 Count, const char *Name)
-{
-    for (uint32 Index = 0; Index < Count; ++Index)
-    {
-        if (StringsAreEqual(&Names[(memory_size)Index * ENGA_MAX_ASSET_NAME], Name))
-        {
-            return Index;
-        }
-    }
-
-    return ASSET_HANDLE_NONE;
-}
+// Skeleton and animation data.
 
 internal uint32 AssetAddSkeleton(asset_store *Store, const char *Name, enga_joint *Joints, uint32 JointCount)
 {
@@ -578,75 +416,19 @@ internal uint32 AssetAddAnimation(asset_store *Store, const char *Name, uint32 S
     return Handle;
 }
 
-internal void AssetStoreLoadPack(asset_store *Store, void *PackData, uint32 PackSize)
+// Name lookup.
+
+internal uint32 AssetHandleByName(char *Names, uint32 Count, const char *Name)
 {
-    asset_pack Pack = AssetPackFromMemory(PackData, PackSize);
-
-    for (uint32 Index = 0; Index < Pack.Count; ++Index)
+    for (uint32 Index = 0; Index < Count; ++Index)
     {
-        asset_descriptor *Entry = &Pack.Entries[Index];
-        void *Data = AssetPackData(&Pack, Entry);
-        Assert(Data);
-
-        switch ((asset_type)Entry->Type)
+        if (StringsAreEqual(&Names[(memory_size)Index * ENGA_MAX_ASSET_NAME], Name))
         {
-            case Asset_Mesh:
-            {
-                memory_size VertexBytes = (memory_size)Entry->Mesh.VertexCount * sizeof(enga_vertex);
-                memory_size IndexBytes  = (memory_size)Entry->Mesh.IndexCount * sizeof(uint32);
-
-                uint8 *Bytes = (uint8 *)Data;
-                enga_skin_vertex *Skin = Entry->Mesh.IsSkinned ? (enga_skin_vertex *)&Bytes[VertexBytes + IndexBytes] : 0;
-
-                AssetAddMesh(Store, Entry->Name, (enga_vertex *)Data, Entry->Mesh.VertexCount, (uint32 *)&Bytes[VertexBytes], Entry->Mesh.IndexCount, Skin);
-            } break;
-
-            case Asset_Skeleton:
-            {
-                AssetAddSkeleton(Store, Entry->Name, (enga_joint *)Data, Entry->Skeleton.JointCount);
-            } break;
-
-            case Asset_Animation:
-            {
-                uint32 SkeletonHandle = AssetHandleByName(Store->SkeletonNames, Store->SkeletonCount, Entry->Animation.Skeleton);
-                if (SkeletonHandle == ASSET_HANDLE_NONE)
-                {
-                    DebugLog("AssetStore: animation %s refers to unknown skeleton %s\n", Entry->Name, Entry->Animation.Skeleton);
-                    break;
-                }
-
-                memory_size ChannelBytes = (memory_size)Entry->Animation.ChannelCount * sizeof(enga_animation_channel);
-
-                AssetAddAnimation(Store, Entry->Name, SkeletonHandle, Entry->Animation.Duration,
-                                  (enga_animation_channel *)Data, Entry->Animation.ChannelCount,
-                                  (real32 *)&((uint8 *)Data)[ChannelBytes], Entry->Animation.FloatCount);
-            } break;
-
-            case Asset_Image:
-            {
-                asset_image_format Format = (asset_image_format)Entry->Image.Format;
-
-                if (Entry->Image.Layers == 6)
-                {
-                    AssetAddCubemap(Store, Entry->Name, Data, Entry->Image.Width, Format);
-                }
-                else
-                {
-                    AssetAddTexture(Store, Entry->Name, Data, Entry->Image.Width, Entry->Image.Height, Entry->Image.IsSRGB, Format);
-                }
-            } break;
-
-            default:
-            {
-                DebugLog("AssetStore: asset %s of type %u has no loader\n", Entry->Name, Entry->Type);
-            } break;
+            return Index;
         }
     }
 
-    DebugLog("AssetStore: %u meshes (%u vertices, %u indices), %u textures, %u cubemaps, %llu pixel bytes\n",
-             Store->MeshCount, Store->VertexUsed, Store->IndexUsed, Store->TextureCount, Store->CubemapCount, Store->PixelByteUsed);
-    DebugLog("AssetStore: %u skinned vertices, %u skeletons (%u joints), %u animations (%u channels)\n",
-             Store->SkinVertexUsed, Store->SkeletonCount, Store->JointUsed, Store->AnimationCount, Store->ChannelUsed);
+    return ASSET_HANDLE_NONE;
 }
 
 internal uint32 GetAssetMeshHandle(asset_store *Store, const char *Name)
@@ -689,133 +471,7 @@ internal uint32 GetAssetAnimationHandle(asset_store *Store, const char *Name)
     return Handle;
 }
 
-internal void AssetSampleAnimation(asset_store *Store, uint32 AnimationHandle, real32 Time, transform *Pose)
-{
-    uint32 Skeleton   = Store->AnimationSkeleton[AnimationHandle];
-    uint32 FirstJoint = Store->SkeletonFirstJoint[Skeleton];
-    uint32 JointCount = Store->SkeletonJointCount[Skeleton];
-
-    for (uint32 JointIndex = 0; JointIndex < JointCount; ++JointIndex)
-    {
-        Pose[JointIndex] = Store->JointBindPose[FirstJoint + JointIndex];
-    }
-
-    uint32 FirstChannel = Store->AnimationFirstChannel[AnimationHandle];
-    uint32 ChannelCount = Store->AnimationChannelCount[AnimationHandle];
-    for (uint32 ChannelIndex = 0; ChannelIndex < ChannelCount; ++ChannelIndex)
-    {
-        enga_animation_channel *Channel = &Store->Channels[FirstChannel + ChannelIndex];
-
-        real32 *Times  = &Store->AnimationFloats[Channel->FirstTime];
-        real32 *Values = &Store->AnimationFloats[Channel->FirstValue];
-        uint32  Width  = EngaChannelComponentCount((enga_channel_path)Channel->Path);
-
-        uint32 Next = 0;
-        while (Next < Channel->KeyCount && Times[Next] <= Time)
-        {
-            ++Next;
-        }
-
-        uint32 A = (Next > 0) ? Next - 1 : 0;
-        uint32 B = (Next < Channel->KeyCount) ? Next : Channel->KeyCount - 1;
-
-        real32 T = 0.0f;
-        if (A != B && Channel->Interpolation == ChannelInterpolation_Linear)
-        {
-            T = (Time - Times[A]) / (Times[B] - Times[A]);
-        }
-
-        real32 *VA = &Values[A * Width];
-        real32 *VB = &Values[B * Width];
-
-        transform *Joint = &Pose[Channel->Joint];
-        switch ((enga_channel_path)Channel->Path)
-        {
-            case ChannelPath_Translation:
-            {
-                Joint->Position = Vector3(Lerp(VA[0], T, VB[0]), Lerp(VA[1], T, VB[1]), Lerp(VA[2], T, VB[2]));
-            } break;
-
-            case ChannelPath_Rotation:
-            {
-                Joint->Orientation = QuatNLerp(Quaternion(VA[0], VA[1], VA[2], VA[3]), Quaternion(VB[0], VB[1], VB[2], VB[3]), T);
-            } break;
-
-            case ChannelPath_Scale:
-            {
-                Joint->Scale = Vector3(Lerp(VA[0], T, VB[0]), Lerp(VA[1], T, VB[1]), Lerp(VA[2], T, VB[2]));
-            } break;
-        }
-    }
-}
-
-internal void AssetSkinMatrices(asset_store *Store, uint32 SkeletonHandle, transform *Pose, Matrix4 *World, Matrix4 *Skin)
-{
-    uint32 FirstJoint = Store->SkeletonFirstJoint[SkeletonHandle];
-    uint32 JointCount = Store->SkeletonJointCount[SkeletonHandle];
-
-    for (uint32 JointIndex = 0; JointIndex < JointCount; ++JointIndex)
-    {
-        Matrix4 Local  = Mat4FromTransform(Pose[JointIndex]);
-        uint32  Parent = Store->JointParent[FirstJoint + JointIndex];
-
-        World[JointIndex] = (Parent == ENGA_JOINT_NONE) ? Local : Mat4Multiply(World[Parent], Local);
-        Skin[JointIndex]  = Mat4Multiply(World[JointIndex], Store->JointInverseBind[FirstJoint + JointIndex]);
-    }
-}
-
-internal enga_vertex *AssetPoseMesh(asset_store *Store, memory_arena *Arena, uint32 MeshHandle, uint32 AnimationHandle, real32 Time)
-{
-    enga_skin_vertex *SkinVertices = AssetMeshSkinVertices(Store, MeshHandle);
-    Assert(SkinVertices);
-
-    uint32 Skeleton   = Store->AnimationSkeleton[AnimationHandle];
-    uint32 JointCount = Store->SkeletonJointCount[Skeleton];
-
-    transform *Pose  = PushArray(Arena, JointCount, transform);
-    Matrix4   *World = PushArray(Arena, JointCount, Matrix4);
-    Matrix4   *Skin  = PushArray(Arena, JointCount, Matrix4);
-
-    AssetSampleAnimation(Store, AnimationHandle, Time, Pose);
-    AssetSkinMatrices(Store, Skeleton, Pose, World, Skin);
-
-    uint32       VertexCount = Store->MeshVertexCount[MeshHandle];
-    enga_vertex *Source      = AssetMeshVertices(Store, MeshHandle);
-    enga_vertex *Result      = PushArray(Arena, VertexCount, enga_vertex);
-
-    for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
-    {
-        enga_vertex      *Src     = &Source[VertexIndex];
-        enga_skin_vertex *Weights = &SkinVertices[VertexIndex];
-
-        Vector3 P = Vector3(Src->Pos[0], Src->Pos[1], Src->Pos[2]);
-        Vector3 N = Vector3(Src->Normal[0], Src->Normal[1], Src->Normal[2]);
-
-        Vector3 PosedP = Vector3(0.0f, 0.0f, 0.0f);
-        Vector3 PosedN = Vector3(0.0f, 0.0f, 0.0f);
-        for (uint32 Influence = 0; Influence < ENGA_MAX_SKIN_INFLUENCES; ++Influence)
-        {
-            real32 Weight = Weights->Weights[Influence];
-            uint32 Joint  = Weights->Joints[Influence];
-            if (Weight <= 0.0f || Joint >= JointCount)
-            {
-                continue;
-            }
-
-            PosedP += Weight * Mat4Transform(Skin[Joint], P, 1.0f);
-            PosedN += Weight * Mat4Transform(Skin[Joint], N, 0.0f);
-        }
-        PosedN = Normalize(PosedN);
-
-        enga_vertex *Dst = &Result[VertexIndex];
-        *Dst = *Src;
-        Dst->Pos[0]    = PosedP.X;
-        Dst->Pos[1]    = PosedP.Y;
-        Dst->Pos[2]    = PosedP.Z;
-        Dst->Normal[0] = PosedN.X;
-        Dst->Normal[1] = PosedN.Y;
-        Dst->Normal[2] = PosedN.Z;
-    }
-
-    return Result;
-}
+// These parts use the storage and helpers defined above.
+#include "AssetPack.cpp"
+#include "AssetAnimation.cpp"
+#include "AssetCollision.cpp"

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -54,6 +54,9 @@
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32Timer.cpp" />
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32Window.cpp" />
     <ClInclude Include="..\engine\source\Assets\AssetStore.cpp" />
+    <ClInclude Include="..\engine\source\Assets\AssetPack.cpp" />
+    <ClInclude Include="..\engine\source\Assets\AssetAnimation.cpp" />
+    <ClInclude Include="..\engine\source\Assets\AssetCollision.cpp" />
     <ClInclude Include="..\engine\source\Game\src\Camera.cpp" />
     <ClInclude Include="..\engine\source\Game\src\World.cpp" />
     <ClInclude Include="..\engine\source\Game\src\SimEntity.cpp" />
