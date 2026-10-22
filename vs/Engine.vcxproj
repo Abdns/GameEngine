@@ -38,6 +38,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanCore.cpp" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanMemory.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanDebug.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanDevice.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanResources.cpp" />

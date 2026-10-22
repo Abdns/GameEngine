@@ -77,6 +77,9 @@
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanCore.cpp">
       <Filter>engine\source\Graphics\Vulkan</Filter>
     </ClInclude>
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanMemory.cpp">
+      <Filter>engine\source\Graphics\Vulkan</Filter>
+    </ClInclude>
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanDebug.cpp">
       <Filter>engine\source\Graphics\Vulkan</Filter>
     </ClInclude>

@@ -9,41 +9,7 @@
 
 #include "shaders/interop/ShaderHeap.h"
 
-#define MAX_SWAPCHAIN_IMAGES  8
-#define MAX_FRAMES_IN_FLIGHT  2
-#define MAX_MESHES            256
-
-enum buffer_memory
-{
-    Buffer_GpuOnly = 0,
-    Buffer_GpuShared,
-    Buffer_Upload,
-
-    Buffer_MemoryCount,
-};
-
-struct gpu_buffer
-{
-    VkBuffer        Buffer;
-    VkDeviceMemory  Memory;
-    VkDeviceAddress Address;
-    void           *Mapped;
-
-    VkDeviceSize Size;
-    VkDeviceSize Allocated;
-    VkDeviceSize Used;
-    VkDeviceSize Limit;
-
-    uint32                MemoryType;
-    VkMemoryPropertyFlags MemoryFlags;
-};
-
-struct gpu_alloc
-{
-    void           *Cpu;
-    VkDeviceAddress Gpu;
-    VkDeviceSize    Offset;
-};
+#define MAX_MESHES 256
 
 struct gpu_mesh
 {
@@ -51,31 +17,6 @@ struct gpu_mesh
     uint32 VertexCount;
     uint32 FirstIndex;
     uint32 IndexCount;
-};
-
-enum image_kind
-{
-    Image_Texture = 0,
-    Image_Cubemap,
-    Image_ColorTarget,
-    Image_DepthTarget,
-
-    Image_KindCount,
-};
-
-struct gpu_image
-{
-    VkImage        Image;
-    VkImageView    View;
-    VkDeviceMemory Memory;
-
-    uint32 Width;
-    uint32 Height;
-    uint32 Depth;
-    uint32 MipLevels;
-
-    VkFormat   Format;
-    image_kind Kind;
 };
 
 struct frame_targets
@@ -134,9 +75,10 @@ struct vulkan_resources
     gpu_buffer VertexBuffer;
     gpu_buffer IndexBuffer;
     gpu_buffer MaterialBuffer;
-    gpu_buffer FrameArena;
+    gpu_buffer FrameBuffers[MAX_FRAMES_IN_FLIGHT];
     gpu_buffer GlobalsBuffer;
-    gpu_alloc  Globals;
+
+    gpu_buffer_slice Globals;
 
     gpu_mesh       Meshes[MAX_MESHES];
     gpu_image      Textures[MAX_TEXTURES];
