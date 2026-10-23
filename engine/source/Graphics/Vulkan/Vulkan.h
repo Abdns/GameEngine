@@ -11,7 +11,9 @@
 #include <vulkan/vulkan.h>
 
 #include "shaders/interop/ShaderHeap.h"
-#include "VulkanRender.h"
+
+#define MAX_SWAPCHAIN_IMAGES  8
+#define MAX_FRAMES_IN_FLIGHT  2
 
 static_assert(sizeof(vertex) == sizeof(enga_vertex), "vertex must match the packed asset layout");
 static_assert(sizeof(vertex) == VERTEX_STRIDE, "vertex stride must match the shader stride");
@@ -73,14 +75,6 @@ struct vulkan_context
 
     VkPhysicalDeviceDescriptorBufferPropertiesEXT DescriptorProps;
     VkPhysicalDeviceMemoryProperties              MemoryProps;
-};
-
-struct vulkan_renderer
-{
-    vulkan_context   Context;
-    vulkan_resources Resources;
-    frame_targets    Targets;
-    vulkan_pipelines Pipelines;
 };
 
 #endif

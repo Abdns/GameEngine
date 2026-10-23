@@ -1,6 +1,6 @@
 #include "Vulkan.h"
 
-#define FRAME_BUFFER_SIZE     Megabytes(4)
+#define FRAME_BUFFER_SIZE     Megabytes(2)
 
 #define PIPELINE_PUSH_STAGES  (VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
 #define HEAP_STAGES           VK_SHADER_STAGE_FRAGMENT_BIT
@@ -72,7 +72,7 @@ internal uint8 *HeapSlotAddress(vulkan_context *context, descriptor_heap *heap, 
 
     memory_size descriptorSize = HeapDescriptorSize(context, HeapBindingDescs[binding].Type);
 
-    return &((uint8 *)heap->Buffer.Mapped)[heap->Offsets[binding] + arrayElement * descriptorSize];
+    return &((uint8 *)heap->Buffer.CpuBase)[heap->Offsets[binding] + arrayElement * descriptorSize];
 }
 
 internal void WriteHeapImage(vulkan_context *context, descriptor_heap *heap, uint32 binding, uint32 arrayElement, VkImageView view)

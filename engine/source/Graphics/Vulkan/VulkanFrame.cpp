@@ -92,11 +92,10 @@ internal void BindGlobals(VkCommandBuffer cmd, VkPipelineLayout layout, VkDevice
 }
 
 template <typename params_type>
-internal void PushPassParams(VkCommandBuffer cmd, vulkan_resources *res, const params_type &params)
+internal void PushPassParams(VkCommandBuffer cmd, vulkan_resources *res, gpu_buffer *frameBuffer, const params_type &params)
 {
-    gpu_alloc alloc = BufferAlloc(&res->FrameArena, sizeof(params), 16);
-    *(params_type *)alloc.Cpu = params;
-    BindParams(cmd, res->PipelineLayout, alloc.Gpu);
+    gpu_buffer_slice slice = BufferWrite(frameBuffer, &params, sizeof(params), 16);
+    BindParams(cmd, res->PipelineLayout, slice.Gpu);
 }
 
 internal void BindPipelineState(vulkan_context *context, VkCommandBuffer cmd, render_pipeline *pipeline, render_state *current, render_state *wanted)
@@ -114,7 +113,7 @@ internal void BindPipelineState(vulkan_context *context, VkCommandBuffer cmd, re
     ApplyRenderState(context, cmd, current, wanted);
 }
 
-internal void DrawFullscreen(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, render_pipeline *pipeline, uint32 textureSlot)
+internal void DrawFullscreen(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, gpu_buffer *frameBuffer, render_pipeline *pipeline, uint32 textureSlot)
 {
     if (pipeline->Vert == VK_NULL_HANDLE)
     {
@@ -128,7 +127,7 @@ internal void DrawFullscreen(vulkan_context *context, VkCommandBuffer cmd, vulka
     image_params params = {};
     params.TextureSlot = textureSlot;
 
-    PushPassParams(cmd, res, params);
+    PushPassParams(cmd, res, frameBuffer, params);
 
     vkCmdDraw(cmd, 3, 1, 0, 0);
 }
@@ -169,7 +168,7 @@ internal vulkan_frame BeginFrame(vulkan_context *context, vulkan_resources *res)
         Frame.NeedsResize = true;
     }
 
-    ResetFrameRegion(&res->FrameArena, Frame.Slot);
+    ResetBuffer(&res->FrameBuffers[Frame.Slot]);
 
     res->Globals = BufferSlot(&res->GlobalsBuffer, Frame.Slot, sizeof(frame_globals));
     *(frame_globals *)res->Globals.Cpu = {};
