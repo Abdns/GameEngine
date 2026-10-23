@@ -111,11 +111,19 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
     game_input* OldInput = &Input[1];
     Win32PrimeMouseInput(Window, NewInput, OldInput);
 
-    const char *RendererError = InitVulkan(Instance, Window);
-    if (RendererError)
+    local_persist vulkan_context   VulkanContext = {};
+    local_persist vulkan_resources VulkanResources = {};
+    local_persist frame_targets    FrameTargets = {};
+    local_persist vulkan_pipelines VulkanPipelines = {};
+
+    try
     {
-        MessageBoxA(Window, RendererError, "MyEngine", MB_OK | MB_ICONERROR);
-        return 0;
+        InitVulkan(&VulkanContext, &VulkanResources, &FrameTargets, &VulkanPipelines, Instance, Window);
+    }
+    catch (const std::exception &error)
+    {
+        MessageBoxA(Window, error.what(), "MyEngine", MB_OK | MB_ICONERROR);
+        return 1;
     }
 
     isRunning = true;
@@ -157,7 +165,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
 #if ENGINE_INTERNAL
         Win32DebugSyncDisplay(&GlobalBackBuffer, ArrayCount(DebugTimeMarkers), DebugTimeMarkers, DebugTimeMarkerIndex - 1, &SoundOutput, TargetSecondsPerFrame);
 #endif
-        RenderVulkanFrame(&RenderCommands);
+        RenderVulkanFrame(&VulkanContext, &VulkanResources, &FrameTargets, &VulkanPipelines, &RenderCommands);
         FlipWallClock = Win32GetWallClock();
 
 #if ENGINE_INTERNAL

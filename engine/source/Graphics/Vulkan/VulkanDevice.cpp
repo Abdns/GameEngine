@@ -1,5 +1,7 @@
 #include "Strings.h"
 #include "Vulkan.h"
+#include <stdexcept>
+#include <string>
 
 #define MAX_SURFACE_FORMATS   64
 #define MAX_PRESENT_MODES     8
@@ -74,7 +76,7 @@ internal uint32 GetExtensions(VkExtensionProperties *props, uint32 maxCount)
     return extensionCount;
 }
 
-internal bool32 CheckInstanceExtensionSupport(const char **required, uint32 requiredCount)
+internal bool32 HasInstanceExtensionSupport(const char **required, uint32 requiredCount)
 {
     VkExtensionProperties available[MAX_EXTENSIONS];
     uint32 availableCount = GetExtensions(available, ArrayCount(available));
@@ -101,7 +103,18 @@ internal bool32 CheckInstanceExtensionSupport(const char **required, uint32 requ
     return true;
 }
 
-internal bool32 CheckInstanceVersion()
+internal void CheckInstanceExtensionSupport(const char **required, uint32 requiredCount)
+{
+    for (uint32 i = 0; i < requiredCount; ++i)
+    {
+        if (!HasInstanceExtensionSupport(&required[i], 1))
+        {
+            throw std::runtime_error(std::string("Required Vulkan instance extension is missing: ") + required[i]);
+        }
+    }
+}
+
+internal void CheckInstanceVersion()
 {
     PFN_vkEnumerateInstanceVersion enumerateVersion =
         (PFN_vkEnumerateInstanceVersion)vkGetInstanceProcAddr(VK_NULL_HANDLE, "vkEnumerateInstanceVersion");
@@ -115,10 +128,8 @@ internal bool32 CheckInstanceVersion()
     if (version < REQUIRED_API_VERSION)
     {
         DebugLog("Vulkan loader is %u.%u, need 1.3 for core dynamic state\n", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version));
-        return false;
+        throw std::runtime_error("This machine has no Vulkan 1.3 loader, update the graphics drivers");
     }
-
-    return true;
 }
 
 internal VkApplicationInfo AppInfo()
@@ -158,7 +169,7 @@ internal uint32 GatherInstanceExtensions(const char **out, uint32 maxCount)
     }
 
 #if ENGINE_INTERNAL
-    if (CheckInstanceExtensionSupport(DebugInstanceExtensions, (uint32)ArrayCount(DebugInstanceExtensions)))
+    if (HasInstanceExtensionSupport(DebugInstanceExtensions, (uint32)ArrayCount(DebugInstanceExtensions)))
     {
         Assert(count < maxCount);
         out[count++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
@@ -240,6 +251,42 @@ internal void CreateDebugMessenger(vulkan_context *context)
 }
 #endif
 
+internal void CreateInstance(vulkan_context *context)
+{
+    CheckInstanceVersion();
+    CheckInstanceExtensionSupport(RequiredInstanceExtensions, ArrayCount(RequiredInstanceExtensions));
+
+    const char *instanceExtensions[8];
+    uint32 instanceExtensionCount = GatherInstanceExtensions(instanceExtensions, ArrayCount(instanceExtensions));
+
+    VkApplicationInfo appInfo = AppInfo();
+    VkInstanceCreateInfo instanceInfo = InstanceInfo(&appInfo, instanceExtensions, instanceExtensionCount);
+
+#if ENGINE_INTERNAL
+    VkDebugUtilsMessengerCreateInfoEXT messengerInfo = DebugMessengerInfo();
+    if (CheckInstanceLayerSupport(ValidationLayers, (uint32)ArrayCount(ValidationLayers)))
+    {
+        instanceInfo.enabledLayerCount   = (uint32)ArrayCount(ValidationLayers);
+        instanceInfo.ppEnabledLayerNames = ValidationLayers;
+        instanceInfo.pNext               = &messengerInfo;
+    }
+#endif
+
+    if (vkCreateInstance(&instanceInfo, nullptr, &context->instance) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Vulkan instance could not be created");
+    }
+
+    DebugLog("Vulkan instance created\n");
+
+#if ENGINE_INTERNAL
+    if (instanceInfo.enabledLayerCount)
+    {
+        CreateDebugMessenger(context);
+    }
+#endif
+}
+
 internal void CreateSurface(vulkan_context *context, HINSTANCE hinstance, HWND hwnd)
 {
     VkWin32SurfaceCreateInfoKHR surfaceInfo{};
@@ -247,8 +294,10 @@ internal void CreateSurface(vulkan_context *context, HINSTANCE hinstance, HWND h
     surfaceInfo.hinstance = hinstance;
     surfaceInfo.hwnd = hwnd;
 
-    VkResult result = vkCreateWin32SurfaceKHR(context->instance, &surfaceInfo, nullptr, &context->surface);
-    Assert(result == VK_SUCCESS);
+    if (vkCreateWin32SurfaceKHR(context->instance, &surfaceInfo, nullptr, &context->surface) != VK_SUCCESS)
+    {
+        throw std::runtime_error("vkCreateWin32SurfaceKHR failed");
+    }
 
     DebugLog("Window surface created\n");
 }
@@ -484,6 +533,8 @@ internal void SelectDevice(vulkan_context *context)
         context->presentFamilyIndex = indices.presentIndex;
         return;
     }
+
+    throw std::runtime_error("No GPU on this machine supports the features the renderer needs");
 }
 
 internal VkQueue GetQueue(VkDevice device, uint32 queueFamilyIndex)
@@ -559,8 +610,10 @@ internal void CreateLogicalDevice(vulkan_context *context)
     deviceInfo.enabledExtensionCount = (uint32)ArrayCount(RequiredDeviceExtensions);
     deviceInfo.ppEnabledExtensionNames = RequiredDeviceExtensions;
 
-    VkResult result = vkCreateDevice(context->physicalDevice, &deviceInfo, nullptr, &context->device);
-    Assert(result == VK_SUCCESS);
+    if (vkCreateDevice(context->physicalDevice, &deviceInfo, nullptr, &context->device) != VK_SUCCESS)
+    {
+        throw std::runtime_error("vkCreateDevice failed");
+    }
 
     context->CreateShadersEXT               = (PFN_vkCreateShadersEXT)vkGetDeviceProcAddr(context->device, "vkCreateShadersEXT");
     context->DestroyShaderEXT               = (PFN_vkDestroyShaderEXT)vkGetDeviceProcAddr(context->device, "vkDestroyShaderEXT");
@@ -715,8 +768,10 @@ internal void CreateSwapchain(vulkan_context *context, HWND hwnd)
 
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
 
-    VkResult result = vkCreateSwapchainKHR(context->device, &createInfo, nullptr, &swapchain);
-    Assert(result == VK_SUCCESS);
+    if (vkCreateSwapchainKHR(context->device, &createInfo, nullptr, &swapchain) != VK_SUCCESS)
+    {
+        throw std::runtime_error("vkCreateSwapchainKHR failed");
+    }
 
     context->swapchain = swapchain;
 
@@ -782,8 +837,10 @@ internal void CreateCommandPool(vulkan_context *context)
     poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     poolInfo.queueFamilyIndex = context->graphicsFamilyIndex;
 
-    VkResult result = vkCreateCommandPool(context->device, &poolInfo, nullptr, &context->commandPool);
-    Assert(result == VK_SUCCESS);
+    if (vkCreateCommandPool(context->device, &poolInfo, nullptr, &context->commandPool) != VK_SUCCESS)
+    {
+        throw std::runtime_error("vkCreateCommandPool failed");
+    }
 
     DebugLog("Command pool created\n");
 }
@@ -796,8 +853,10 @@ internal void CreateCommandBuffer(vulkan_context *context)
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = MAX_FRAMES_IN_FLIGHT;
 
-    VkResult result = vkAllocateCommandBuffers(context->device, &allocInfo, context->commandBuffers);
-    Assert(result == VK_SUCCESS);
+    if (vkAllocateCommandBuffers(context->device, &allocInfo, context->commandBuffers) != VK_SUCCESS)
+    {
+        throw std::runtime_error("vkAllocateCommandBuffers failed");
+    }
 
     DebugLog("Command buffers allocated (%d)\n", MAX_FRAMES_IN_FLIGHT);
 }
@@ -809,14 +868,18 @@ internal void CreateSyncObjects(vulkan_context *context)
 
     for (uint32 i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        VkResult result = vkCreateSemaphore(context->device, &semInfo, nullptr, &context->imageAvailableSemaphores[i]);
-        Assert(result == VK_SUCCESS);
+        if (vkCreateSemaphore(context->device, &semInfo, nullptr, &context->imageAvailableSemaphores[i]) != VK_SUCCESS)
+        {
+            throw std::runtime_error("vkCreateSemaphore failed");
+        }
     }
 
     for (uint32 i = 0; i < MAX_SWAPCHAIN_IMAGES; ++i)
     {
-        VkResult result = vkCreateSemaphore(context->device, &semInfo, nullptr, &context->renderFinishedSemaphores[i]);
-        Assert(result == VK_SUCCESS);
+        if (vkCreateSemaphore(context->device, &semInfo, nullptr, &context->renderFinishedSemaphores[i]) != VK_SUCCESS)
+        {
+            throw std::runtime_error("vkCreateSemaphore failed");
+        }
     }
 
     VkSemaphoreTypeCreateInfo timelineInfo{};
@@ -828,8 +891,10 @@ internal void CreateSyncObjects(vulkan_context *context)
     timelineSemInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     timelineSemInfo.pNext = &timelineInfo;
 
-    VkResult timelineResult = vkCreateSemaphore(context->device, &timelineSemInfo, nullptr, &context->frameTimeline);
-    Assert(timelineResult == VK_SUCCESS);
+    if (vkCreateSemaphore(context->device, &timelineSemInfo, nullptr, &context->frameTimeline) != VK_SUCCESS)
+    {
+        throw std::runtime_error("vkCreateSemaphore failed");
+    }
 
     DebugLog("Sync objects created\n");
 }

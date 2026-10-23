@@ -1,9 +1,5 @@
 #pragma once
 
-// Included by AssetStore.cpp after its storage definitions.
-
-// Read an .enga pack, size the store, then copy its assets into runtime storage.
-
 struct asset_pack
 {
     uint8            *Data;

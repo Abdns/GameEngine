@@ -471,7 +471,6 @@ internal uint32 GetAssetAnimationHandle(asset_store *Store, const char *Name)
     return Handle;
 }
 
-// These parts use the storage and helpers defined above.
 #include "AssetPack.cpp"
 #include "AssetAnimation.cpp"
 #include "AssetCollision.cpp"

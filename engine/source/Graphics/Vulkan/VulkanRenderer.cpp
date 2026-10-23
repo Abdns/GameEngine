@@ -12,22 +12,8 @@
 #include "VulkanPipeline.cpp"
 #include "VulkanFrame.cpp"
 
-struct vulkan_renderer
+internal void ResizeRenderer(vulkan_context *context, vulkan_resources *res, frame_targets *targets)
 {
-    vulkan_context   Context;
-    vulkan_resources Resources;
-    frame_targets    Targets;
-    vulkan_pipelines Pipelines;
-};
-
-global_variable vulkan_renderer GlobalRenderer;
-
-internal void ResizeRenderer(vulkan_renderer *renderer)
-{
-    vulkan_context   *context = &renderer->Context;
-    vulkan_resources *res     = &renderer->Resources;
-    frame_targets    *targets = &renderer->Targets;
-
     if (!RecreateSwapchain(context))
     {
         return;
@@ -61,63 +47,14 @@ internal vulkan_resources CreateResources(vulkan_context* context)
     return res;
 }
 
-internal const char *InitVulkan(HINSTANCE hinstance, HWND hwnd)
+internal void InitVulkan(vulkan_context *context, vulkan_resources *res, frame_targets *targets, vulkan_pipelines *pipelines, HINSTANCE hinstance, HWND hwnd)
 {
-    vulkan_renderer *renderer = &GlobalRenderer;
-    vulkan_context  *context  = &renderer->Context;
-    vulkan_resources *res     = &renderer->Resources;
-    frame_targets    *targets = &renderer->Targets;
-
     context->windowHandle = hwnd;
 
-    if (!CheckInstanceVersion())
-    {
-        return "This machine has no Vulkan 1.3 loader, update the graphics drivers";
-    }
-
-    if (!CheckInstanceExtensionSupport(RequiredInstanceExtensions, ArrayCount(RequiredInstanceExtensions)))
-    {
-        return "This machine is missing the required Vulkan instance extensions";
-    }
-
-    const char *instanceExtensions[8];
-    uint32 instanceExtensionCount = GatherInstanceExtensions(instanceExtensions, ArrayCount(instanceExtensions));
-
-    VkApplicationInfo appInfo = AppInfo();
-    VkInstanceCreateInfo instanceInfo = InstanceInfo(&appInfo, instanceExtensions, instanceExtensionCount);
-
-#if ENGINE_INTERNAL
-    VkDebugUtilsMessengerCreateInfoEXT messengerInfo = DebugMessengerInfo();
-
-    if (CheckInstanceLayerSupport(ValidationLayers, (uint32)ArrayCount(ValidationLayers)))
-    {
-        instanceInfo.enabledLayerCount   = (uint32)ArrayCount(ValidationLayers);
-        instanceInfo.ppEnabledLayerNames = ValidationLayers;
-        instanceInfo.pNext               = &messengerInfo;
-    }
-#endif
-
-    if (vkCreateInstance(&instanceInfo, nullptr, &context->instance) != VK_SUCCESS)
-    {
-        return "Vulkan instance could not be created";
-    }
-
-    DebugLog("Vulkan instance created\n");
-
-#if ENGINE_INTERNAL
-    if (instanceInfo.enabledLayerCount)
-    {
-        CreateDebugMessenger(context);
-    }
-#endif
+    CreateInstance(context);
 
     CreateSurface(context, hinstance, hwnd);
     SelectDevice(context);
-
-    if (!context->physicalDevice)
-    {
-        return "No GPU on this machine supports the features the renderer needs";
-    }
 
     CreateLogicalDevice(context);
     CreateCommandPool(context);
@@ -136,11 +73,9 @@ internal const char *InitVulkan(HINSTANCE hinstance, HWND hwnd)
     }
     EndSingleTimeCommands(context, setup);
 
-    renderer->Pipelines = CreatePipelines(context, res);
+    *pipelines = CreatePipelines(context, res);
 
     DebugLog("Vulkan ready\n");
-
-    return nullptr;
 }
 
 internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_commands *commands)
@@ -237,7 +172,7 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
     commands->LoadCount = 0;
 }
 
-internal void FillFrameGlobals(vulkan_context *context, vulkan_resources *res, render_commands *commands)
+internal void FillFrameGlobalsBuffer(vulkan_context *context, vulkan_resources *res, render_commands *commands)
 {
     frame_globals *globals = (frame_globals *)res->Globals.Cpu;
 
@@ -433,14 +368,8 @@ internal void ExecuteUICommands(vulkan_context *context, VkCommandBuffer cmd, vu
     vkCmdDraw(cmd, 6, rectCount, 0, 0);
 }
 
-internal void RenderVulkanFrame(render_commands *Commands)
+internal void RenderVulkanFrame(vulkan_context *context, vulkan_resources *res, frame_targets *targets, vulkan_pipelines *pipelines, render_commands *Commands)
 {
-    vulkan_renderer *renderer  = &GlobalRenderer;
-    vulkan_context  *context   = &renderer->Context;
-    vulkan_resources *res      = &renderer->Resources;
-    frame_targets    *targets  = &renderer->Targets;
-    vulkan_pipelines *pipelines = &renderer->Pipelines;
-
     if (pipelines->Render[Pipeline_Unlit].Vert == VK_NULL_HANDLE)
     {
         return;
@@ -455,7 +384,7 @@ internal void RenderVulkanFrame(render_commands *Commands)
     {
         if (Frame.NeedsResize)
         {
-            ResizeRenderer(renderer);
+            ResizeRenderer(context, res, targets);
         }
         return;
     }
@@ -463,7 +392,7 @@ internal void RenderVulkanFrame(render_commands *Commands)
     gpu_buffer *frameBuffer = &res->FrameBuffers[Frame.Slot];
     VkImage swapchainImage = context->swapchainImages[Frame.ImageIndex];
 
-    FillFrameGlobals(context, res, Commands);
+    FillFrameGlobalsBuffer(context, res, Commands);
     BindDescriptorHeap(context, Frame.Cmd, res, res->PipelineLayout);
 
     BeginGpuFrame(context, &Frame);
@@ -509,6 +438,6 @@ internal void RenderVulkanFrame(render_commands *Commands)
 
     if (Frame.NeedsResize)
     {
-        ResizeRenderer(renderer);
+        ResizeRenderer(context, res, targets);
     }
 }

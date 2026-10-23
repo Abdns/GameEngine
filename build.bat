@@ -114,7 +114,7 @@ set CommonCompilerFlags=-MTd^
  -nologo^
  -Gm-^
  -GR-^
- -EHa-^
+ -EHsc^
  -Od^
  -Oi^
  -WX^

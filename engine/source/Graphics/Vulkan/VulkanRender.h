@@ -7,7 +7,7 @@
 
 #include <vulkan/vulkan.h>
 
-#include "shaders/interop/ShaderHeap.h"
+#include "shaders/interop/ShaderResources.h"
 
 #define MAX_MESHES 256
 

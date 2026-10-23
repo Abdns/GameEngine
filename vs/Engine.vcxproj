@@ -34,9 +34,9 @@
     <ClCompile Include="..\engine\source\Game\src\Game.cpp" />
     <ClCompile Include="..\engine\source\Game\src\UI\Text.cpp" />
     <ClCompile Include="..\engine\source\Platform\win32\Program.cpp" />
-    <ClCompile Include="..\engine\source\Graphics\Vulkan\VulkanRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRenderer.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanCore.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanMemory.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanDebug.cpp" />
@@ -83,8 +83,8 @@
     <ClInclude Include="..\engine\source\Physics\Collider.h" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\Vulkan.h" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRender.h" />
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderHeap.h" />
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderParams.h" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderResources.h" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderData.h" />
     <ClInclude Include="..\shared\EngineMath.h" />
     <ClInclude Include="..\shared\Intrinsics.h" />
     <ClInclude Include="..\shared\Memory.h" />

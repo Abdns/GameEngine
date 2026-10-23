@@ -1,4 +1,4 @@
-#include "interop/ShaderHeap.h"
+#include "interop/ShaderResources.h"
 
 static const float2 Corners[6] =
 {

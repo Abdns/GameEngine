@@ -29,6 +29,7 @@ struct gpu_buffer_slice
     void           *Cpu;
     VkDeviceAddress Gpu;
     VkDeviceSize    Offset;
+    VkDeviceSize    Size;
 };
 
 enum image_kind
@@ -58,7 +59,6 @@ struct gpu_image
 
 #define MEMORY_DEVICE VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 #define MEMORY_HOST   (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-
 #define IMAGE_TRANSFER (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
 
 struct buffer_memory_desc
@@ -91,17 +91,10 @@ struct image_kind_desc
 
 global_variable image_kind_desc ImageKindDescs[] =
 {
-    // Обычная 2D-текстура: загрузка через transfer и чтение в шейдере.
-    { VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D,  0,  IMAGE_TRANSFER | VK_IMAGE_USAGE_SAMPLED_BIT,  VK_IMAGE_ASPECT_COLOR_BIT, 1 },
-
-    // Cubemap из шести 2D-слоёв: загрузка, mip-уровни и чтение в шейдере.
-    { VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_CUBE, VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,  IMAGE_TRANSFER | VK_IMAGE_USAGE_SAMPLED_BIT,  VK_IMAGE_ASPECT_COLOR_BIT, 6 },
-
-    // Цветовой target рендера: запись как attachment и последующее чтение в шейдере.
-    { VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D,   0,  VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT, 1 },
-
-    // Depth target.
-    { VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D,   0,  VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, 1 },
+    { VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D,   0,  IMAGE_TRANSFER | VK_IMAGE_USAGE_SAMPLED_BIT,  VK_IMAGE_ASPECT_COLOR_BIT, 1 }, // Обычная 2D-текстура: загрузка через transfer и чтение в шейдере.
+    { VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_CUBE, VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,  IMAGE_TRANSFER | VK_IMAGE_USAGE_SAMPLED_BIT,  VK_IMAGE_ASPECT_COLOR_BIT, 6 }, // Cubemap из шести 2D-слоёв: загрузка, mip-уровни и чтение в шейдере.
+    { VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D,   0,  VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT, 1 }, // Цветовой target рендера: запись как attachment
+    { VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D,   0,  VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, 1 }, // Depth target.
 };
 
 static_assert(ArrayCount(ImageKindDescs) == Image_KindCount, "ImageKindDescs must describe every image_kind");
@@ -315,6 +308,7 @@ internal gpu_buffer_slice BufferSlice(const gpu_buffer *buffer, VkDeviceSize off
     result.Cpu    = buffer->CpuBase ? (uint8 *)buffer->CpuBase + offset : nullptr;
     result.Gpu    = buffer->Address + offset;
     result.Offset = offset;
+    result.Size   = size;
 
     return result;
 }

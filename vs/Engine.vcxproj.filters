@@ -66,9 +66,9 @@
     <ClCompile Include="..\engine\source\Platform\win32\Program.cpp">
       <Filter>engine\source\Platform\win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\engine\source\Graphics\Vulkan\VulkanRenderer.cpp">
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRenderer.cpp">
       <Filter>engine\source\Graphics\Vulkan</Filter>
-    </ClCompile>
+    </ClInclude>
     <ClCompile Include="..\engine\source\Game\src\UI\Text.cpp">
       <Filter>engine\source\Game\src\UI</Filter>
     </ClCompile>
@@ -194,10 +194,10 @@
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRender.h">
       <Filter>engine\source\Graphics\Vulkan</Filter>
     </ClInclude>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderHeap.h">
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderResources.h">
       <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
     </ClInclude>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderParams.h">
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderData.h">
       <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\EngaFormat.h">

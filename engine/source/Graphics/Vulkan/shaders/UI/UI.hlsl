@@ -1,4 +1,4 @@
-#include "interop/ShaderHeap.h"
+#include "interop/ShaderResources.h"
 
 struct vs_output
 {

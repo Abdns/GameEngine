@@ -1,5 +1,23 @@
-#ifndef SHADERPARAMS_H
-#define SHADERPARAMS_H
+#ifndef SHADERDATA_H
+#define SHADERDATA_H
+
+#ifdef __cplusplus
+#include "Types.h"
+#include "EngineMath.h"
+
+#define float4x4 Matrix4
+#define float4   Vector4
+#define float3   Vector3
+#define float2   Vector2
+#define uint     uint32
+#define gpu_ptr  uint64
+#else
+#define gpu_ptr  uint64_t
+#endif
+
+#define VERTEX_STRIDE      44
+#define MATERIAL_STRIDE    32
+#define RECT_PARAMS_STRIDE 64
 
 struct push_constants
 {
@@ -76,36 +94,13 @@ struct image_params
     uint ImagePad2;
 };
 
-#ifndef __cplusplus
-    typedef vk::BufferPointer<frame_globals, 16>     frame_globals_ptr;
-    typedef vk::BufferPointer<rect_params, 16>       rect_params_ptr;
-
-    vertex LoadVertex(uint64_t base, uint index)
-    {
-        return vk::RawBufferLoad<vertex>(base + (uint64_t)index * VERTEX_STRIDE, 4);
-    }
-
-    gpu_material LoadMaterial(uint64_t base, uint slot)
-    {
-        return vk::RawBufferLoad<gpu_material>(base + (uint64_t)slot * MATERIAL_STRIDE, 16);
-    }
-
-    uint LoadIndex(uint64_t base, uint index)
-    {
-        return vk::RawBufferLoad<uint>(base + (uint64_t)index * 4, 4);
-    }
-
-    rect_params LoadRect(uint64_t base, uint index)
-    {
-        return rect_params_ptr(base + (uint64_t)index * RECT_PARAMS_STRIDE).Get();
-    }
-
-    frame_globals LoadGlobals(uint64_t address)
-    {
-        return frame_globals_ptr(address).Get();
-    }
-
-    #define LoadPassParams(Type) vk::BufferPointer<Type, 16>(pc.ParamsPtr).Get()
+#ifdef __cplusplus
+#undef float4x4
+#undef float4
+#undef float3
+#undef float2
+#undef uint
 #endif
+#undef gpu_ptr
 
 #endif
