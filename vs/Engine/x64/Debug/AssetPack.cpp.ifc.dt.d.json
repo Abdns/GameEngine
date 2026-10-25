@@ -1,7 +1,7 @@
 {
     "Version": "1.2",
     "Data": {
-        "Source": "c:\\users\\a.beloshapka\\desktop\\engine-engine-\\engine\\source\\assets\\assetpack.cpp",
+        "Source": "c:\\users\\artem\\desktop\\engine\\engine\\source\\game\\src\\assets\\assetpack.cpp",
         "ProvidedModule": "",
         "Includes": [],
         "ImportedModules": [],

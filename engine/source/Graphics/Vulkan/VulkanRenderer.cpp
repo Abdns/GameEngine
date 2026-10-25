@@ -118,7 +118,7 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
             {
                 command_load_texture *entry = (command_load_texture *)header;
 
-                VkDeviceSize imageSize = (VkDeviceSize)entry->Width * entry->Height * TextureFormatBytes(entry->Format);
+                VkDeviceSize imageSize = (VkDeviceSize)entry->Width * entry->Height * ImageFormatBytes(entry->Format);
 
                 gpu_buffer_slice upload = BufferWrite(&staging, entry->Pixels, imageSize, 16);
                 gpu_image *texture = CreateTexture(context, res, entry->TextureHandle, entry->Width, entry->Height, entry->SRGB, entry->Format);
@@ -130,7 +130,7 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
             {
                 command_load_cubemap *entry = (command_load_cubemap *)header;
 
-                VkDeviceSize imageSize = (VkDeviceSize)entry->FaceSize * entry->FaceSize * 6 * TextureFormatBytes(entry->Format);
+                VkDeviceSize imageSize = (VkDeviceSize)entry->FaceSize * entry->FaceSize * 6 * ImageFormatBytes(entry->Format);
 
                 gpu_buffer_slice upload = BufferWrite(&staging, entry->Pixels, imageSize, 16);
                 gpu_image *cube = CreateCubemap(context, res, entry->CubemapHandle, entry->FaceSize, entry->Format);
@@ -148,14 +148,7 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
                 Assert(description->TextureHandle < MAX_TEXTURES && res->Textures[description->TextureHandle].View);
 
                 Assert(res->MaterialBuffer.CpuBase);
-                render_material_state *state = &res->MaterialStates[entry->MaterialHandle];
-
-                state->Pipeline   = description->Pipeline;
-                state->CullMode   = description->CullMode;
-                state->BlendMode  = description->BlendMode;
-                state->Queue      = description->Queue;
-                state->DepthTest  = description->DepthTest;
-                state->DepthWrite = description->DepthWrite;
+                res->Materials[entry->MaterialHandle] = *description;
 
                 gpu_material *gpuMaterials = (gpu_material*)res->MaterialBuffer.CpuBase;
                 gpu_material gpuMaterial = {};
@@ -264,30 +257,30 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
 
                     uint32 materialSlot = meshCmd->MaterialHandle;
 
-                    render_material_state *material = &res->MaterialStates[materialSlot];
+                    const material *description = &res->Materials[materialSlot];
 
-                    if ((uint32)material->Queue != queue)
+                    if ((uint32)description->Queue != queue)
                     {
                         break;
                     }
 
-                    if ((uint32)material->Pipeline != piplineId)
+                    if ((uint32)description->Pipeline != piplineId)
                     {
-                        if (pipelines[material->Pipeline].Vert == VK_NULL_HANDLE)
+                        if (pipelines[description->Pipeline].Vert == VK_NULL_HANDLE)
                         {
                             break;
                         }
 
-                        piplineId = (uint32)material->Pipeline;
+                        piplineId = (uint32)description->Pipeline;
                         pipeline = &pipelines[piplineId];
 
                         BindPipelineState(context, cmd, pipeline, &current, &wanted);
                     }
 
-                    wanted.CullMode   = ToVulkanCullMode(material->CullMode);
-                    wanted.DepthTest  = material->DepthTest  ? VK_TRUE : VK_FALSE;
-                    wanted.DepthWrite = material->DepthWrite ? VK_TRUE : VK_FALSE;
-                    wanted.AlphaBlend = (material->BlendMode == Blend_Alpha) ? VK_TRUE : VK_FALSE;
+                    wanted.CullMode   = ToVulkanCullMode(description->CullMode);
+                    wanted.DepthTest  = description->DepthTest  ? VK_TRUE : VK_FALSE;
+                    wanted.DepthWrite = description->DepthWrite ? VK_TRUE : VK_FALSE;
+                    wanted.AlphaBlend = (description->BlendMode == Blend_Alpha) ? VK_TRUE : VK_FALSE;
 
                     ApplyRenderState(context, cmd, &current, &wanted);
 

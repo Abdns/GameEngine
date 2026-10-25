@@ -7,7 +7,7 @@
 #include "Input.h"
 #include "AssetStore.cpp"
 #include "SimEntity.cpp"
-#include "Raycast.cpp"
+#include "Picking.cpp"
 
 #define GIZMO_AXIS_COUNT 3
 
@@ -139,10 +139,10 @@ internal bool32 GizmoRayHitsAxis(gizmo_context *Gizmo, asset_store *Assets, uint
     LocalRay.Origin    = Mat4Transform(ToLocal, PickRay.Origin, 1.0f);
     LocalRay.Direction = Mat4Transform(ToLocal, PickRay.Direction, 0.0f);
 
-    collision Mesh = AssetCollisionMesh(Assets, Gizmo->Style.AxisMesh[AxisIndex]);
+    loaded_mesh *Mesh = &Assets->Meshes[Gizmo->Style.AxisMesh[AxisIndex]];
 
     real32 Distance;
-    return RayIntersectsMesh(&Mesh, LocalRay, &Distance);
+    return RayIntersectsMesh(Mesh, LocalRay, &Distance);
 }
 
 internal bool32 Axis(gizmo_context *Gizmo, asset_store *Assets, ray PickRay, Vector3 *Position)

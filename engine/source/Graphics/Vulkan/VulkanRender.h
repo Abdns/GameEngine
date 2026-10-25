@@ -56,16 +56,6 @@ struct descriptor_heap
     VkDeviceSize Offsets[BINDING_COUNT];
 };
 
-struct render_material_state
-{
-    pipeline_type Pipeline;
-    cull_mode     CullMode;
-    blend_mode    BlendMode;
-    render_queue  Queue;
-    bool32        DepthTest;
-    bool32        DepthWrite;
-};
-
 struct vulkan_resources
 {
     descriptor_heap  Heap;
@@ -83,7 +73,7 @@ struct vulkan_resources
     gpu_mesh       Meshes[MAX_MESHES];
     gpu_image      Textures[MAX_TEXTURES];
     gpu_image      Cubemaps[MAX_CUBEMAPS];
-    render_material_state MaterialStates[MAX_MATERIALS];
+    material       Materials[MAX_MATERIALS];
 };
 
 struct vulkan_frame

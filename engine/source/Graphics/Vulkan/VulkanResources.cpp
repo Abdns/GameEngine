@@ -213,9 +213,9 @@ internal gpu_mesh CreateMesh(VkDeviceSize vertexOffset, uint32 VertexCount, VkDe
     return result;
 }
 
-internal VkFormat TextureVkFormat(texture_format Format, uint32 SRGB)
+internal VkFormat TextureVkFormat(image_format Format, uint32 SRGB)
 {
-    if (Format == TextureFormat_RGBA16F)
+    if (Format == ImageFormat_RGBA16F)
     {
         return VK_FORMAT_R16G16B16A16_SFLOAT;
     }
@@ -223,7 +223,7 @@ internal VkFormat TextureVkFormat(texture_format Format, uint32 SRGB)
     return SRGB ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
 }
 
-internal gpu_image *CreateTexture(vulkan_context *context, vulkan_resources *res, uint32 TextureHandle, uint32 Width, uint32 Height, uint32 SRGB, texture_format TextureFormat)
+internal gpu_image *CreateTexture(vulkan_context *context, vulkan_resources *res, uint32 TextureHandle, uint32 Width, uint32 Height, uint32 SRGB, image_format TextureFormat)
 {
     Assert(TextureHandle < MAX_TEXTURES);
 
@@ -237,7 +237,7 @@ internal gpu_image *CreateTexture(vulkan_context *context, vulkan_resources *res
     return texture;
 }
 
-internal gpu_image *CreateCubemap(vulkan_context *context, vulkan_resources *res, uint32 CubemapHandle, uint32 FaceSize, texture_format TextureFormat)
+internal gpu_image *CreateCubemap(vulkan_context *context, vulkan_resources *res, uint32 CubemapHandle, uint32 FaceSize, image_format TextureFormat)
 {
     Assert(CubemapHandle < MAX_CUBEMAPS);
 

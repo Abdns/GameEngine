@@ -3,6 +3,7 @@
 
 #include "Types.h"
 #include "EngineMath.h"
+#include "ImageFormat.h"
 
 #define TEXTURE_NONE 0xFFFFFFFF
 
@@ -25,13 +26,6 @@ enum cull_mode
     Cull_Back,
     Cull_Front,
 };
-
-enum texture_format
-{
-    TextureFormat_RGBA8 = 0,
-    TextureFormat_RGBA16F,
-};
-
 
 enum blend_mode
 {
@@ -60,7 +54,6 @@ struct material
 
     Vector4 BaseColor;
     uint32  TextureHandle;
-    uint32  Reserved[2];
 };
 
 #endif

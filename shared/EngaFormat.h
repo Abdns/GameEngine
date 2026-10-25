@@ -2,6 +2,7 @@
 #define ENGAFORMAT_H
 
 #include "Types.h"
+#include "ImageFormat.h"
 
 #define ENGA_MAGIC   (((uint32)'E') | ((uint32)'N' << 8) | ((uint32)'G' << 16) | ((uint32)'A' << 24))
 #define ENGA_VERSION 11
@@ -118,17 +119,6 @@ struct asset_animation_info
 inline uint64 AssetAnimationBytes(asset_animation_info Animation)
 {
     return (uint64)Animation.ChannelCount * sizeof(enga_animation_channel) + (uint64)Animation.FloatCount * sizeof(real32);
-}
-
-enum asset_image_format
-{
-    ImageFormat_RGBA8 = 0,
-    ImageFormat_RGBA16F,
-};
-
-inline uint32 AssetImageFormatBytes(asset_image_format Format)
-{
-    return (Format == ImageFormat_RGBA16F) ? 8u : 4u;
 }
 
 struct asset_image_info

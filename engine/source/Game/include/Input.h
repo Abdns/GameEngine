@@ -12,8 +12,6 @@ struct mouse_input
     bool32  Down;
     bool32  Pressed;
     bool32  Released;
-    bool32  MiddleDown;
-    bool32  MiddlePressed;
     bool32  LookDown;
 
     bool32 Consumed;

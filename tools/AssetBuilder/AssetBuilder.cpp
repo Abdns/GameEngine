@@ -88,7 +88,7 @@ internal void AddAsset(enga_asset_table *Table, asset_source Source)
 
             Entry->Image = Source.Image;
             Entry->Size  = (uint64)Source.Image.Width * Source.Image.Height * Source.Image.Layers *
-                           AssetImageFormatBytes((asset_image_format)Source.Image.Format);
+                           ImageFormatBytes((image_format)Source.Image.Format);
         } break;
 
         default:

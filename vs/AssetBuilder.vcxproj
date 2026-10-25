@@ -40,6 +40,7 @@
     <ClInclude Include="..\tools\AssetBuilder\Loaders\Cubemap.h" />
     <ClInclude Include="..\tools\AssetBuilder\Loaders\Json.h" />
     <ClInclude Include="..\shared\EngaFormat.h" />
+    <ClInclude Include="..\shared\ImageFormat.h" />
     <ClInclude Include="..\shared\Half.h" />
     <ClInclude Include="..\shared\Memory.h" />
     <ClInclude Include="..\shared\Strings.h" />

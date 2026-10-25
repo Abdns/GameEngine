@@ -134,10 +134,10 @@ set CommonCompilerFlags=-MTd^
  -Z7^
  -I..\shared^
  -I..\engine\source^
- -I..\engine\source\Physics^
- -I..\engine\source\Assets^
+ -I..\engine\source\Game\src\Assets^
  -I..\engine\source\Game\include^
  -I..\engine\source\Game\src^
+ -I..\engine\source\Game\src\Editor^
  -I..\engine\source\Game\src\UI^
  -I..\engine\source\PlatformApi^
  -I..\engine\source\Platform\win32\include^

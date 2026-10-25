@@ -6,23 +6,20 @@
 
 internal void AssetSampleAnimation(asset_store *Store, uint32 AnimationHandle, real32 Time, transform *Pose)
 {
-    uint32 Skeleton   = Store->AnimationSkeleton[AnimationHandle];
-    uint32 FirstJoint = Store->SkeletonFirstJoint[Skeleton];
-    uint32 JointCount = Store->SkeletonJointCount[Skeleton];
+    loaded_animation *Animation = &Store->Animations[AnimationHandle];
+    loaded_skeleton *Skeleton = &Store->Skeletons[Animation->SkeletonHandle];
 
-    for (uint32 JointIndex = 0; JointIndex < JointCount; ++JointIndex)
+    for (uint32 JointIndex = 0; JointIndex < Skeleton->JointCount; ++JointIndex)
     {
-        Pose[JointIndex] = Store->JointBindPose[FirstJoint + JointIndex];
+        Pose[JointIndex] = Skeleton->Joints[JointIndex].BindPose;
     }
 
-    uint32 FirstChannel = Store->AnimationFirstChannel[AnimationHandle];
-    uint32 ChannelCount = Store->AnimationChannelCount[AnimationHandle];
-    for (uint32 ChannelIndex = 0; ChannelIndex < ChannelCount; ++ChannelIndex)
+    for (uint32 ChannelIndex = 0; ChannelIndex < Animation->ChannelCount; ++ChannelIndex)
     {
-        enga_animation_channel *Channel = &Store->Channels[FirstChannel + ChannelIndex];
+        enga_animation_channel *Channel = &Animation->Channels[ChannelIndex];
 
-        real32 *Times  = &Store->AnimationFloats[Channel->FirstTime];
-        real32 *Values = &Store->AnimationFloats[Channel->FirstValue];
+        real32 *Times  = &Animation->Floats[Channel->FirstTime];
+        real32 *Values = &Animation->Floats[Channel->FirstValue];
         uint32  Width  = EngaChannelComponentCount((enga_channel_path)Channel->Path);
 
         uint32 Next = 0;
@@ -66,26 +63,27 @@ internal void AssetSampleAnimation(asset_store *Store, uint32 AnimationHandle, r
 
 internal void AssetSkinMatrices(asset_store *Store, uint32 SkeletonHandle, transform *Pose, Matrix4 *World, Matrix4 *Skin)
 {
-    uint32 FirstJoint = Store->SkeletonFirstJoint[SkeletonHandle];
-    uint32 JointCount = Store->SkeletonJointCount[SkeletonHandle];
+    loaded_skeleton *Skeleton = &Store->Skeletons[SkeletonHandle];
 
-    for (uint32 JointIndex = 0; JointIndex < JointCount; ++JointIndex)
+    for (uint32 JointIndex = 0; JointIndex < Skeleton->JointCount; ++JointIndex)
     {
+        loaded_joint *Joint = &Skeleton->Joints[JointIndex];
         Matrix4 Local  = Mat4FromTransform(Pose[JointIndex]);
-        uint32  Parent = Store->JointParent[FirstJoint + JointIndex];
+        uint32  Parent = Joint->Parent;
 
         World[JointIndex] = (Parent == ENGA_JOINT_NONE) ? Local : Mat4Multiply(World[Parent], Local);
-        Skin[JointIndex]  = Mat4Multiply(World[JointIndex], Store->JointInverseBind[FirstJoint + JointIndex]);
+        Skin[JointIndex]  = Mat4Multiply(World[JointIndex], Joint->InverseBind);
     }
 }
 
 internal enga_vertex *AssetPoseMesh(asset_store *Store, memory_arena *Arena, uint32 MeshHandle, uint32 AnimationHandle, real32 Time)
 {
-    enga_skin_vertex *SkinVertices = AssetMeshSkinVertices(Store, MeshHandle);
+    loaded_mesh *Mesh = &Store->Meshes[MeshHandle];
+    enga_skin_vertex *SkinVertices = Mesh->SkinVertices;
     Assert(SkinVertices);
 
-    uint32 Skeleton   = Store->AnimationSkeleton[AnimationHandle];
-    uint32 JointCount = Store->SkeletonJointCount[Skeleton];
+    uint32 Skeleton   = Store->Animations[AnimationHandle].SkeletonHandle;
+    uint32 JointCount = Store->Skeletons[Skeleton].JointCount;
 
     transform *Pose  = PushArray(Arena, JointCount, transform);
     Matrix4   *World = PushArray(Arena, JointCount, Matrix4);
@@ -94,8 +92,8 @@ internal enga_vertex *AssetPoseMesh(asset_store *Store, memory_arena *Arena, uin
     AssetSampleAnimation(Store, AnimationHandle, Time, Pose);
     AssetSkinMatrices(Store, Skeleton, Pose, World, Skin);
 
-    uint32       VertexCount = Store->MeshVertexCount[MeshHandle];
-    enga_vertex *Source      = AssetMeshVertices(Store, MeshHandle);
+    uint32       VertexCount = Mesh->VertexCount;
+    enga_vertex *Source      = Mesh->Vertices;
     enga_vertex *Result      = PushArray(Arena, VertexCount, enga_vertex);
 
     for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)

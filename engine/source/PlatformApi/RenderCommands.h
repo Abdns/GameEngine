@@ -62,7 +62,7 @@ struct command_load_texture
     uint32         Width;
     uint32         Height;
     uint32         SRGB;
-    texture_format Format;
+    image_format Format;
 };
 
 struct command_load_cubemap
@@ -71,7 +71,7 @@ struct command_load_cubemap
     uint32         CubemapHandle;
     void          *Pixels;
     uint32         FaceSize;
-    texture_format Format;
+    image_format Format;
 };
 
 struct command_load_material
@@ -205,12 +205,7 @@ inline void PushLoadMesh(render_commands *Commands, uint32 MeshHandle, void *Ver
     }
 }
 
-inline uint32 TextureFormatBytes(texture_format Format)
-{
-    return (Format == TextureFormat_RGBA16F) ? 8u : 4u;
-}
-
-inline void PushLoadTexture(render_commands *Commands, uint32 TextureHandle, void *Pixels, uint32 Width, uint32 Height, uint32 SRGB, texture_format Format)
+inline void PushLoadTexture(render_commands *Commands, uint32 TextureHandle, void *Pixels, uint32 Width, uint32 Height, uint32 SRGB, image_format Format)
 {
     command_load_texture *cmd = (command_load_texture *)PushRenderCommand(Commands, Load_Texture);
     if (cmd)
@@ -226,7 +221,7 @@ inline void PushLoadTexture(render_commands *Commands, uint32 TextureHandle, voi
     }
 }
 
-inline void PushLoadCubemap(render_commands *Commands, uint32 CubemapHandle, void *Pixels, uint32 FaceSize, texture_format Format)
+inline void PushLoadCubemap(render_commands *Commands, uint32 CubemapHandle, void *Pixels, uint32 FaceSize, image_format Format)
 {
     command_load_cubemap *cmd = (command_load_cubemap *)PushRenderCommand(Commands, Load_Cubemap);
     if (cmd)

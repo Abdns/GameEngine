@@ -21,7 +21,6 @@ struct sim_region
 
     world_position Origin;
     rectangle3     Bounds;
-    rectangle3     UpdatableBounds;
 
     uint32      MaxEntityCount;
     uint32      EntityCount;
@@ -102,20 +101,17 @@ internal sim_entity *AddEntityRaw(sim_region *Region, uint32 StorageIndex, low_e
     }
 
     Entity->LowStorageIndex = StorageIndex;
-    Entity->Updatable    = false;
 
     return Entity;
 }
 
-internal sim_entity *AddEntityToRegion(sim_region *Region, uint32 StorageIndex, low_entity *Source, Vector3 SimSpaceP, Vector3 SimSpacePrevP)
+internal sim_entity *AddEntityToRegion(sim_region *Region, uint32 StorageIndex, low_entity *Source, Vector3 SimSpaceP)
 {
     sim_entity *Entity = AddEntityRaw(Region, StorageIndex, Source);
 
     if (Entity)
     {
-        Entity->Current.Position         = SimSpaceP;
-        Entity->Previous.Position     = SimSpacePrevP;
-        Entity->Updatable = Rect3Contains(Region->UpdatableBounds, SimSpaceP);
+        Entity->Pose.Position = SimSpaceP;
     }
 
     return Entity;
@@ -140,8 +136,7 @@ internal void LoadEntityReference(sim_region *Region, sim_entity_reference *Refe
             Entity = AddEntityRaw(Region, StorageIndex, Stored);
             if (Entity)
             {
-                Entity->Current.Position     = GetSimSpacePosition(Region, Stored);
-                Entity->Previous.Position = WorldSubtract(Region->World, &Stored->PrevPosition, &Region->Origin);
+                Entity->Pose.Position = GetSimSpacePosition(Region, Stored);
             }
         }
     }
@@ -154,7 +149,7 @@ internal void StoreEntityReference(sim_entity_reference *Reference)
     Reference->Index = Reference->Ptr ? Reference->Ptr->LowStorageIndex : ENTITY_STORAGE_NONE;
 }
 
-internal sim_region *BeginSim(memory_arena *SimArena, world *World, entity_storage *Storage, world_position Origin, rectangle3 UpdatableBounds, uint32 MaxEntityCount)
+internal sim_region *BeginSim(memory_arena *SimArena, world *World, entity_storage *Storage, world_position Origin, rectangle3 Bounds, uint32 MaxEntityCount)
 {
     sim_region *Region = PushStruct(SimArena, sim_region);
     ZeroArray(ArrayCount(Region->HashSlots), Region->HashSlots);
@@ -163,8 +158,7 @@ internal sim_region *BeginSim(memory_arena *SimArena, world *World, entity_stora
     Region->Storage = Storage;
     Region->Origin  = Origin;
 
-    Region->Bounds          = Rect3AddRadius(UpdatableBounds, SIM_MAX_ENTITY_RADIUS);
-    Region->UpdatableBounds = UpdatableBounds;
+    Region->Bounds          = Rect3AddRadius(Bounds, SIM_MAX_ENTITY_RADIUS);
 
     Region->MaxEntityCount = MaxEntityCount;
     Region->EntityCount    = 0;
@@ -203,9 +197,7 @@ internal sim_region *BeginSim(memory_arena *SimArena, world *World, entity_stora
                             continue;
                         }
 
-                        Vector3 SimSpacePrevP = WorldSubtract(World, &Stored->PrevPosition, &Region->Origin);
-
-                        AddEntityToRegion(Region, StorageIndex, Stored, SimSpaceP, SimSpacePrevP);
+                        AddEntityToRegion(Region, StorageIndex, Stored, SimSpaceP);
                     }
                 }
             }
@@ -226,8 +218,7 @@ internal void EndSim(sim_region *Region, memory_arena *Arena)
         low_entity *Stored = &Storage->LowEntities[Entity->LowStorageIndex];
 
         Stored->SimVariant   = *Entity;
-        Stored->PrevPosition = MapIntoChunkSpace(World, Region->Origin, Entity->Previous.Position);
 
-        ChangeEntityLocation(Arena, World, Storage, Entity->LowStorageIndex, MapIntoChunkSpace(World, Region->Origin, Entity->Current.Position));
+        ChangeEntityLocation(Arena, World, Storage, Entity->LowStorageIndex, MapIntoChunkSpace(World, Region->Origin, Entity->Pose.Position));
     }
 }

@@ -12,7 +12,6 @@
 struct low_entity
 {
     world_position Position;
-    world_position PrevPosition;
 
     sim_entity     SimVariant;
 
@@ -33,8 +32,7 @@ internal void AddSimEntity(low_entity *Entity, uint32 StorageIndex, entity_type 
 {
     Entity->SimVariant.LowStorageIndex = StorageIndex;
     Entity->SimVariant.Type            = Type;
-    Entity->SimVariant.Current         = TransformIdentity();
-    Entity->SimVariant.Previous        = TransformIdentity();
+    Entity->SimVariant.Pose            = TransformIdentity();
     Entity->SimVariant.Tint            = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
@@ -95,7 +93,7 @@ internal void ChangeEntityLocation(memory_arena *Arena, world *World, entity_sto
     Entity->Position = NewP;
 }
 
-internal uint32 AddLowEntity(entity_storage *Storage, entity_type Type, world_position Position, const char *Name)
+internal uint32 AddLowEntity(entity_storage *Storage, entity_type Type, const char *Name)
 {
     uint32 StorageIndex;
 
@@ -120,7 +118,6 @@ internal uint32 AddLowEntity(entity_storage *Storage, entity_type Type, world_po
     ZeroStruct(*Entity);
 
     Entity->Position     = NullWorldPosition();
-    Entity->PrevPosition = Position;
     Entity->Name[0]      = 0;
 
     if (Name)

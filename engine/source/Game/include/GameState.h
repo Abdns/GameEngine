@@ -7,15 +7,12 @@
 #include "AssetStore.cpp"
 #include "Material.cpp"
 #include "EntityStorage.cpp"
-#include "Physics.cpp"
 #include "Camera.cpp"
 #include "UI.cpp"
 #include "Gizmo.cpp"
 
 struct game_state
 {
-    real32 tSine;
-
     memory_arena WorldArena;
     memory_arena FrameArena;
 
@@ -23,12 +20,8 @@ struct game_state
     asset_store    Assets;
     materials      Materials;
     entity_storage Storage;
-    physics_state  Physics;
 
     uint32 SkyHandle;
-
-    uint32 SpawnMeshHandles[2];
-    uint32 SpawnMaterialHandles[3];
 
     camera Camera;
 
@@ -36,7 +29,6 @@ struct game_state
     ui_context    UI;
     gizmo_context Gizmo;
 
-    bool32 Paused;
 };
 
 #endif

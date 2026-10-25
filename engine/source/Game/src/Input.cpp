@@ -8,7 +8,6 @@
 internal void BeginInput(input_state *State, game_input *Input)
 {
     game_button_state *Select = &Input->MouseButtons[0];
-    game_button_state *Middle = &Input->MouseButtons[1];
     game_button_state *Look   = &Input->MouseButtons[2];
 
     mouse_input *Mouse = &State->Mouse;
@@ -19,8 +18,6 @@ internal void BeginInput(input_state *State, game_input *Input)
     Mouse->Down          = Select->EndedDown;
     Mouse->Pressed       = (Select->EndedDown && Select->HalfTransitionCount);
     Mouse->Released      = (!Select->EndedDown && Select->HalfTransitionCount);
-    Mouse->MiddleDown    = Middle->EndedDown;
-    Mouse->MiddlePressed = (Middle->EndedDown && Middle->HalfTransitionCount);
     Mouse->LookDown      = Look->EndedDown;
     Mouse->Consumed      = false;
     Mouse->OverUI        = false;
