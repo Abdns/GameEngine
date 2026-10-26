@@ -58,6 +58,9 @@
     <Filter Include="EngaAsset">
       <UniqueIdentifier>{a1000000-0000-0000-0000-0000000000b4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="engine\source\Graphics\Vulkan\shaders\UI">
+      <UniqueIdentifier>{56c1b790-f356-4301-8be3-657b0736c036}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\engine\source\Game\src\Game.cpp">
@@ -238,16 +241,16 @@
     <None Include="..\engine\source\Graphics\Vulkan\shaders\post.hlsl">
       <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
     </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\UI.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\uirect.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
-    </None>
     <None Include="..\EngaAsset\assets.enga">
       <Filter>EngaAsset</Filter>
     </None>
     <None Include="..\build.bat" />
     <None Include="..\.vserunonsave" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\UI.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders\UI</Filter>
+    </None>
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\uirect.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders\UI</Filter>
+    </None>
   </ItemGroup>
 </Project>

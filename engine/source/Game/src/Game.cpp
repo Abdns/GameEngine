@@ -97,7 +97,7 @@ internal void InitTools(game_state *GameState)
     AxisMeshes[1] = GetAssetMeshHandle(Assets, "gizmo_axis_y");
     AxisMeshes[2] = GetAssetMeshHandle(Assets, "gizmo_axis_z");
 
-    uint32 GizmoMaterial = AddMaterial(Materials, OverlayMaterial(Vector4(1.0f, 1.0f, 1.0f, 1.0f), GetAssetTextureHandle(Assets, "TestTexture")));
+    uint32 GizmoMaterial = AddMaterial(Materials, OverlayMaterial());
 
     GameState->UI.Style = DefaultUIStyle();
     GameState->Gizmo.Style    = DefaultGizmoStyle(AxisMeshes, GizmoMaterial);
@@ -116,10 +116,10 @@ internal void BuildTestScene(game_state *GameState)
     uint32 Cube = GetAssetMeshHandle(Assets, "cube");
     uint32 Sphere = GetAssetMeshHandle(Assets, "sphere");
     uint32 PropMeshes[] = { Cube, Sphere };
-    uint32 PropMaterial = AddMaterial(Materials, UnlitMaterial(Vector4(1.0f, 1.0f, 1.0f, 1.0f), TestTextureHandle));
+    uint32 PropMaterial = AddMaterial(Materials, UnlitMaterial());
 
-    uint32 LitHandle   = AddMaterial(Materials, LitMaterial(Vector4(0.9f, 0.5f, 0.2f, 1.0f), TestTextureHandle));
-    uint32 FloorHandle = AddMaterial(Materials, LitMaterial(Vector4(0.45f, 0.45f, 0.5f, 1.0f), TestTextureHandle));
+    uint32 LitHandle   = AddMaterial(Materials, LitMaterial());
+    uint32 FloorHandle = AddMaterial(Materials, LitMaterial());
 
     AddEntity(GameState, Entity_Floor, TransformAt(Vector3(0.0f, -2.1f, 0.0f)), GetAssetMeshHandle(Assets, "plane"), FloorHandle, "floor");
 

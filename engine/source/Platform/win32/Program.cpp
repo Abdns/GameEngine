@@ -155,7 +155,8 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
         Win32UpdateRecordAndPlayback(&State, NewInput);
 #endif
 
-        render_commands RenderCommands = InitRenderCommands(RenderMemory, RenderMemorySize);
+        temporary_memory RenderTemp = BeginTemporaryMemory(&PlatformArena);
+        render_commands RenderCommands = InitRenderCommands(RenderMemory, RenderMemorySize, &PlatformArena);
         Game.UpdateAndRender(&GameMemory, NewInput, &RenderCommands);
 
         win32_sound_lock_region LockRegion = Win32UpdateAudio(&SoundOutput, FlipWallClock, TargetSecondsPerFrame, &SoundIsValid, Game.GetSoundSamples, &GameMemory, Samples);
@@ -166,6 +167,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
         Win32DebugSyncDisplay(&GlobalBackBuffer, ArrayCount(DebugTimeMarkers), DebugTimeMarkers, DebugTimeMarkerIndex - 1, &SoundOutput, TargetSecondsPerFrame);
 #endif
         RenderVulkanFrame(&VulkanContext, &VulkanResources, &FrameTargets, &VulkanPipelines, &RenderCommands);
+        EndTemporaryMemory(RenderTemp);
         FlipWallClock = Win32GetWallClock();
 
 #if ENGINE_INTERNAL

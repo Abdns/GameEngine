@@ -11,6 +11,13 @@
 #include "VulkanPasses.cpp"
 #include "VulkanPipeline.cpp"
 #include "VulkanFrame.cpp"
+#include "Memory.h"
+
+static_assert(CommandCapacity(Load_Mesh) == MAX_MESHES, "Mesh load capacity must match mesh storage");
+static_assert(CommandCapacity(Load_Texture) == MAX_TEXTURES, "Texture load capacity must match texture storage");
+static_assert(CommandCapacity(Load_Cubemap) == MAX_CUBEMAPS, "Cubemap load capacity must match cubemap storage");
+static_assert(CommandCapacity(Load_Material) == MAX_MATERIALS, "Material load capacity must match material storage");
+
 
 internal void ResizeRenderer(vulkan_context *context, vulkan_resources *res, frame_targets *targets)
 {
@@ -74,13 +81,14 @@ internal void InitVulkan(vulkan_context *context, vulkan_resources *res, frame_t
     EndSingleTimeCommands(context, setup);
 
     *pipelines = CreatePipelines(context, res);
-
-    DebugLog("Vulkan ready\n");
 }
 
 internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_commands *commands)
 {
-    if (!commands->LoadCount)
+    if (!commands->CommandCounts[Load_Mesh] &&
+        !commands->CommandCounts[Load_Texture] &&
+        !commands->CommandCounts[Load_Cubemap] &&
+        !commands->CommandCounts[Load_Material])
     {
         return;
     }
@@ -97,64 +105,65 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
 
     VkCommandBuffer cmd = BeginSingleTimeCommands(context); 
     {
-        uint32 offset = 0;
-        for (command_type *header = NextRenderCommand(commands, &offset); header; header = NextRenderCommand(commands, &offset))
+        for (uint32 Type = Load_Mesh; Type <= Load_Material; ++Type)
         {
-            if (*header == Load_Mesh)
+            for (uint32 Index = 0; Index < commands->CommandCounts[Type]; ++Index)
             {
-                command_load_mesh *entry = (command_load_mesh *)header;
+                command_type *header = commands->Commands[Type][Index];
+                if (*header == Load_Mesh)
+                {
+                    command_load_mesh *entry = (command_load_mesh *)header;
 
-                gpu_buffer_slice vertices = BufferWrite(&res->VertexBuffer, entry->Vertices, entry->VertexCount * sizeof(vertex), 4);
-                gpu_buffer_slice indices  = BufferWrite(&res->IndexBuffer,  entry->Indices,  entry->IndexCount  * sizeof(uint32), sizeof(uint32));
+                    gpu_buffer_slice vertices = BufferWrite(&res->VertexBuffer, entry->Vertices, entry->VertexCount * sizeof(vertex), 4);
+                    gpu_buffer_slice indices  = BufferWrite(&res->IndexBuffer,  entry->Indices,  entry->IndexCount  * sizeof(uint32), sizeof(uint32));
 
-                Assert(entry->MeshHandle < MAX_MESHES);
+                    Assert(entry->MeshHandle < MAX_MESHES);
 
-                gpu_mesh *mesh = &res->Meshes[entry->MeshHandle];
-                Assert(!mesh->IndexCount);
+                    gpu_mesh *mesh = &res->Meshes[entry->MeshHandle];
+                    Assert(!mesh->IndexCount);
 
-                *mesh = CreateMesh(vertices.Offset, entry->VertexCount, indices.Offset, entry->IndexCount);
-            }
-            else if (*header == Load_Texture)
-            {
-                command_load_texture *entry = (command_load_texture *)header;
+                    *mesh = CreateMesh(vertices.Offset, entry->VertexCount, indices.Offset, entry->IndexCount);
+                }
+                else if (*header == Load_Texture)
+                {
+                    command_load_texture *entry = (command_load_texture *)header;
 
-                VkDeviceSize imageSize = (VkDeviceSize)entry->Width * entry->Height * ImageFormatBytes(entry->Format);
+                    VkDeviceSize imageSize = (VkDeviceSize)entry->Width * entry->Height * ImageFormatBytes(entry->Format);
 
-                gpu_buffer_slice upload = BufferWrite(&staging, entry->Pixels, imageSize, 16);
-                gpu_image *texture = CreateTexture(context, res, entry->TextureHandle, entry->Width, entry->Height, entry->SRGB, entry->Format);
+                    gpu_buffer_slice upload = BufferWrite(&staging, entry->Pixels, imageSize, 16);
+                    gpu_image *texture = CreateTexture(context, res, entry->TextureHandle, entry->Width, entry->Height, entry->SRGB, entry->Format);
 
-                CmdUploadImage(cmd, staging.Buffer, upload.Offset, texture->Image, entry->Width, entry->Height, 1);
-                WriteHeapImage(context, &res->Heap, BINDING_TEXTURES, entry->TextureHandle, texture->View);
-            }
-            else if (*header == Load_Cubemap)
-            {
-                command_load_cubemap *entry = (command_load_cubemap *)header;
+                    CmdUploadImage(cmd, staging.Buffer, upload.Offset, texture->Image, entry->Width, entry->Height, 1);
+                    WriteHeapImage(context, &res->Heap, BINDING_TEXTURES, entry->TextureHandle, texture->View);
+                }
+                else if (*header == Load_Cubemap)
+                {
+                    command_load_cubemap *entry = (command_load_cubemap *)header;
 
-                VkDeviceSize imageSize = (VkDeviceSize)entry->FaceSize * entry->FaceSize * 6 * ImageFormatBytes(entry->Format);
+                    VkDeviceSize imageSize = (VkDeviceSize)entry->FaceSize * entry->FaceSize * 6 * ImageFormatBytes(entry->Format);
 
-                gpu_buffer_slice upload = BufferWrite(&staging, entry->Pixels, imageSize, 16);
-                gpu_image *cube = CreateCubemap(context, res, entry->CubemapHandle, entry->FaceSize, entry->Format);
+                    gpu_buffer_slice upload = BufferWrite(&staging, entry->Pixels, imageSize, 16);
+                    gpu_image *cube = CreateCubemap(context, res, entry->CubemapHandle, entry->FaceSize, entry->Format);
 
-                CmdUploadImage(cmd, staging.Buffer, upload.Offset, cube->Image, entry->FaceSize, entry->FaceSize, 6);
-                CmdGenerateMips(cmd, cube->Image, entry->FaceSize, entry->FaceSize, 6, cube->MipLevels);
-                WriteHeapImage(context, &res->Heap, BINDING_CUBEMAPS, entry->CubemapHandle, cube->View);
-            }
-            else if (*header == Load_Material)
-            {
-                command_load_material *entry = (command_load_material*)header;
-                const material *description = &entry->Description;
+                    CmdUploadImage(cmd, staging.Buffer, upload.Offset, cube->Image, entry->FaceSize, entry->FaceSize, 6);
+                    CmdGenerateMips(cmd, cube->Image, entry->FaceSize, entry->FaceSize, 6, cube->MipLevels);
+                    WriteHeapImage(context, &res->Heap, BINDING_CUBEMAPS, entry->CubemapHandle, cube->View);
+                }
+                else if (*header == Load_Material)
+                {
+                    command_load_material *entry = (command_load_material*)header;
+                    const material *materialDesc = &entry->Description;
 
-                Assert(description->Pipeline < Pipeline_MeshCount);
-                Assert(description->TextureHandle < MAX_TEXTURES && res->Textures[description->TextureHandle].View);
+                    Assert(materialDesc->Pipeline < Pipeline_MeshCount);
+                    //Assert(description->TextureHandle < MAX_TEXTURES && res->Textures[description->TextureHandle].View);
 
-                Assert(res->MaterialBuffer.CpuBase);
-                res->Materials[entry->MaterialHandle] = *description;
+                    Assert(res->MaterialBuffer.CpuBase);
+                    res->Materials[entry->MaterialHandle] = *materialDesc;
 
-                gpu_material *gpuMaterials = (gpu_material*)res->MaterialBuffer.CpuBase;
-                gpu_material gpuMaterial = {};
-                gpuMaterial.BaseColor   = description->BaseColor;
-                gpuMaterial.TextureSlot = description->TextureHandle;
-                gpuMaterials[entry->MaterialHandle] = gpuMaterial;
+                    gpu_material *gpuMaterials = (gpu_material*)res->MaterialBuffer.CpuBase;
+                    gpu_material gpuMaterial = {};
+                    gpuMaterials[entry->MaterialHandle] = gpuMaterial;
+                }
             }
         }
     }
@@ -162,7 +171,10 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
 
     DestroyBuffer(context, &staging);
 
-    commands->LoadCount = 0;
+    commands->CommandCounts[Load_Mesh] = 0;
+    commands->CommandCounts[Load_Texture] = 0;
+    commands->CommandCounts[Load_Cubemap] = 0;
+    commands->CommandCounts[Load_Material] = 0;
 }
 
 internal void FillFrameGlobalsBuffer(vulkan_context *context, vulkan_resources *res, render_commands *commands)
@@ -171,38 +183,41 @@ internal void FillFrameGlobalsBuffer(vulkan_context *context, vulkan_resources *
 
     real32 FOVaspect = (real32)context->swapchainExtent.width / (real32)context->swapchainExtent.height;
 
-    uint32 offset = 0;
-    for (command_type *cmdBase = NextRenderCommand(commands, &offset); cmdBase; cmdBase = NextRenderCommand(commands, &offset))
+    for (uint32 Type = Bind_Camera; Type <= Bind_Light; ++Type)
     {
-        switch (*cmdBase)
+        for (uint32 Index = 0; Index < commands->CommandCounts[Type]; ++Index)
         {
-            case Bind_Light:
+            command_type *cmdBase = commands->Commands[Type][Index];
+            switch (*cmdBase)
             {
-                command_bind_light *lightCmd = (command_bind_light *)cmdBase;
+                case Bind_Light:
+                {
+                    command_bind_light *lightCmd = (command_bind_light *)cmdBase;
 
-                globals->LightDir = lightCmd->Direction;
-            } break;
+                    globals->LightDir = lightCmd->Direction;
+                } break;
 
-            case Bind_Camera:
-            {
-                command_bind_camera *cameraCmd = (command_bind_camera *)cmdBase;
+                case Bind_Camera:
+                {
+                    command_bind_camera *cameraCmd = (command_bind_camera *)cmdBase;
 
-                real32 nearPlane = 0.1f;
-                real32 farPlane  = 100.0f;
+                    real32 nearPlane = 0.1f;
+                    real32 farPlane  = 100.0f;
 
-                Matrix4 proj = Mat4Perspective(cameraCmd->FovY, FOVaspect, nearPlane, farPlane);
+                    Matrix4 proj = Mat4Perspective(cameraCmd->FovY, FOVaspect, nearPlane, farPlane);
 
-                globals->ViewProj = Mat4Multiply(proj, cameraCmd->View);
+                    globals->ViewProj = Mat4Multiply(proj, cameraCmd->View);
 
-                Matrix4 *view = &cameraCmd->View;
-                real32 rightScale = 1.0f / proj.Elements[0][0];
-                real32 upScale    = 1.0f / proj.Elements[1][1];
+                    Matrix4 *view = &cameraCmd->View;
+                    real32 rightScale = 1.0f / proj.Elements[0][0];
+                    real32 upScale    = 1.0f / proj.Elements[1][1];
 
-                globals->SkyRight   = Vector4(view->Elements[0][0] * rightScale, view->Elements[1][0] * rightScale, view->Elements[2][0] * rightScale, 0.0f);
-                globals->SkyUp      = Vector4(view->Elements[0][1] * upScale,    view->Elements[1][1] * upScale,    view->Elements[2][1] * upScale,    0.0f);
-                globals->SkyForward = Vector4(-view->Elements[0][2], -view->Elements[1][2], -view->Elements[2][2], 0.0f);
-            } break;
+                    globals->SkyRight   = Vector4(view->Elements[0][0] * rightScale, view->Elements[1][0] * rightScale, view->Elements[2][0] * rightScale, 0.0f);
+                    globals->SkyUp      = Vector4(view->Elements[0][1] * upScale,    view->Elements[1][1] * upScale,    view->Elements[2][1] * upScale,    0.0f);
+                    globals->SkyForward = Vector4(-view->Elements[0][2], -view->Elements[1][2], -view->Elements[2][2], 0.0f);
+                } break;
 
+            }
         }
     }
 }
@@ -216,94 +231,77 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
     render_state wanted  = {};
 
     vkCmdBindIndexBuffer(cmd, res->IndexBuffer.Buffer, 0, VK_INDEX_TYPE_UINT32);
-    for (uint32 queue = 0; queue < Queue_Count; ++queue)
+    for (uint32 Index = 0; Index < commands->CommandCounts[Render_Skybox]; ++Index)
     {
-        uint32 offset   = 0;
-        for (command_type *cmdBase = NextRenderCommand(commands, &offset); cmdBase; cmdBase = NextRenderCommand(commands, &offset))
+        command_render_skybox *skyCmd = (command_render_skybox *)commands->Commands[Render_Skybox][Index];
+
+        piplineId = Pipeline_Skybox;
+        pipeline = &pipelines[piplineId];
+
+        BindPipelineState(context, cmd, pipeline, &current, &wanted);
+
+        skybox_params params = {};
+        params.Tint         = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+        params.CubemapIndex = skyCmd->CubemapHandle;
+
+        PushPassParams(cmd, res, frameBuffer, params);
+        vkCmdDraw(cmd, 3, 1, 0, 0);
+    }
+
+    render_queue Queues[] = { Queue_Opaque, Queue_Transparent, Queue_Overlay };
+    for (uint32 QueueIndex = 0; QueueIndex < ArrayCount(Queues); ++QueueIndex)
+    {
+        for (uint32 Index = 0; Index < commands->CommandCounts[Render_Mesh]; ++Index)
         {
-            if (*cmdBase != Render_Mesh && queue != Queue_Opaque)
+            command_render_mesh *meshCmd = (command_render_mesh *)commands->Commands[Render_Mesh][Index];
+
+            gpu_mesh *mesh = &res->Meshes[meshCmd->MeshHandle];
+            uint32 materialSlot = meshCmd->MaterialHandle;
+            material *materialDesc = &res->Materials[materialSlot];
+
+            if (materialDesc->Queue != Queues[QueueIndex])
             {
                 continue;
             }
 
-            switch (*cmdBase)
+            if ((uint32)materialDesc->Pipeline != piplineId)
             {
-                case Render_Skybox:
+                if (pipelines[materialDesc->Pipeline].Vert == VK_NULL_HANDLE)
                 {
-                    command_render_skybox *skyCmd = (command_render_skybox *)cmdBase;
+                    continue;
+                }
 
-                    uint32 cubeSlot = skyCmd->CubemapHandle;
+                piplineId = (uint32)materialDesc->Pipeline;
+                pipeline = &pipelines[piplineId];
 
-                    piplineId = Pipeline_Skybox;
-                    pipeline = &pipelines[piplineId];
-
-                    BindPipelineState(context, cmd, pipeline, &current, &wanted);
-                    ApplyRenderState(context, cmd, &current, &wanted);
-
-                    skybox_params params = {};
-                    params.Tint         = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-                    params.CubemapIndex = cubeSlot;
-
-                    PushPassParams(cmd, res, frameBuffer, params);
-
-                    vkCmdDraw(cmd, 3, 1, 0, 0);
-                } break;
-
-                case Render_Mesh:
-                {
-                    command_render_mesh *meshCmd = (command_render_mesh *)cmdBase;
-
-                    gpu_mesh *mesh = &res->Meshes[meshCmd->MeshHandle];
-
-                    uint32 materialSlot = meshCmd->MaterialHandle;
-
-                    const material *description = &res->Materials[materialSlot];
-
-                    if ((uint32)description->Queue != queue)
-                    {
-                        break;
-                    }
-
-                    if ((uint32)description->Pipeline != piplineId)
-                    {
-                        if (pipelines[description->Pipeline].Vert == VK_NULL_HANDLE)
-                        {
-                            break;
-                        }
-
-                        piplineId = (uint32)description->Pipeline;
-                        pipeline = &pipelines[piplineId];
-
-                        BindPipelineState(context, cmd, pipeline, &current, &wanted);
-                    }
-
-                    wanted.CullMode   = ToVulkanCullMode(description->CullMode);
-                    wanted.DepthTest  = description->DepthTest  ? VK_TRUE : VK_FALSE;
-                    wanted.DepthWrite = description->DepthWrite ? VK_TRUE : VK_FALSE;
-                    wanted.AlphaBlend = (description->BlendMode == Blend_Alpha) ? VK_TRUE : VK_FALSE;
-
-                    ApplyRenderState(context, cmd, &current, &wanted);
-
-                    VkDeviceAddress vertices    = res->VertexBuffer.Address;
-                    int32           firstVertex = (int32)mesh->FirstVertex;
-                    if (meshCmd->PosedVertices)
-                    {
-                        vertices    = BufferWrite(frameBuffer, meshCmd->PosedVertices, mesh->VertexCount * sizeof(vertex), 16).Gpu;
-                        firstVertex = 0;
-                    }
-
-                    draw_params params = {};
-                    params.Model         = meshCmd->Transform;
-                    params.Tint          = meshCmd->Tint;
-                    params.Vertices      = vertices;
-                    params.Materials     = res->MaterialBuffer.Address;
-                    params.MaterialSlot  = materialSlot;
-
-                    PushPassParams(cmd, res, frameBuffer, params);
-
-                    vkCmdDrawIndexed(cmd, mesh->IndexCount, 1, mesh->FirstIndex, firstVertex, 0);
-                } break;
+                BindPipelineState(context, cmd, pipeline, &current, &wanted);
             }
+
+            wanted.CullMode   = ToVulkanCullMode(materialDesc->PiplineState.CullMode);
+            wanted.DepthTest  = materialDesc->PiplineState.DepthTest  ? VK_TRUE : VK_FALSE;
+            wanted.DepthWrite = materialDesc->PiplineState.DepthWrite ? VK_TRUE : VK_FALSE;
+            wanted.AlphaBlend = (materialDesc->PiplineState.BlendMode == Blend_Alpha) ? VK_TRUE : VK_FALSE;
+
+            ApplyRenderState(context, cmd, &current, &wanted);
+
+            VkDeviceAddress vertices    = res->VertexBuffer.Address;
+            int32           firstVertex = (int32)mesh->FirstVertex;
+            if (meshCmd->PosedVertices)
+            {
+                vertices    = BufferWrite(frameBuffer, meshCmd->PosedVertices, mesh->VertexCount * sizeof(vertex), 16).Gpu;
+                firstVertex = 0;
+            }
+
+            draw_params params = {};
+            params.Model         = meshCmd->Transform;
+            params.Tint          = meshCmd->Tint;
+            params.Vertices      = vertices;
+            params.Materials     = res->MaterialBuffer.Address;
+            params.MaterialSlot  = materialSlot;
+
+            PushPassParams(cmd, res, frameBuffer, params);
+
+            vkCmdDrawIndexed(cmd, mesh->IndexCount, 1, mesh->FirstIndex, firstVertex, 0);
         }
     }
 }
@@ -316,7 +314,7 @@ internal void ExecuteUICommands(vulkan_context *context, VkCommandBuffer cmd, vu
         return;
     }
 
-    uint32 rectCount = commands->RectCount;
+    uint32 rectCount = commands->CommandCounts[Render_Rect];
     if (!rectCount)
     {
         return;
@@ -328,17 +326,10 @@ internal void ExecuteUICommands(vulkan_context *context, VkCommandBuffer cmd, vu
     gpu_buffer_slice slice = BufferAlloc(frameBuffer, rectCount * sizeof(rect_params), 16);
 
     rect_params *params = (rect_params *)slice.Cpu;
-    uint32       index  = 0;
 
-    uint32 offset = 0;
-    for (command_type *cmdBase = NextRenderCommand(commands, &offset); cmdBase; cmdBase = NextRenderCommand(commands, &offset))
+    for (uint32 Index = 0; Index < rectCount; ++Index)
     {
-        if (*cmdBase != Render_Rect)
-        {
-            continue;
-        }
-
-        command_render_rect *rectCmd = (command_render_rect *)cmdBase;
+        command_render_rect *rectCmd = (command_render_rect *)commands->Commands[Render_Rect][Index];
 
         rect_params entry = {};
         entry.Rect = Vector4(rectCmd->Min.X / width  * 2.0f - 1.0f,
@@ -349,7 +340,7 @@ internal void ExecuteUICommands(vulkan_context *context, VkCommandBuffer cmd, vu
         entry.Tint = rectCmd->Color;
         entry.TextureSlot = rectCmd->TextureSlot;
 
-        params[index++] = entry;
+        params[Index] = entry;
     }
 
     render_state current = {};

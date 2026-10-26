@@ -20,6 +20,21 @@ enum pipeline_type
     Pipeline_MeshCount = Pipeline_Skybox,
 };
 
+constexpr const char* pipline_shader(pipeline_type type)
+{
+    switch (type)
+    {
+        case Pipeline_Unlit:  return "unlit";
+        case Pipeline_Lit:    return "lit";
+        case Pipeline_Skybox: return "skybox";
+        case Pipeline_Post:   return "post";
+        case Pipeline_UI:     return "UI";
+        case Pipeline_UIRect: return "uirect";
+        default:              return "";
+    }
+}
+
+
 enum cull_mode
 {
     Cull_None = 0,
@@ -36,24 +51,38 @@ enum blend_mode
 enum render_queue
 {
     Queue_Opaque = 0,
-    Queue_Transparent,
-    Queue_Overlay,
+    Queue_Transparent = 100,
+    Queue_Overlay = 200,
 
     Queue_Count,
 };
 
+struct pipline_state
+{
+    cull_mode    CullMode;
+    blend_mode   BlendMode;
+    bool32       DepthTest;
+    bool32       DepthWrite;
+};
+
+uint16 PiplineStateHash(pipline_state State)
+{
+    uint16 Hash = 0;
+
+    Hash |= ((uint16)State.CullMode & 0xF) << 0;
+    Hash |= ((uint16)State.BlendMode & 0xF) << 4;
+    Hash |= ((uint16)State.DepthTest & 0xF) << 8;
+    Hash |= ((uint16)State.DepthWrite & 0xF) << 12;
+
+    return Hash;
+}
+
 struct material
 {
     pipeline_type Pipeline;
-
-    cull_mode    CullMode;
-    blend_mode   BlendMode;
+    pipline_state PiplineState;
     render_queue Queue;
-    bool32       DepthTest;
-    bool32       DepthWrite;
-
-    Vector4 BaseColor;
-    uint32  TextureHandle;
+    uint32 PropPack;
 };
 
 #endif

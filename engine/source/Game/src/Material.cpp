@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Types.h"
-#include "EngineMath.h"
 #include "RenderCommands.h"
 #include "RenderDescription.h"
 
@@ -13,34 +12,38 @@ struct materials
     material Items[MAX_GAME_MATERIALS];
 };
 
-internal material UnlitMaterial(Vector4 BaseColor, uint32 TextureHandle)
+internal material UnlitMaterial()
 {
+    pipline_state State = {};
+    State.CullMode = Cull_None;
+    State.BlendMode = Blend_Opaque;
+    State.DepthTest = true;
+    State.DepthWrite = true;
+
+
+
     material Result = {};
     Result.Pipeline      = Pipeline_Unlit;
-    Result.CullMode      = Cull_None;
-    Result.BlendMode     = Blend_Opaque;
+    Result.PiplineState  = State;
     Result.Queue         = Queue_Opaque;
-    Result.DepthTest     = true;
-    Result.DepthWrite    = true;
-    Result.BaseColor     = BaseColor;
-    Result.TextureHandle = TextureHandle;
+    Result.PropPack = PiplineStateHash(State);
 
     return Result;
 }
 
-internal material OverlayMaterial(Vector4 BaseColor, uint32 TextureHandle)
+internal material OverlayMaterial()
 {
-    material Result = UnlitMaterial(BaseColor, TextureHandle);
-    Result.DepthTest  = false;
-    Result.DepthWrite = false;
-    Result.Queue      = Queue_Overlay;
+    material Result = UnlitMaterial();
+    Result.PiplineState.DepthTest  = false;
+    Result.PiplineState.DepthWrite = false;
+    Result.Queue = Queue_Overlay;
 
     return Result;
 }
 
-internal material LitMaterial(Vector4 BaseColor, uint32 TextureHandle)
+internal material LitMaterial()
 {
-    material Result = UnlitMaterial(BaseColor, TextureHandle);
+    material Result = UnlitMaterial();
     Result.Pipeline = Pipeline_Lit;
 
     return Result;
@@ -49,8 +52,8 @@ internal material LitMaterial(Vector4 BaseColor, uint32 TextureHandle)
 internal uint32 AddMaterial(materials* Materials, material Material)
 {
     Assert(Materials->Count < MAX_GAME_MATERIALS);
-    uint32 Index = Materials->Count++;
 
+    uint32 Index = Materials->Count++;
     Materials->Items[Index] = Material;
 
     return Index;

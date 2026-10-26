@@ -2,6 +2,7 @@
 #define RENDERCOMMANDS_H
 
 #include "Types.h"
+#include "Memory.h"
 #include "EngineMath.h"
 #include "RenderDescription.h"
 
@@ -16,7 +17,27 @@ enum command_type
     Render_Mesh,
     Render_Skybox,
     Render_Rect,
+    Command_Count,
 };
+
+
+constexpr uint32 CommandCapacity(command_type Type)
+{
+    switch (Type)
+    {
+        case Bind_Camera:    return 16;
+        case Bind_Light:     return 16;
+        case Load_Mesh:      return 256;
+        case Load_Texture:   return 32;
+        case Load_Cubemap:   return 4;
+        case Load_Material:  return 64;
+        case Render_Mesh:    return 8192;  //MAX_RENDER_MESH_COMMANDS;
+        case Render_Skybox:  return 16;
+        case Render_Rect:    return 16384; //MAX_RENDER_RECT_COMMANDS;
+        default:             return 0;
+    }
+}
+
 
 struct command_render_mesh
 {
@@ -95,7 +116,7 @@ struct command_bind_light
     Vector3 Direction;
 };
 
-inline uint32 CommandSize(command_type Type)
+constexpr inline uint32 CommandSize(command_type Type)
 {
     switch (Type)
     {
@@ -112,58 +133,74 @@ inline uint32 CommandSize(command_type Type)
     return 0;
 }
 
+constexpr inline uint32 CommandAlignment(command_type Type)
+{
+    switch (Type)
+    {
+        case Bind_Camera:    return alignof(command_bind_camera);
+        case Bind_Light:     return alignof(command_bind_light);
+        case Load_Mesh:      return alignof(command_load_mesh);
+        case Load_Texture:   return alignof(command_load_texture);
+        case Load_Cubemap:   return alignof(command_load_cubemap);
+        case Load_Material:  return alignof(command_load_material);
+        case Render_Mesh:    return alignof(command_render_mesh);
+        case Render_Skybox:  return alignof(command_render_skybox);
+        case Render_Rect:    return alignof(command_render_rect);
+    }
+    return 0;
+}
+
 struct render_commands
 {
-    uint32 LoadCount;
+    command_type **Commands[Command_Count];
+    uint32 CommandCounts[Command_Count];
+    uint32 CommandCapacities[Command_Count];
+
     uint32 VertexCount;
     uint32 IndexCount;
     uint32 MaterialCount;
-    uint32 RectCount;
 
-    uint8 *PushBufferBase;
-    uint32 PushBufferSize;
-    uint32 MaxPushBufferSize;
+    memory_arena CommandArena;
 };
 
-inline render_commands InitRenderCommands(void *Memory, uint32 Size)
+inline render_commands InitRenderCommands(void *Memory, uint32 Size, memory_arena *Arena)
 {
     render_commands Result = {};
-    Result.PushBufferBase    = (uint8 *)Memory;
-    Result.MaxPushBufferSize = Size;
+    InitializeArena(&Result.CommandArena, Size, Memory);
+
+    for (uint32 Type = 0; Type < Command_Count; ++Type)
+    {
+        uint32 Capacity = CommandCapacity((command_type)Type);
+        Result.CommandCapacities[Type] = Capacity;
+        Result.Commands[Type] = PushArrayAligned(Arena, Capacity, command_type*, alignof(command_type*));
+    }
+
     return Result;
 }
+
 
 inline void *PushRenderCommand(render_commands *Commands, command_type Type)
 {
     uint32 Size = CommandSize(Type);
 
-    void *Base = 0;
-    if (Commands->PushBufferSize + Size <= Commands->MaxPushBufferSize)
+    if (Commands->CommandCounts[Type] >= Commands->CommandCapacities[Type])
     {
-        command_type *CmdBase = (command_type *)&Commands->PushBufferBase[Commands->PushBufferSize];
-        *CmdBase = Type;
-        Base = CmdBase;
-        Commands->PushBufferSize += Size;
-    }
-    return Base;
-}
-
-inline command_type *NextRenderCommand(render_commands *Commands, uint32 *Offset)
-{
-    if (*Offset >= Commands->PushBufferSize)
-    {
+        Assert(!"Render command array is full");
         return 0;
     }
 
-    command_type *CmdBase = (command_type *)&Commands->PushBufferBase[*Offset];
-    uint32 Size = CommandSize(*CmdBase);
-    if (!Size)
+    uint32 Alignment = CommandAlignment(Type);
+    memory_size RequiredSize = Size + GetAlignmentOffset(&Commands->CommandArena, Alignment);
+    if (RequiredSize > Commands->CommandArena.Size - Commands->CommandArena.Used)
     {
-        Assert(!"Unknown render cmd");
+        Assert(!"Render command arena is full");
         return 0;
     }
 
-    *Offset += Size;
+    command_type *CmdBase = (command_type *)PushSize_(&Commands->CommandArena, Size, Alignment);
+    *CmdBase = Type;
+    Commands->Commands[Type][Commands->CommandCounts[Type]++] = CmdBase;
+
     return CmdBase;
 }
 
@@ -199,7 +236,6 @@ inline void PushLoadMesh(render_commands *Commands, uint32 MeshHandle, void *Ver
         cmd->Indices     = Indices;
         cmd->IndexCount  = IndexCount;
 
-        Commands->LoadCount++;
         Commands->VertexCount += VertexCount;
         Commands->IndexCount  += IndexCount;
     }
@@ -216,8 +252,6 @@ inline void PushLoadTexture(render_commands *Commands, uint32 TextureHandle, voi
         cmd->Height = Height;
         cmd->SRGB   = SRGB;
         cmd->Format = Format;
-
-        Commands->LoadCount++;
     }
 }
 
@@ -230,8 +264,6 @@ inline void PushLoadCubemap(render_commands *Commands, uint32 CubemapHandle, voi
         cmd->Pixels   = Pixels;
         cmd->FaceSize = FaceSize;
         cmd->Format   = Format;
-
-        Commands->LoadCount++;
     }
 }
 
@@ -243,7 +275,6 @@ inline void PushLoadMaterial(render_commands *Commands, uint32 MaterialHandle, c
         cmd->MaterialHandle = MaterialHandle;
         cmd->Description    = *Material;
 
-        Commands->LoadCount++;
         if (MaterialHandle >= Commands->MaterialCount)
         {
             Commands->MaterialCount = MaterialHandle + 1;
@@ -261,8 +292,6 @@ inline void PushRenderTexturedRect(render_commands *Commands, Vector2 Min, Vecto
         cmd->Color       = Color;
         cmd->UV          = UV;
         cmd->TextureSlot = TextureSlot;
-
-        Commands->RectCount++;
     }
 }
 

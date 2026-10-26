@@ -1,32 +1,12 @@
 #include "Strings.h"
 #include "Vulkan.h"
+#include "RenderDescription.h"
 
 struct vulkan_shader
 {
     file_data vert;
     file_data frag;
 };
-
-struct pipeline_desc
-{
-    const char *ShaderName;
-
-    VkBool32 DepthTest;
-    VkBool32 DepthWrite;
-    VkBool32 Blend;
-};
-
-global_variable pipeline_desc PipelineDescs[] =
-{
-    { "unlit",      VK_TRUE,  VK_TRUE,  VK_FALSE },
-    { "lit",        VK_TRUE,  VK_TRUE,  VK_FALSE },
-    { "skybox",     VK_FALSE, VK_FALSE, VK_FALSE },
-    { "post",       VK_FALSE, VK_FALSE, VK_FALSE },
-    { "UI",         VK_FALSE, VK_FALSE, VK_FALSE },
-    { "uirect",     VK_FALSE, VK_FALSE, VK_TRUE  },
-};
-
-static_assert(ArrayCount(PipelineDescs) == Pipeline_Count, "PipelineDescs must describe every pipeline_type");
 
 internal vulkan_shader LoadShader(const char *name)
 {
@@ -48,8 +28,6 @@ internal vulkan_shader LoadShader(const char *name)
 
     Assert(shader.vert.Data && shader.frag.Data);
 
-    DebugLog("Shader '%s' loaded (vert %u, frag %u bytes)\n",name, shader.vert.Size, shader.frag.Size);
-
     return shader;
 }
 
@@ -60,17 +38,17 @@ internal void FreeShader(vulkan_shader *shader)
     *shader = {};
 }
 
-internal render_pipeline CreateRenderPipeline(vulkan_context *context, vulkan_resources *res, pipeline_desc *desc)
+internal render_pipeline CreateRenderPipeline(vulkan_context *context, vulkan_resources *res, const char* shaderName)
 {
     render_pipeline pipeline = {};
     pipeline.DefaultState.CullMode   = VK_CULL_MODE_NONE;
-    pipeline.DefaultState.DepthTest  = desc->DepthTest;
-    pipeline.DefaultState.DepthWrite = desc->DepthWrite;
-    pipeline.DefaultState.AlphaBlend = desc->Blend;
+    pipeline.DefaultState.DepthTest  = VK_FALSE;
+    pipeline.DefaultState.DepthWrite = VK_FALSE;
+    pipeline.DefaultState.AlphaBlend = VK_FALSE;
 
     VkDescriptorSetLayout heapLayout = res->Heap.Layout;
 
-    vulkan_shader shader = LoadShader(desc->ShaderName);
+    vulkan_shader shader = LoadShader(shaderName);
 
     VkPushConstantRange pushRange = ParamsPushRange();
 
@@ -118,9 +96,9 @@ internal vulkan_pipelines CreatePipelines(vulkan_context *context, vulkan_resour
 {
     vulkan_pipelines pipelines = {};
 
-    for (uint32 i = 0; i < Pipeline_Count; ++i)
+    for (uint32 typeIndex = 0; typeIndex < Pipeline_Count; ++typeIndex)
     {
-        pipelines.Render[i] = CreateRenderPipeline(context, res, &PipelineDescs[i]);
+        pipelines.Render[typeIndex] = CreateRenderPipeline(context, res, pipline_shader((pipeline_type)typeIndex));
     }
 
     return pipelines;
