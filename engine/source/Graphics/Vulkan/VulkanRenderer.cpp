@@ -224,6 +224,8 @@ internal void FillFrameGlobalsBuffer(vulkan_context *context, vulkan_resources *
 
 internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd, vulkan_resources *res, gpu_buffer *frameBuffer, render_pipeline *pipelines, render_commands *commands)
 {
+    PrepareMeshSortKeys(commands, res->Materials);
+
     render_pipeline *pipeline = 0;
     uint32 piplineId = Pipeline_Count;
 
@@ -253,7 +255,7 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
     {
         for (uint32 Index = 0; Index < commands->CommandCounts[Render_Mesh]; ++Index)
         {
-            command_render_mesh *meshCmd = (command_render_mesh *)commands->Commands[Render_Mesh][Index];
+            command_render_mesh *meshCmd = commands->MeshCommands[Index].Command;
 
             gpu_mesh *mesh = &res->Meshes[meshCmd->MeshHandle];
             uint32 materialSlot = meshCmd->MaterialHandle;

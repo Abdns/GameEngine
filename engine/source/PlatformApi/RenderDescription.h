@@ -34,7 +34,6 @@ constexpr const char* pipline_shader(pipeline_type type)
     }
 }
 
-
 enum cull_mode
 {
     Cull_None = 0,
@@ -82,7 +81,16 @@ struct material
     pipeline_type Pipeline;
     pipline_state PiplineState;
     render_queue Queue;
+    material_params Params;
     uint32 PropPack;
+};
+
+struct material_params
+{
+    Vector4 Color;
+
+    uint32 TextureCount;
+    uint32 *TextureHandle;
 };
 
 #endif

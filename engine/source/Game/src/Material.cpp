@@ -10,9 +10,18 @@ struct materials
 {
     uint32   Count;
     material Items[MAX_GAME_MATERIALS];
+
+    memory_arena MaterialArena;
 };
 
-internal material UnlitMaterial()
+internal materials InitMateriasls(materials Materials, memory_arena Arena)
+{
+    Materials.MaterialArena = Arena;
+
+    return Materials;
+}
+
+internal material UnlitMaterial(materials* materials, material_params params)
 {
     pipline_state State = {};
     State.CullMode = Cull_None;
@@ -20,33 +29,36 @@ internal material UnlitMaterial()
     State.DepthTest = true;
     State.DepthWrite = true;
 
+    material Material = {};
+    Material.Pipeline      = Pipeline_Unlit;
+    Material.PiplineState  = State;
+    Material.Queue         = Queue_Opaque;
+    Material.Params = params;
+    Material.PropPack = PiplineStateHash(State);
 
+    AddMaterial(materials, Material);
 
-    material Result = {};
-    Result.Pipeline      = Pipeline_Unlit;
-    Result.PiplineState  = State;
-    Result.Queue         = Queue_Opaque;
-    Result.PropPack = PiplineStateHash(State);
-
-    return Result;
+    return Material;
 }
 
-internal material OverlayMaterial()
+internal material OverlayMaterial(materials* materials, material_params params)
 {
-    material Result = UnlitMaterial();
-    Result.PiplineState.DepthTest  = false;
-    Result.PiplineState.DepthWrite = false;
-    Result.Queue = Queue_Overlay;
+    material Material = UnlitMaterial(materials, params);
+    Material.PiplineState.DepthTest  = false;
+    Material.PiplineState.DepthWrite = false;
+    Material.Queue = Queue_Overlay;
 
-    return Result;
+    return Material;
 }
 
-internal material LitMaterial()
+internal material LitMaterial(materials* materials, material_params params)
 {
-    material Result = UnlitMaterial();
-    Result.Pipeline = Pipeline_Lit;
+    material Material = UnlitMaterial(materials, params);
+    Material.Pipeline = Pipeline_Lit;
 
-    return Result;
+    AddMaterial(materials, Material);
+
+    return Material;
 }
 
 internal uint32 AddMaterial(materials* Materials, material Material)

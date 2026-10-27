@@ -150,9 +150,16 @@ constexpr inline uint32 CommandAlignment(command_type Type)
     return 0;
 }
 
+struct mesh_draw_item
+{
+    uint32 SortKey;
+    command_render_mesh* Command;
+};
+
 struct render_commands
 {
     command_type **Commands[Command_Count];
+    mesh_draw_item *MeshCommands;
     uint32 CommandCounts[Command_Count];
     uint32 CommandCapacities[Command_Count];
 
@@ -168,16 +175,30 @@ inline render_commands InitRenderCommands(void *Memory, uint32 Size, memory_aren
     render_commands Result = {};
     InitializeArena(&Result.CommandArena, Size, Memory);
 
+    uint32 Capacity;
     for (uint32 Type = 0; Type < Command_Count; ++Type)
     {
-        uint32 Capacity = CommandCapacity((command_type)Type);
+        Capacity = CommandCapacity((command_type)Type);
         Result.CommandCapacities[Type] = Capacity;
         Result.Commands[Type] = PushArrayAligned(Arena, Capacity, command_type*, alignof(command_type*));
     }
 
+    Capacity = Result.CommandCapacities[Render_Mesh];
+    Result.MeshCommands = PushArrayAligned(Arena, Capacity, mesh_draw_item, alignof(mesh_draw_item));
+
     return Result;
 }
 
+inline void PrepareMeshSortKeys(render_commands *Commands, const material *Materials)
+{
+    for (uint32 Index = 0; Index < Commands->CommandCounts[Render_Mesh]; ++Index)
+    {
+        mesh_draw_item *Item = &Commands->MeshCommands[Index];
+        const material *Material = &Materials[Item->Command->MaterialHandle];
+
+        Item->SortKey = ((uint32)Material->Pipeline << 16) | PiplineStateHash(Material->PiplineState);
+    }
+}
 
 inline void *PushRenderCommand(render_commands *Commands, command_type Type)
 {
@@ -199,7 +220,17 @@ inline void *PushRenderCommand(render_commands *Commands, command_type Type)
 
     command_type *CmdBase = (command_type *)PushSize_(&Commands->CommandArena, Size, Alignment);
     *CmdBase = Type;
-    Commands->Commands[Type][Commands->CommandCounts[Type]++] = CmdBase;
+    uint32 Index = Commands->CommandCounts[Type]++;
+    if (Type == Render_Mesh)
+    {
+        mesh_draw_item *Item = &Commands->MeshCommands[Index];
+        Item->SortKey = 0;
+        Item->Command = (command_render_mesh *)CmdBase;
+    }
+    else
+    {
+        Commands->Commands[Type][Index] = CmdBase;
+    }
 
     return CmdBase;
 }

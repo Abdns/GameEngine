@@ -18,6 +18,7 @@
 #include "EditorUI.cpp"
 
 #define FRAME_ARENA_SIZE      Megabytes(8)
+#define FRAME_ARENA_SIZE      Megabytes(1)
 #define WORLD_CHUNK_DIM       16.0f
 #define ENTITY_CAPACITY       4096
 #define SIM_MAX_ENTITIES      4096
@@ -108,6 +109,7 @@ internal void InitTools(game_state *GameState)
 
 internal void BuildTestScene(game_state *GameState)
 {
+    //GameState->SkyHandle  = GetAssetCubemapHandle(Assets, "sky");
     asset_store *Assets    = &GameState->Assets;
     materials   *Materials = &GameState->Materials;
 
@@ -158,27 +160,23 @@ internal void InitGame(game_memory *Memory, game_state *GameState, render_comman
 
     memory_arena *WorldArena = &GameState->WorldArena;
     SubArena(&GameState->FrameArena, WorldArena, FRAME_ARENA_SIZE);
+    SubArena(&GameState->MaterialsArena, WorldArena, FRAME_ARENA_SIZE);
 
     LoadAssetPack(ENGA_PACK_PATH, Memory, GameState);
-
     asset_store *Assets = &GameState->Assets;
-
     PushAssetsToRender(Assets, RenderCommands);
 
     GameState->World = PushStruct(WorldArena, world);
+    GameState->Materials = PushStruct(WorldArena, materials);
     WorldInit(GameState->World, WORLD_CHUNK_DIM);
+    InitMateriasls(*GameState->Materials, GameState->MaterialsArena);
 
     EntityStorageInit(&GameState->Storage, WorldArena, ENTITY_CAPACITY);
 
-    GameState->SkyHandle  = GetAssetCubemapHandle(Assets, "sky");
-
-    InitTools(GameState);
-    BuildTestScene(GameState);
-    PushMaterialsToRender(&GameState->Materials, RenderCommands);
-    
+    InitTools(GameState);    
     InitCamera(&GameState->Camera, MapIntoChunkSpace(GameState->World, WorldOrigin(), Vector3(0.0f, 0.0f, 4.0f)), DegToRad(75.0f));
     
-    DebugLog("World arena: %llu KB used of %llu KB\n", WorldArena->Used / 1024, WorldArena->Size / 1024);
+    BuildTestScene(GameState);
 }
 
 extern "C" __declspec(dllexport)

@@ -15,10 +15,11 @@ struct game_state
 {
     memory_arena WorldArena;
     memory_arena FrameArena;
+    memory_arena MaterialsArena;
 
     world         *World;
+    materials     *Materials;
     asset_store    Assets;
-    materials      Materials;
     entity_storage Storage;
 
     uint32 SkyHandle;
