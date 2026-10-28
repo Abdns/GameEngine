@@ -76,15 +76,6 @@ uint16 PiplineStateHash(pipline_state State)
     return Hash;
 }
 
-struct material
-{
-    pipeline_type Pipeline;
-    pipline_state PiplineState;
-    render_queue Queue;
-    material_params Params;
-    uint32 PropPack;
-};
-
 struct material_params
 {
     Vector4 Color;
@@ -92,5 +83,16 @@ struct material_params
     uint32 TextureCount;
     uint32 *TextureHandle;
 };
+
+struct material
+{
+    uint32 Handle;
+    pipeline_type Pipeline;
+    pipline_state PiplineState;
+    render_queue Queue;
+    material_params Params;
+    uint32 PropPack;
+};
+
 
 #endif

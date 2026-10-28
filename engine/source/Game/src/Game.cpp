@@ -18,7 +18,7 @@
 #include "EditorUI.cpp"
 
 #define FRAME_ARENA_SIZE      Megabytes(8)
-#define FRAME_ARENA_SIZE      Megabytes(1)
+#define MATERIALS_ARENA_SIZE      Megabytes(1)
 #define WORLD_CHUNK_DIM       16.0f
 #define ENTITY_CAPACITY       4096
 #define SIM_MAX_ENTITIES      4096
@@ -91,67 +91,44 @@ internal void SelectEntity(game_state *GameState, sim_region *Region, ray PickRa
 internal void InitTools(game_state *GameState)
 {
     asset_store *Assets    = &GameState->Assets;
-    materials   *Materials = &GameState->Materials;
+    materials   *Materials = GameState->Materials;
 
     uint32 AxisMeshes[GIZMO_AXIS_COUNT];
     AxisMeshes[0] = GetAssetMeshHandle(Assets, "gizmo_axis_x");
     AxisMeshes[1] = GetAssetMeshHandle(Assets, "gizmo_axis_y");
     AxisMeshes[2] = GetAssetMeshHandle(Assets, "gizmo_axis_z");
 
-    uint32 GizmoMaterial = AddMaterial(Materials, OverlayMaterial());
+    /*uint32 GizmoMaterial = AddMaterial(Materials, OverlayMaterial());
 
     GameState->UI.Style = DefaultUIStyle();
     GameState->Gizmo.Style    = DefaultGizmoStyle(AxisMeshes, GizmoMaterial);
-    GameState->Gizmo.Selected = ENTITY_STORAGE_NONE;
+    GameState->Gizmo.Selected = ENTITY_STORAGE_NONE;*/
 
     //uint32 FontTexture = GetAssetTextureHandle(&GameState->Assets, "font_atlas");
 }
 
 internal void BuildTestScene(game_state *GameState)
 {
-    //GameState->SkyHandle  = GetAssetCubemapHandle(Assets, "sky");
     asset_store *Assets    = &GameState->Assets;
-    materials   *Materials = &GameState->Materials;
+    materials   *Materials = GameState->Materials;
+
+    GameState->SkyHandle  = GetAssetCubemapHandle(Assets, "sky");
 
     uint32 TestTextureHandle = GetAssetTextureHandle(Assets, "TestTexture");
+    uint32 TextureHandles[] = { TestTextureHandle };
 
     uint32 Cube = GetAssetMeshHandle(Assets, "cube");
     uint32 Sphere = GetAssetMeshHandle(Assets, "sphere");
-    uint32 PropMeshes[] = { Cube, Sphere };
-    uint32 PropMaterial = AddMaterial(Materials, UnlitMaterial());
+    uint32 Plane = GetAssetMeshHandle(Assets, "plane");
+    uint32 PropMeshes[] = { Cube, Sphere, Plane };
 
-    uint32 LitHandle   = AddMaterial(Materials, LitMaterial());
-    uint32 FloorHandle = AddMaterial(Materials, LitMaterial());
+    auto Params = MatParams(TextureHandles, 1, Vector4(1, 1, 1, 1));
+    material PropMaterial = UnlitMaterial(Materials, Params);
 
-    AddEntity(GameState, Entity_Floor, TransformAt(Vector3(0.0f, -2.1f, 0.0f)), GetAssetMeshHandle(Assets, "plane"), FloorHandle, "floor");
+    AddEntity(GameState, Entity_Floor, TransformAt(Vector3(0.0f, -2.1f, 0.0f)), Plane, PropMaterial.Handle, "floor");
+    AddEntity(GameState, Entity_Prop, TransformAt(Vector3(-2.5f, 0.0f, 0.0f)), Sphere, PropMaterial.Handle, 0);
+    AddEntity(GameState, Entity_Prop, TransformAt(Vector3( 2.5f, 0.0f, 0.0f)), Cube, PropMaterial.Handle, 0);
 
-    for (uint32 SpawnIndex = 0; SpawnIndex < 3; ++SpawnIndex)
-    {
-        real32 Angle  = (real32)SpawnIndex * 2.39996f;
-        real32 Radius = 0.9f * SquareRoot((real32)SpawnIndex + 1.0f);
-
-        Vector3 Position = Vector3(Cos(Angle) * Radius, 0.0f, Sin(Angle) * Radius);
-
-        uint32 Mesh     = PropMeshes[SpawnIndex % ArrayCount(PropMeshes)];
-        uint32 Material = PropMaterial;
-
-        AddEntity(GameState, Entity_Prop, TransformAt(Position), Mesh, Material, 0);
-    }
-
-    AddEntity(GameState, Entity_Prop, TransformAt(Vector3(-2.5f, 0.0f, 0.0f)), Sphere, LitHandle, 0);
-    AddEntity(GameState, Entity_Prop, TransformAt(Vector3( 2.5f, 0.0f, 0.0f)), Cube, LitHandle, 0);
-
-    uint32 Rigged = AddEntity(GameState, Entity_Prop, TransformAt(Vector3(0.0f, -2.1f, -2.0f)), GetAssetMeshHandle(Assets, "RiggedColumn"), LitHandle, "rigged column");
-    if (Rigged != ENTITY_STORAGE_NONE)
-    {
-        GetLowEntity(&GameState->Storage, Rigged)->SimVariant.AnimationHandle = GetAssetAnimationHandle(Assets, "RiggedColumnBend");
-    }
-
-    uint32 Runner = AddEntity(GameState, Entity_Prop, TransformAt(Vector3(-0.9f, -2.1f, 1.6f)), GetAssetMeshHandle(Assets, "TestMale"), FloorHandle, "test male");
-    if (Runner != ENTITY_STORAGE_NONE)
-    {
-        GetLowEntity(&GameState->Storage, Runner)->SimVariant.AnimationHandle = GetAssetAnimationHandle(Assets, "TestMaleRun");
-    }
 }
 
 internal void InitGame(game_memory *Memory, game_state *GameState, render_commands *RenderCommands)
@@ -160,7 +137,7 @@ internal void InitGame(game_memory *Memory, game_state *GameState, render_comman
 
     memory_arena *WorldArena = &GameState->WorldArena;
     SubArena(&GameState->FrameArena, WorldArena, FRAME_ARENA_SIZE);
-    SubArena(&GameState->MaterialsArena, WorldArena, FRAME_ARENA_SIZE);
+    SubArena(&GameState->MaterialsArena, WorldArena, MATERIALS_ARENA_SIZE);
 
     LoadAssetPack(ENGA_PACK_PATH, Memory, GameState);
     asset_store *Assets = &GameState->Assets;
@@ -177,6 +154,7 @@ internal void InitGame(game_memory *Memory, game_state *GameState, render_comman
     InitCamera(&GameState->Camera, MapIntoChunkSpace(GameState->World, WorldOrigin(), Vector3(0.0f, 0.0f, 4.0f)), DegToRad(75.0f));
     
     BuildTestScene(GameState);
+    PushMaterialsToRender(GameState->Materials, RenderCommands);
 }
 
 extern "C" __declspec(dllexport)
