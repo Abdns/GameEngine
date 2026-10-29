@@ -94,5 +94,11 @@ struct material
     uint32 PropPack;
 };
 
+struct directional_light
+{
+    Vector4 Color;
+    Vector3 Direction;
+    real32  Intensity;
+};
 
 #endif
