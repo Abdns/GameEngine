@@ -62,10 +62,10 @@ internal void PushEntitiesToRender(sim_region *Region, asset_store *Assets, memo
             continue;
         }
 
-        Vector4 Tint = Entity->Tint;
+        material_params Params = Entity->Params;
         if (Entity->LowStorageIndex == HighlightIndex)
         {
-            Tint = Vector4(HighlightColor.X, HighlightColor.Y, HighlightColor.Z, Tint.W);
+            Params.Color = Vector4(HighlightColor.X, HighlightColor.Y, HighlightColor.Z, Params.Color.W);
         }
 
         enga_vertex *PosedVertices = 0;
@@ -74,7 +74,7 @@ internal void PushEntitiesToRender(sim_region *Region, asset_store *Assets, memo
             PosedVertices = AssetPoseMesh(Assets, FrameArena, Entity->MeshHandle, Entity->AnimationHandle, Entity->AnimationTime);
         }
 
-        PushRenderPosedMesh(Commands, SimEntityRenderTransform(Entity), Tint, Entity->MeshHandle, Entity->MaterialHandle, PosedVertices);
+        PushRenderPosedMesh(Commands, SimEntityRenderTransform(Entity), Entity->MeshHandle, Params, PosedVertices);
     }
 }
 
@@ -120,14 +120,15 @@ internal void BuildTestScene(game_state *GameState)
     uint32 Cube = GetAssetMeshHandle(Assets, "cube");
     uint32 Sphere = GetAssetMeshHandle(Assets, "sphere");
     uint32 Plane = GetAssetMeshHandle(Assets, "plane");
-    uint32 PropMeshes[] = { Cube, Sphere, Plane };
+    uint32 TestMale = GetAssetMeshHandle(Assets, "TestMale");
 
-    auto Params = MatParams(TextureHandles, 1, Vector4(1, 1, 1, 1));
-    material PropMaterial = UnlitMaterial(Materials, Params);
+    uint32 PropMaterial = AddMaterial(Materials, UnlitMaterial());
+    material_params Params = MatParams(PropMaterial, TextureHandles, 1, Vector4(1, 1, 1, 1));
 
-    AddEntity(GameState, Entity_Floor, TransformAt(Vector3(0.0f, -2.1f, 0.0f)), Plane, PropMaterial.Handle, "floor");
-    AddEntity(GameState, Entity_Prop, TransformAt(Vector3(-2.5f, 0.0f, 0.0f)), Sphere, PropMaterial.Handle, 0);
-    AddEntity(GameState, Entity_Prop, TransformAt(Vector3( 2.5f, 0.0f, 0.0f)), Cube, PropMaterial.Handle, 0);
+    AddEntity(GameState, Entity_Floor, TransformAt(Vector3(0.0f, -2.1f, 0.0f)), Plane, Params, "floor");
+    AddEntity(GameState, Entity_Prop, TransformAt(Vector3(-2.5f, 0.0f, 0.0f)), Sphere, Params, 0);
+    AddEntity(GameState, Entity_Prop, TransformAt(Vector3( 2.5f, 0.0f, 0.0f)), Cube, Params, 0);
+    AddEntity(GameState, Entity_Prop, TransformAt(Vector3( 2.5f, 0.0f, 0.0f)), TestMale, Params, 0);
 
 }
 
@@ -146,7 +147,7 @@ internal void InitGame(game_memory *Memory, game_state *GameState, render_comman
     GameState->World = PushStruct(WorldArena, world);
     GameState->Materials = PushStruct(WorldArena, materials);
     WorldInit(GameState->World, WORLD_CHUNK_DIM);
-    InitMateriasls(*GameState->Materials, GameState->MaterialsArena);
+    InitMaterials(GameState->Materials);
 
     EntityStorageInit(&GameState->Storage, WorldArena, ENTITY_CAPACITY);
 

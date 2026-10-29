@@ -6,6 +6,7 @@
 #include "ImageFormat.h"
 
 #define TEXTURE_NONE 0xFFFFFFFF
+#define MATERIAL_NONE 0xFFFFFFFF
 
 enum pipeline_type
 {
@@ -78,19 +79,18 @@ uint16 PiplineStateHash(pipline_state State)
 
 struct material_params
 {
+    uint32 SharedMatIndex; 
     Vector4 Color;
 
     uint32 TextureCount;
-    uint32 *TextureHandle;
+    const uint32 *TextureHandles;
 };
 
 struct material
 {
-    uint32 Handle;
     pipeline_type Pipeline;
     pipline_state PiplineState;
     render_queue Queue;
-    material_params Params;
     uint32 PropPack;
 };
 

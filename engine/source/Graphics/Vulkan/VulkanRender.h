@@ -64,7 +64,6 @@ struct vulkan_resources
 
     gpu_buffer VertexBuffer;
     gpu_buffer IndexBuffer;
-    gpu_buffer MaterialBuffer;
     gpu_buffer FrameBuffers[MAX_FRAMES_IN_FLIGHT];
     gpu_buffer GlobalsBuffer;
 

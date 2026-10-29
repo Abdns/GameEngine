@@ -16,7 +16,6 @@
 #endif
 
 #define VERTEX_STRIDE      44
-#define MATERIAL_STRIDE    32
 #define RECT_PARAMS_STRIDE 64
 
 struct push_constants
@@ -45,25 +44,21 @@ struct frame_globals
     float  GlobalsPad0;
 };
 
-struct gpu_material
+struct gpu_material_params
 {
-    float4 BaseColor;
-    uint   TextureSlot;
-    uint   MaterialPad0;
-    uint   MaterialPad1;
-    uint   MaterialPad2;
+    float4 Color;
+    gpu_ptr TextureHandles;
+    uint TextureCount;
+    uint MaterialPad0;
 };
 
 struct draw_params
 {
     float4x4 Model;
-    float4   Tint;
-
+    gpu_material_params Material;
     gpu_ptr Vertices;
-    gpu_ptr Materials;
-
-    uint MaterialSlot;
     uint DrawPad0;
+    uint DrawPad1;
 };
 
 struct skybox_params

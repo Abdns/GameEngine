@@ -10,20 +10,20 @@ struct materials
 {
     uint32   Count;
     material Items[MAX_GAME_MATERIALS];
-
-    memory_arena MaterialArena;
 };
 
-internal materials InitMateriasls(materials Materials, memory_arena Arena)
+internal void InitMaterials(materials *Materials)
 {
-    Materials.MaterialArena = Arena;
-
-    return Materials;
+    *Materials = {};
 }
 
 internal uint32 AddMaterial(materials* Materials, material Material)
 {
-    Assert(Materials->Count < MAX_GAME_MATERIALS);
+    if (Materials->Count >= MAX_GAME_MATERIALS)
+    {
+        Assert(!"Material array is full");
+        return MATERIAL_NONE;
+    }
 
     uint32 Index = Materials->Count++;
     Materials->Items[Index] = Material;
@@ -31,17 +31,19 @@ internal uint32 AddMaterial(materials* Materials, material Material)
     return Index;
 }
 
-internal material_params MatParams(uint32* TextureHandle, uint32 TextureCount, Vector4 Color)
+// The input array is borrowed. Entities and render commands copy it when stored.
+internal material_params MatParams(uint32 Handle, const uint32 *TextureHandles, uint32 TextureCount, Vector4 Color)
 {
     material_params Params = {};
-    Params.TextureHandle = TextureHandle;
+    Params.SharedMatIndex = Handle;
+    Params.TextureHandles = TextureHandles;
     Params.TextureCount = TextureCount;
     Params.Color = Color;
 
     return Params;
 }
 
-internal material UnlitMaterial(materials* materials, material_params params)
+internal material UnlitMaterial()
 {
     pipline_state State = {};
     State.CullMode = Cull_None;
@@ -53,30 +55,26 @@ internal material UnlitMaterial(materials* materials, material_params params)
     Material.Pipeline      = Pipeline_Unlit;
     Material.PiplineState  = State;
     Material.Queue         = Queue_Opaque;
-    Material.Params        = params;
     Material.PropPack = PiplineStateHash(State);
-
-    Material.Handle = AddMaterial(materials, Material);
 
     return Material;
 }
 
-internal material OverlayMaterial(materials* materials, material_params params)
+internal material OverlayMaterial()
 {
-    material Material = UnlitMaterial(materials, params);
+    material Material = UnlitMaterial();
     Material.PiplineState.DepthTest  = false;
     Material.PiplineState.DepthWrite = false;
     Material.Queue = Queue_Overlay;
+    Material.PropPack = PiplineStateHash(Material.PiplineState);
 
     return Material;
 }
 
-internal material LitMaterial(materials* materials, material_params params)
+internal material LitMaterial()
 {
-    material Material = UnlitMaterial(materials, params);
+    material Material = UnlitMaterial();
     Material.Pipeline = Pipeline_Lit;
-
-    AddMaterial(materials, Material);
 
     return Material;
 }

@@ -33,7 +33,8 @@ internal void AddSimEntity(low_entity *Entity, uint32 StorageIndex, entity_type 
     Entity->SimVariant.LowStorageIndex = StorageIndex;
     Entity->SimVariant.Type            = Type;
     Entity->SimVariant.Pose            = TransformIdentity();
-    Entity->SimVariant.Tint            = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+    Entity->SimVariant.Params.SharedMatIndex = MATERIAL_NONE;
+    Entity->SimVariant.Params.Color    = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 internal void EntityStorageInit(entity_storage *Storage, memory_arena *Arena, uint32 Capacity)

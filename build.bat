@@ -103,9 +103,9 @@ if not exist "%VULKAN_SDK%\Bin\dxc.exe" (
 )
 if not exist CompiledShaders mkdir CompiledShaders
 if not exist CompiledShaders goto :failed
-for %%f in (..\engine\source\Graphics\Vulkan\shaders\*.hlsl) do (
-    "%VULKAN_SDK%\Bin\dxc.exe" -spirv -fvk-use-dx-layout -fspv-target-env=vulkan1.3 -T vs_6_0 -E VSMain "%%f" -Fo "CompiledShaders\%%~nf.vert.spv" || goto :failed
-    "%VULKAN_SDK%\Bin\dxc.exe" -spirv -fvk-use-dx-layout -fspv-target-env=vulkan1.3 -T ps_6_0 -E PSMain "%%f" -Fo "CompiledShaders\%%~nf.frag.spv" || goto :failed
+for /r "%BuildRoot%engine\source\Graphics\Vulkan\shaders" %%f in (*.hlsl) do (
+    "%VULKAN_SDK%\Bin\dxc.exe" -spirv -fvk-use-dx-layout -fspv-target-env=vulkan1.3 -I "%BuildRoot%engine\source\Graphics\Vulkan\shaders" -T vs_6_0 -E VSMain "%%f" -Fo "CompiledShaders\%%~nf.vert.spv" || goto :failed
+    "%VULKAN_SDK%\Bin\dxc.exe" -spirv -fvk-use-dx-layout -fspv-target-env=vulkan1.3 -I "%BuildRoot%engine\source\Graphics\Vulkan\shaders" -T ps_6_0 -E PSMain "%%f" -Fo "CompiledShaders\%%~nf.frag.spv" || goto :failed
 )
 if /i "%BuildMode%"=="shaders" goto :success
 

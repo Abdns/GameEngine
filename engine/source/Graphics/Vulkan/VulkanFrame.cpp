@@ -92,7 +92,7 @@ internal void BindGlobals(VkCommandBuffer cmd, VkPipelineLayout layout, VkDevice
 }
 
 template <typename params_type>
-internal void PushPassParams(VkCommandBuffer cmd, vulkan_resources *res, gpu_buffer *frameBuffer, const params_type &params)
+internal void PushDrawParams(VkCommandBuffer cmd, vulkan_resources *res, gpu_buffer *frameBuffer, const params_type &params)
 {
     gpu_buffer_slice slice = BufferWrite(frameBuffer, &params, sizeof(params), 16);
     BindParams(cmd, res->PipelineLayout, slice.Gpu);
@@ -127,7 +127,7 @@ internal void DrawFullscreen(vulkan_context *context, VkCommandBuffer cmd, vulka
     image_params params = {};
     params.TextureSlot = textureSlot;
 
-    PushPassParams(cmd, res, frameBuffer, params);
+    PushDrawParams(cmd, res, frameBuffer, params);
 
     vkCmdDraw(cmd, 3, 1, 0, 0);
 }
@@ -236,9 +236,13 @@ internal void EndFrame(vulkan_context *context, vulkan_frame *Frame)
     submitInfo.signalSemaphoreInfoCount = 2;
     submitInfo.pSignalSemaphoreInfos    = signalSems;
 
-    if (vkQueueSubmit2(context->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS)
+    VkResult submitResult = vkQueueSubmit2(context->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    if (submitResult != VK_SUCCESS)
     {
-        DebugLog("Fail to submit draw command buffer\n");
+        DebugLog("Fail to submit draw command buffer: VkResult=%d, frame=%llu\n", (int)submitResult, (unsigned long long)context->frameIndex);
+#if ENGINE_INTERNAL
+        fflush(stdout);
+#endif
         return;
     }
 

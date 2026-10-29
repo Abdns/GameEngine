@@ -193,7 +193,10 @@ internal bool32 Axis(gizmo_context *Gizmo, asset_store *Assets, ray PickRay, Vec
             }
         }
 
-        PushRenderMesh(Gizmo->Commands, Transform, GizmoAxisColor(Gizmo, ID, AxisIndex), Gizmo->Style.AxisMesh[AxisIndex], Gizmo->Style.Material);
+        material_params Params = {};
+        Params.SharedMatIndex = Gizmo->Style.Material;
+        Params.Color = GizmoAxisColor(Gizmo, ID, AxisIndex);
+        PushRenderMesh(Gizmo->Commands, Transform, Gizmo->Style.AxisMesh[AxisIndex], Params);
     }
 
     return Moved;

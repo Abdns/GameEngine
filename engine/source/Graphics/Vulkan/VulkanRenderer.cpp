@@ -99,7 +99,6 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
 
     res->VertexBuffer   = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(vertex) * commands->VertexCount);
     res->IndexBuffer    = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,   sizeof(uint32) * commands->IndexCount);
-    res->MaterialBuffer = CreateBuffer(context, Buffer_GpuShared, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(gpu_material) * commands->MaterialCount);
 
     gpu_buffer staging = CreateBuffer(context, Buffer_Upload, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, STAGING_MEMORY_SIZE);
 
@@ -153,16 +152,9 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
                 {
                     command_load_material *entry = (command_load_material*)header;
                     const material *materialDesc = &entry->Description;
-
+                    Assert(entry->MaterialHandle < MAX_MATERIALS);
                     Assert(materialDesc->Pipeline < Pipeline_MeshCount);
-                    //Assert(description->TextureHandle < MAX_TEXTURES && res->Textures[description->TextureHandle].View);
-
-                    Assert(res->MaterialBuffer.CpuBase);
                     res->Materials[entry->MaterialHandle] = *materialDesc;
-
-                    gpu_material *gpuMaterials = (gpu_material*)res->MaterialBuffer.CpuBase;
-                    gpu_material gpuMaterial = {};
-                    gpuMaterials[entry->MaterialHandle] = gpuMaterial;
                 }
             }
         }
@@ -246,7 +238,7 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
         params.Tint         = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
         params.CubemapIndex = skyCmd->CubemapHandle;
 
-        PushPassParams(cmd, res, frameBuffer, params);
+        PushDrawParams(cmd, res, frameBuffer, params);
         vkCmdDraw(cmd, 3, 1, 0, 0);
     }
 
@@ -258,7 +250,7 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
             command_render_mesh *meshCmd = commands->MeshCommands[Index].Command;
 
             gpu_mesh *mesh = &res->Meshes[meshCmd->MeshHandle];
-            uint32 materialSlot = meshCmd->MaterialHandle;
+            uint32 materialSlot = meshCmd->Params.SharedMatIndex;
             material *materialDesc = &res->Materials[materialSlot];
 
             if (materialDesc->Queue != Queues[QueueIndex])
@@ -296,12 +288,21 @@ internal void ExecuteRenderCommands(vulkan_context *context, VkCommandBuffer cmd
 
             draw_params params = {};
             params.Model         = meshCmd->Transform;
-            params.Tint          = meshCmd->Tint;
             params.Vertices      = vertices;
-            params.Materials     = res->MaterialBuffer.Address;
-            params.MaterialSlot  = materialSlot;
+            params.Material.Color = meshCmd->Params.Color;
+            params.Material.TextureCount = meshCmd->Params.TextureCount;
+            if (params.Material.TextureCount)
+            {
+                for (uint32 TextureIndex = 0; TextureIndex < params.Material.TextureCount; ++TextureIndex)
+                {
+                    uint32 Handle = meshCmd->Params.TextureHandles[TextureIndex];
+                    Assert(Handle == TEXTURE_NONE || (Handle < MAX_TEXTURES && res->Textures[Handle].View));
+                }
+                params.Material.TextureHandles = BufferWrite(frameBuffer, meshCmd->Params.TextureHandles,
+                    (VkDeviceSize)params.Material.TextureCount * sizeof(uint32), alignof(uint32)).Gpu;
+            }
 
-            PushPassParams(cmd, res, frameBuffer, params);
+            PushDrawParams(cmd, res, frameBuffer, params);
 
             vkCmdDrawIndexed(cmd, mesh->IndexCount, 1, mesh->FirstIndex, firstVertex, 0);
         }

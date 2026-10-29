@@ -2,6 +2,7 @@
 
 #include "Types.h"
 #include "EngineMath.h"
+#include "RenderDescription.h"
 #define ENTITY_STORAGE_NONE 0
 
 enum entity_type
@@ -26,8 +27,7 @@ struct sim_entity
     transform   Pose;
 
     uint32      MeshHandle;
-    uint32      MaterialHandle;
-    Vector4     Tint;
+    material_params Params;
 
     uint32      AnimationHandle;
     real32      AnimationTime;

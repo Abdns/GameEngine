@@ -9,7 +9,7 @@ struct vs_output
 
 vs_output VSMain(uint vertexID : SV_VertexID)
 {
-    draw_params params = LoadPassParams(draw_params);
+    draw_params params = LoadDrawParams(draw_params);
 
     vertex v = LoadVertex(params.Vertices, vertexID);
 
@@ -24,9 +24,12 @@ vs_output VSMain(uint vertexID : SV_VertexID)
 
 float4 PSMain(vs_output input) : SV_Target
 {
-    draw_params params = LoadPassParams(draw_params);
+    draw_params params = LoadDrawParams(draw_params);
 
-    gpu_material Material = LoadMaterial(params.Materials, params.MaterialSlot);
-
-    return Tex[Material.TextureSlot].Sample(Samp, input.UV) * Material.BaseColor * params.Tint;
+    uint TextureHandle = LoadMaterialTexture(params.Material, 0);
+    
+    float4 Color = params.Material.Color;
+    Color *= Tex[TextureHandle].Sample(Samp, input.UV);
+    
+    return Color;
 }

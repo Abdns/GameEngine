@@ -43,9 +43,8 @@ struct command_render_mesh
 {
     command_type   Type;
     Matrix4        Transform;
-    Vector4        Tint;
     uint32         MeshHandle;
-    uint32         MaterialHandle;
+    material_params Params;
     void          *PosedVertices;
 };
 
@@ -194,13 +193,13 @@ inline void PrepareMeshSortKeys(render_commands *Commands, const material *Mater
     for (uint32 Index = 0; Index < Commands->CommandCounts[Render_Mesh]; ++Index)
     {
         mesh_draw_item *Item = &Commands->MeshCommands[Index];
-        const material *Material = &Materials[Item->Command->MaterialHandle];
+        const material *Material = &Materials[Item->Command->Params.SharedMatIndex];
 
         Item->SortKey = ((uint32)Material->Pipeline << 16) | PiplineStateHash(Material->PiplineState);
     }
 }
 
-inline void *PushRenderCommand(render_commands *Commands, command_type Type)
+inline void *PushRenderCommand(render_commands *Commands, command_type Type, memory_size ExtraSize = 0)
 {
     uint32 Size = CommandSize(Type);
 
@@ -212,13 +211,14 @@ inline void *PushRenderCommand(render_commands *Commands, command_type Type)
 
     uint32 Alignment = CommandAlignment(Type);
     memory_size RequiredSize = Size + GetAlignmentOffset(&Commands->CommandArena, Alignment);
-    if (RequiredSize > Commands->CommandArena.Size - Commands->CommandArena.Used)
+    memory_size AvailableSize = Commands->CommandArena.Size - Commands->CommandArena.Used;
+    if (RequiredSize > AvailableSize || ExtraSize > AvailableSize - RequiredSize)
     {
         Assert(!"Render command arena is full");
         return 0;
     }
 
-    command_type *CmdBase = (command_type *)PushSize_(&Commands->CommandArena, Size, Alignment);
+    command_type *CmdBase = (command_type *)PushSize_(&Commands->CommandArena, Size + ExtraSize, Alignment);
     *CmdBase = Type;
     uint32 Index = Commands->CommandCounts[Type]++;
     if (Type == Render_Mesh)
@@ -300,11 +300,16 @@ inline void PushLoadCubemap(render_commands *Commands, uint32 CubemapHandle, voi
 
 inline void PushLoadMaterial(render_commands *Commands, uint32 MaterialHandle, const material *Material)
 {
+    if (MaterialHandle >= CommandCapacity(Load_Material))
+    {
+        Assert(!"Invalid material handle");
+        return;
+    }
     command_load_material *cmd = (command_load_material *)PushRenderCommand(Commands, Load_Material);
     if (cmd)
     {
         cmd->MaterialHandle = MaterialHandle;
-        cmd->Description    = *Material;
+        cmd->Description = *Material;
 
         if (MaterialHandle >= Commands->MaterialCount)
         {
@@ -340,22 +345,39 @@ inline void PushRenderSkybox(render_commands *Commands, uint32 Cubemap)
     }
 }
 
-inline void PushRenderPosedMesh(render_commands *Commands, Matrix4 Transform, Vector4 Tint, uint32 Mesh, uint32 Material, void *PosedVertices)
+inline void PushRenderPosedMesh(render_commands *Commands, Matrix4 Transform, uint32 Mesh, material_params Params, void *PosedVertices)
 {
-    command_render_mesh* cmd = (command_render_mesh *)PushRenderCommand(Commands, Render_Mesh);
+    if (Params.SharedMatIndex >= CommandCapacity(Load_Material) || (Params.TextureCount && !Params.TextureHandles))
+    {
+        Assert(!"Invalid mesh material parameters");
+        return;
+    }
+
+    // Reserve the command and its texture handles together, so failure leaves no partial command.
+    memory_size TextureSize = (memory_size)Params.TextureCount * sizeof(uint32);
+    command_render_mesh* cmd = (command_render_mesh *)PushRenderCommand(Commands, Render_Mesh, TextureSize);
     if (cmd)
     {
         cmd->Transform      = Transform;
-        cmd->Tint           = Tint;
         cmd->MeshHandle     = Mesh;
-        cmd->MaterialHandle = Material;
+        cmd->Params         = Params;
         cmd->PosedVertices  = PosedVertices;
+        cmd->Params.TextureHandles = 0;
+        if (Params.TextureCount)
+        {
+            uint32 *TextureHandles = (uint32 *)(cmd + 1);
+            for (uint32 Index = 0; Index < Params.TextureCount; ++Index)
+            {
+                TextureHandles[Index] = Params.TextureHandles[Index];
+            }
+            cmd->Params.TextureHandles = TextureHandles;
+        }
     }
 }
 
-inline void PushRenderMesh(render_commands *Commands, Matrix4 Transform, Vector4 Tint, uint32 Mesh, uint32 Material)
+inline void PushRenderMesh(render_commands *Commands, Matrix4 Transform, uint32 Mesh, material_params Params)
 {
-    PushRenderPosedMesh(Commands, Transform, Tint, Mesh, Material, 0);
+    PushRenderPosedMesh(Commands, Transform, Mesh, Params, 0);
 }
 
 #endif

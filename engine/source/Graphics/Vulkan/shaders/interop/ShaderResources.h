@@ -29,16 +29,16 @@
 
 [[vk::push_constant]] push_constants pc;
 
-#define LoadPassParams(Type) vk::BufferPointer<Type, 16>(pc.ParamsPtr).Get()
+#define LoadDrawParams(Type) vk::BufferPointer<Type, 16>(pc.ParamsPtr).Get()
 
 vertex LoadVertex(uint64_t base, uint index)
 {
     return vk::RawBufferLoad<vertex>(base + (uint64_t)index * VERTEX_STRIDE, 4);
 }
 
-gpu_material LoadMaterial(uint64_t base, uint slot)
+uint LoadMaterialTexture(gpu_material_params Params, uint Index)
 {
-    return vk::RawBufferLoad<gpu_material>(base + (uint64_t)slot * MATERIAL_STRIDE, 16);
+    return vk::RawBufferLoad<uint>(Params.TextureHandles + (uint64_t)Index * 4, 4);
 }
 
 uint LoadIndex(uint64_t base, uint index)
