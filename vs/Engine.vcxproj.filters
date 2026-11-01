@@ -131,7 +131,7 @@
     <ClInclude Include="..\engine\source\Game\src\Assets\AssetStore.cpp">
       <Filter>engine\source\Game\src\Assets</Filter>
     </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\Assets\AssetPack.cpp">
+    <ClInclude Include="..\engine\source\Game\src\Assets\AssetReadWrite.cpp">
       <Filter>engine\source\Game\src\Assets</Filter>
     </ClInclude>
     <ClInclude Include="..\engine\source\Game\src\Assets\AssetAnimation.cpp">

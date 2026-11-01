@@ -145,5 +145,5 @@ internal void PushAssetsToRender(asset_store* Assets, render_commands* Commands)
     }
 }
 
-#include "AssetPack.cpp"
+#include "AssetReadWrite.cpp"
 #include "AssetAnimation.cpp"
