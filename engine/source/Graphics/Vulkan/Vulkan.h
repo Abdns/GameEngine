@@ -17,8 +17,8 @@
 
 static_assert(sizeof(vertex) == sizeof(enga_vertex), "vertex must match the packed asset layout");
 static_assert(sizeof(vertex) == VERTEX_STRIDE, "vertex stride must match the shader stride");
-static_assert(sizeof(gpu_material_params) == 32, "material params must match the shader layout");
-static_assert(offsetof(gpu_material_params, TextureHandles) == 16, "texture address must match the shader layout");
+static_assert(sizeof(materia_draw_params) == 32, "material params must match the shader layout");
+static_assert(offsetof(materia_draw_params, TextureHandles) == 16, "texture address must match the shader layout");
 static_assert(offsetof(draw_params, Material) == 64, "material params must follow the model matrix");
 static_assert(offsetof(draw_params, Vertices) == 96, "vertex address must match the shader layout");
 static_assert(sizeof(draw_params) == 112, "draw params must match the shader layout");

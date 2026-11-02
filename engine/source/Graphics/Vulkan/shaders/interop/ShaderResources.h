@@ -12,7 +12,6 @@
 
 #define MAX_TEXTURES 32
 #define MAX_CUBEMAPS 4
-
 #define MAX_MATERIALS 64
 
 #define TEXTURE_NONE 0xFFFFFFFF
@@ -24,8 +23,8 @@
 #ifndef __cplusplus
 
 [[vk::binding(BINDING_TEXTURES, SET_GLOBAL)]] Texture2D    Tex[TEXTURE_HEAP_SIZE];
-[[vk::binding(BINDING_SAMPLER, SET_GLOBAL)]]  SamplerState Samp;
 [[vk::binding(BINDING_CUBEMAPS, SET_GLOBAL)]] TextureCube  Sky[MAX_CUBEMAPS];
+[[vk::binding(BINDING_SAMPLER, SET_GLOBAL)]]  SamplerState Samp;
 
 [[vk::push_constant]] push_constants pc;
 
@@ -36,7 +35,7 @@ vertex LoadVertex(uint64_t base, uint index)
     return vk::RawBufferLoad<vertex>(base + (uint64_t)index * VERTEX_STRIDE, 4);
 }
 
-uint LoadMaterialTexture(gpu_material_params Params, uint Index)
+uint LoadMaterialTexture(materia_draw_params Params, uint Index)
 {
     return vk::RawBufferLoad<uint>(Params.TextureHandles + (uint64_t)Index * 4, 4);
 }

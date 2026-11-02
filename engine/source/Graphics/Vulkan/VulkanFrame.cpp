@@ -170,8 +170,8 @@ internal vulkan_frame BeginFrame(vulkan_context *context, vulkan_resources *res)
 
     ResetBuffer(&res->FrameBuffers[Frame.Slot]);
 
-    res->Globals = BufferSlot(&res->GlobalsBuffer, Frame.Slot, sizeof(frame_globals));
-    *(frame_globals *)res->Globals.Cpu = {};
+    Frame.Globals = BufferSlot(&res->GlobalsBuffer, Frame.Slot, sizeof(frame_globals));
+    *(frame_globals *)Frame.Globals.Cpu = {};
 
     VkCommandBuffer cmd = context->commandBuffers[Frame.Slot];
     vkResetCommandBuffer(cmd, 0);
@@ -197,7 +197,7 @@ internal vulkan_frame BeginFrame(vulkan_context *context, vulkan_resources *res)
     scissor.extent = context->swapchainExtent;
     vkCmdSetScissorWithCount(cmd, 1, &scissor);
 
-    BindGlobals(cmd, res->PipelineLayout, res->Globals.Gpu);
+    BindGlobals(cmd, res->PipelineLayout, Frame.Globals.Gpu);
 
     Frame.Cmd   = cmd;
     Frame.Ready = true;

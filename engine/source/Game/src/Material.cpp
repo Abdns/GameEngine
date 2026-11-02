@@ -43,7 +43,7 @@ internal material_params MatParams(uint32 Handle, const uint32 *TextureHandles, 
     return Params;
 }
 
-internal material UnlitMaterial()
+internal material DefaultMaterial()
 {
     pipline_state State = {};
     State.CullMode = Cull_None;
@@ -60,23 +60,28 @@ internal material UnlitMaterial()
     return Material;
 }
 
-internal material OverlayMaterial()
+internal uint32 UnlitMaterial(materials *Materials)
 {
-    material Material = UnlitMaterial();
+    return AddMaterial(Materials, DefaultMaterial());
+}
+
+internal uint32 OverlayMaterial(materials *Materials)
+{
+    material Material = DefaultMaterial();
     Material.PiplineState.DepthTest  = false;
     Material.PiplineState.DepthWrite = false;
     Material.Queue = Queue_Overlay;
     Material.PropPack = PiplineStateHash(Material.PiplineState);
 
-    return Material;
+    return AddMaterial(Materials, Material);
 }
 
-internal material LitMaterial()
+internal uint32 LitMaterial(materials *Materials)
 {
-    material Material = UnlitMaterial();
+    material Material = DefaultMaterial();
     Material.Pipeline = Pipeline_Lit;
 
-    return Material;
+    return AddMaterial(Materials, Material);
 }
 
 

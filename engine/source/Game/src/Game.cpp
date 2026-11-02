@@ -98,7 +98,7 @@ internal void InitTools(game_state *GameState)
     AxisMeshes[1] = GetAssetMeshHandle(Assets, "gizmo_axis_y");
     AxisMeshes[2] = GetAssetMeshHandle(Assets, "gizmo_axis_z");
 
-    /*uint32 GizmoMaterial = AddMaterial(Materials, OverlayMaterial());
+    /*uint32 GizmoMaterial = OverlayMaterial(Materials);
 
     GameState->UI.Style = DefaultUIStyle();
     GameState->Gizmo.Style    = DefaultGizmoStyle(AxisMeshes, GizmoMaterial);
@@ -122,7 +122,7 @@ internal void BuildTestScene(game_state *GameState)
     uint32 Plane = GetAssetMeshHandle(Assets, "plane");
     uint32 TestMale = GetAssetMeshHandle(Assets, "TestMale");
 
-    uint32 PropMaterial = AddMaterial(Materials, UnlitMaterial());
+    uint32 PropMaterial = UnlitMaterial(Materials);
     material_params Params = MatParams(PropMaterial, TextureHandles, 1, Vector4(1, 1, 1, 1));
 
     AddEntity(GameState, Entity_Floor, TransformAt(Vector3(0.0f, -2.1f, 0.0f)), Plane, Params, "floor");
@@ -208,7 +208,11 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Vector3 CameraWorldP = WorldPositionToMeters(GameState->World, Region->Origin) + CameraSimP;
 
         PushBindCamera(RenderCommands, CameraView(Camera, CameraSimP), CameraWorldP, Camera->FovY);
-        PushBindLight(RenderCommands, Vector3(0.4f, 1.0f, 0.3f));
+        directional_light DirLight = {};
+        DirLight.Color = Vector4(1,1,1,1);
+        DirLight.Direction = Vector3(0.4f, 1.0f, 0.3f);
+        DirLight.Intensity = 1.0f;
+        PushBindLight(RenderCommands, DirLight);
         PushRenderSkybox(RenderCommands, GameState->SkyHandle);
         AnimateEntities(Region, &GameState->Assets, Controls->dtForFrame);
 

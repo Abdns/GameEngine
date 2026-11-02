@@ -24,12 +24,21 @@ struct push_constants
     gpu_ptr GlobalsPtr;
 };
 
-struct vertex
+struct materia_draw_params
 {
-    float3 Position;
-    float3 Normal;
-    float3 Color;
-    float2 UV;
+    float4 Color;
+    gpu_ptr TextureHandles;
+    uint TextureCount;
+    uint MaterialPad0;
+};
+
+struct draw_params
+{
+    float4x4 Model;
+    materia_draw_params Material;
+    gpu_ptr Vertices;
+    uint DrawPad0;
+    uint DrawPad1;
 };
 
 struct frame_globals
@@ -44,21 +53,12 @@ struct frame_globals
     float  GlobalsPad0;
 };
 
-struct gpu_material_params
+struct vertex
 {
-    float4 Color;
-    gpu_ptr TextureHandles;
-    uint TextureCount;
-    uint MaterialPad0;
-};
-
-struct draw_params
-{
-    float4x4 Model;
-    gpu_material_params Material;
-    gpu_ptr Vertices;
-    uint DrawPad0;
-    uint DrawPad1;
+    float3 Position;
+    float3 Normal;
+    float3 Color;
+    float2 UV;
 };
 
 struct skybox_params

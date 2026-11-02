@@ -85,14 +85,6 @@ internal void InitVulkan(vulkan_context *context, vulkan_resources *res, frame_t
 
 internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_commands *commands)
 {
-    if (!commands->CommandCounts[Load_Mesh] &&
-        !commands->CommandCounts[Load_Texture] &&
-        !commands->CommandCounts[Load_Cubemap] &&
-        !commands->CommandCounts[Load_Material])
-    {
-        return;
-    }
-
     Assert(res->VertexBuffer.Buffer == VK_NULL_HANDLE);
     Assert(commands->VertexCount && commands->IndexCount);
     Assert(commands->MaterialCount && commands->MaterialCount <= MAX_MATERIALS);
@@ -169,9 +161,9 @@ internal void LoadAssets(vulkan_context *context, vulkan_resources *res, render_
     commands->CommandCounts[Load_Material] = 0;
 }
 
-internal void FillFrameGlobalsBuffer(vulkan_context *context, vulkan_resources *res, render_commands *commands)
+internal void FillFrameGlobalsBuffer(vulkan_context *context, vulkan_frame *Frame, render_commands *commands)
 {
-    frame_globals *globals = (frame_globals *)res->Globals.Cpu;
+    frame_globals *globals = (frame_globals *)Frame->Globals.Cpu;
 
     real32 FOVaspect = (real32)context->swapchainExtent.width / (real32)context->swapchainExtent.height;
 
@@ -185,8 +177,7 @@ internal void FillFrameGlobalsBuffer(vulkan_context *context, vulkan_resources *
                 case Bind_Light:
                 {
                     command_bind_light *lightCmd = (command_bind_light *)cmdBase;
-
-                    globals->LightDir = lightCmd->Direction;
+                    globals->LightDir = lightCmd->DirLight.Direction;
                 } break;
 
                 case Bind_Camera:
@@ -379,7 +370,7 @@ internal void RenderVulkanFrame(vulkan_context *context, vulkan_resources *res, 
     gpu_buffer *frameBuffer = &res->FrameBuffers[Frame.Slot];
     VkImage swapchainImage = context->swapchainImages[Frame.ImageIndex];
 
-    FillFrameGlobalsBuffer(context, res, Commands);
+    FillFrameGlobalsBuffer(context, &Frame, Commands);
     BindDescriptorHeap(context, Frame.Cmd, res, res->PipelineLayout);
 
     BeginGpuFrame(context, &Frame);

@@ -112,7 +112,7 @@ struct command_bind_camera
 struct command_bind_light
 {
     command_type Type;
-    Vector3 Direction;
+    directional_light DirLight;
 };
 
 constexpr inline uint32 CommandSize(command_type Type)
@@ -246,13 +246,13 @@ inline void PushBindCamera(render_commands *Commands, Matrix4 View, Vector3 Worl
     }
 }
 
-inline void PushBindLight(render_commands* Commands, Vector3 Direction)
+inline void PushBindLight(render_commands* Commands, directional_light DirLight)
 {
     command_bind_light* cmd = (command_bind_light*)PushRenderCommand(Commands, Bind_Light);
 
     if (cmd)
     {
-        cmd->Direction = Direction;
+        cmd->DirLight = DirLight;
     }
 }
 

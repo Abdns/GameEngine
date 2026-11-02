@@ -67,8 +67,6 @@ struct vulkan_resources
     gpu_buffer FrameBuffers[MAX_FRAMES_IN_FLIGHT];
     gpu_buffer GlobalsBuffer;
 
-    gpu_buffer_slice Globals;
-
     gpu_mesh       Meshes[MAX_MESHES];
     gpu_image      Textures[MAX_TEXTURES];
     gpu_image      Cubemaps[MAX_CUBEMAPS];
@@ -78,6 +76,7 @@ struct vulkan_resources
 struct vulkan_frame
 {
     VkCommandBuffer Cmd;
+    gpu_buffer_slice Globals;
     uint32          ImageIndex;
     uint32          Slot;
     bool32          Ready;
