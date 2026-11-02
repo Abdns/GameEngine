@@ -355,7 +355,13 @@ internal void RenderVulkanFrame(vulkan_context *context, vulkan_resources *res, 
 
     WaitForFrame(context);
 
-    LoadAssets(context, res, Commands);
+    if (Commands->CommandCounts[Load_Mesh] ||
+        Commands->CommandCounts[Load_Texture] ||
+        Commands->CommandCounts[Load_Cubemap] ||
+        Commands->CommandCounts[Load_Material])
+    {
+        LoadAssets(context, res, Commands);
+    }
 
     vulkan_frame Frame = BeginFrame(context, res);
     if (!Frame.Ready)

@@ -98,7 +98,7 @@ internal void InitTools(game_state *GameState)
     AxisMeshes[1] = GetAssetMeshHandle(Assets, "gizmo_axis_y");
     AxisMeshes[2] = GetAssetMeshHandle(Assets, "gizmo_axis_z");
 
-    uint32 GizmoMaterial = AddMaterial(Materials, OverlayMaterial());
+    uint32 GizmoMaterial = OverlayMaterial(Materials);
 
     GameState->UI.Style = DefaultUIStyle();
     GameState->Gizmo.Style    = DefaultGizmoStyle(AxisMeshes, GizmoMaterial);
@@ -213,7 +213,6 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         DirLight.Direction = Vector3(0.4f, 1.0f, 0.3f);
         DirLight.Intensity = 1.0f;
         PushBindLight(RenderCommands, DirLight);
-        PushBindLight(RenderCommands, Vector3(0.4f, 1.0f, 0.3f));
         PushRenderSkybox(RenderCommands, GameState->SkyHandle);
         AnimateEntities(Region, &GameState->Assets, Controls->dtForFrame);
 
