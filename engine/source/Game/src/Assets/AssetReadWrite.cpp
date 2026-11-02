@@ -8,31 +8,23 @@ struct asset_pack
     uint32            Count;
 };
 
-internal asset_pack AssetPackFromMemory(void *Data, uint32 Size)
+internal asset_pack ReadEngaFromMemory(void *Data, uint32 Size)
 {
-    asset_pack Result = {};
+    asset_pack Pack = {};
 
-    if (!Data || Size < sizeof(asset_file_header))
-    {
-        DebugLog("Asset pack is missing or too small\n");
-        return Result;
-    }
+    Assert(Data && Size >= sizeof(asset_file_header));
 
     asset_file_header *Header = (asset_file_header *)Data;
 
     uint64 TableEnd = (uint64)Header->AssetTableOffset + (uint64)Header->AssetCount * sizeof(asset_descriptor);
-    if (Header->Magic != ENGA_MAGIC || Header->Version != ENGA_VERSION || TableEnd > Size)
-    {
-        DebugLog("Asset pack is corrupt\n");
-        return Result;
-    }
+    Assert(Header->Magic == ENGA_MAGIC && Header->Version == ENGA_VERSION && TableEnd <= Size);
 
-    Result.Data    = (uint8 *)Data;
-    Result.Size    = Size;
-    Result.Entries = (asset_descriptor *)((uint8 *)Data + Header->AssetTableOffset);
-    Result.Count   = Header->AssetCount;
+    Pack.Data    = (uint8 *)Data;
+    Pack.Size    = Size;
+    Pack.Entries = (asset_descriptor *)((uint8 *)Data + Header->AssetTableOffset);
+    Pack.Count   = Header->AssetCount;
 
-    return Result;
+    return Pack;
 }
 
 internal void *AssetPackData(asset_pack *Pack, asset_descriptor *Entry)
@@ -52,15 +44,14 @@ internal void *CopyAssetData(memory_arena *Arena, void *Data, memory_size Size)
     return Result;
 }
 
-internal void AssetStoreLoadPack(asset_store *Store, memory_arena *Arena, void *PackData, uint32 PackSize)
+internal void LoadAssetsFromEngaMemory(asset_store *Store, memory_arena *Arena, void *AssetsData, uint32 AssetsSize)
 {
     ZeroStruct(*Store);
-    asset_pack Pack = AssetPackFromMemory(PackData, PackSize);
+    asset_pack Assets = ReadEngaFromMemory(AssetsData, AssetsSize);
 
-    // Count only asset records; each payload is allocated when it is loaded.
-    for (uint32 Index = 0; Index < Pack.Count; ++Index)
+    for (uint32 Index = 0; Index < Assets.Count; ++Index)
     {
-        asset_descriptor *Entry = &Pack.Entries[Index];
+        asset_descriptor *Entry = &Assets.Entries[Index];
         switch ((asset_type)Entry->Type)
         {
             case Asset_Mesh:      ++Store->MeshCount;      break;
@@ -81,12 +72,15 @@ internal void AssetStoreLoadPack(asset_store *Store, memory_arena *Arena, void *
     Store->Animations = PushArrayAligned(Arena, Store->AnimationCount, loaded_animation, alignof(loaded_animation));
     Store->MeshCount = Store->TextureCount = Store->CubemapCount = Store->SkeletonCount = Store->AnimationCount = 0;
 
-    for (uint32 Index = 0; Index < Pack.Count; ++Index)
+    for (uint32 Index = 0; Index < Assets.Count; ++Index)
     {
-        asset_descriptor *Entry = &Pack.Entries[Index];
-        void *Data = AssetPackData(&Pack, Entry);
+        asset_descriptor *Entry = &Assets.Entries[Index];
+        void *Data = AssetPackData(&Assets, Entry);
         Assert(Data);
-        if (!Data) continue;
+        if (!Data)
+        {
+            continue;
+        }
 
         switch ((asset_type)Entry->Type)
         {
@@ -95,7 +89,10 @@ internal void AssetStoreLoadPack(asset_store *Store, memory_arena *Arena, void *
                 Assert(Entry->Mesh.VertexCount && Entry->Mesh.IndexCount);
                 memory_size ByteSize = AssetMeshBytes(Entry->Mesh);
                 Assert(ByteSize <= Entry->Size);
-                if (ByteSize > Entry->Size) break;
+                if (ByteSize > Entry->Size)
+                {
+                    break;
+                }
 
                 loaded_mesh *Mesh = &Store->Meshes[Store->MeshCount++];
                 *Mesh = {};
@@ -172,18 +169,17 @@ internal void AssetStoreLoadPack(asset_store *Store, memory_arena *Arena, void *
                 }
             } break;
 
-            case Asset_Animation: break; // Resolve skeleton references after all skeletons are loaded.
+            case Asset_Animation: break;
 
             default:
             {
-                DebugLog("AssetStore: asset %s of type %u has no loader\n", Entry->Name, Entry->Type);
             } break;
         }
     }
 
-    for (uint32 Index = 0; Index < Pack.Count; ++Index)
+    for (uint32 Index = 0; Index < Assets.Count; ++Index)
     {
-        asset_descriptor *Entry = &Pack.Entries[Index];
+        asset_descriptor *Entry = &Assets.Entries[Index];
         if (Entry->Type != Asset_Animation) continue;
 
         uint32 SkeletonHandle = AssetHandleByName(Store->Skeletons, Store->SkeletonCount, Entry->Animation.Skeleton);
@@ -193,7 +189,7 @@ internal void AssetStoreLoadPack(asset_store *Store, memory_arena *Arena, void *
             continue;
         }
 
-        void *Data = AssetPackData(&Pack, Entry);
+        void *Data = AssetPackData(&Assets, Entry);
         memory_size ByteSize = AssetAnimationBytes(Entry->Animation);
         Assert(Data && ByteSize <= Entry->Size);
         if (!Data || ByteSize > Entry->Size) continue;
@@ -206,8 +202,6 @@ internal void AssetStoreLoadPack(asset_store *Store, memory_arena *Arena, void *
         Animation->ChannelCount = Entry->Animation.ChannelCount;
         Animation->Channels = (enga_animation_channel *)CopyAssetData(Arena, Data, ByteSize);
         Animation->Floats = (real32 *)(Animation->Channels + Animation->ChannelCount);
-
-        // Channel offsets stay relative to this animation's own float array.
         uint32 JointCount = Store->Skeletons[SkeletonHandle].JointCount;
         for (uint32 ChannelIndex = 0; ChannelIndex < Animation->ChannelCount; ++ChannelIndex)
         {
@@ -218,7 +212,4 @@ internal void AssetStoreLoadPack(asset_store *Store, memory_arena *Arena, void *
             Assert((uint64)Channel->FirstValue + (uint64)Channel->KeyCount * Width <= Entry->Animation.FloatCount);
         }
     }
-
-    DebugLog("AssetStore: %u meshes, %u textures, %u cubemaps, %u skeletons, %u animations\n",
-             Store->MeshCount, Store->TextureCount, Store->CubemapCount, Store->SkeletonCount, Store->AnimationCount);
 }

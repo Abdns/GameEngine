@@ -55,7 +55,7 @@
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32Timer.cpp" />
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32Window.cpp" />
     <ClInclude Include="..\engine\source\Game\src\Assets\AssetStore.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\Assets\AssetPack.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\Assets\AssetReadWrite.cpp" />
     <ClInclude Include="..\engine\source\Game\src\Assets\AssetAnimation.cpp" />
     <ClInclude Include="..\engine\source\Game\src\Camera.cpp" />
     <ClInclude Include="..\engine\source\Game\src\World.cpp" />

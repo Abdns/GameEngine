@@ -24,11 +24,11 @@
 #define SIM_MAX_ENTITIES      4096
 #define SIM_HALF_DIM          48.0f
 
-internal void LoadAssetPack(const char *Name, game_memory *Memory, game_state *GameState)
+internal void LoadAssetsFromEnga(const char* Name, game_memory* Memory, game_state* GameState)
 {
-    file_data PackFile = Memory->PlatformReadEntireFile(Name);
-    AssetStoreLoadPack(&GameState->Assets, &GameState->WorldArena, PackFile.Data, PackFile.Size);
-    Memory->PlatformFreeFileMemory(PackFile.Data);
+    file_data EngaFile = Memory->PlatformReadEntireFile(Name);
+    LoadAssetsFromEngaMemory(&GameState->Assets, &GameState->WorldArena, EngaFile.Data, EngaFile.Size);
+    Memory->PlatformFreeFileMemory(EngaFile.Data);
 }
 
 internal void AnimateEntities(sim_region *Region, asset_store *Assets, real32 dt)
@@ -98,13 +98,13 @@ internal void InitTools(game_state *GameState)
     AxisMeshes[1] = GetAssetMeshHandle(Assets, "gizmo_axis_y");
     AxisMeshes[2] = GetAssetMeshHandle(Assets, "gizmo_axis_z");
 
-    /*uint32 GizmoMaterial = OverlayMaterial(Materials);
+    uint32 GizmoMaterial = AddMaterial(Materials, OverlayMaterial());
 
     GameState->UI.Style = DefaultUIStyle();
     GameState->Gizmo.Style    = DefaultGizmoStyle(AxisMeshes, GizmoMaterial);
-    GameState->Gizmo.Selected = ENTITY_STORAGE_NONE;*/
+    GameState->Gizmo.Selected = ENTITY_STORAGE_NONE;
 
-    //uint32 FontTexture = GetAssetTextureHandle(&GameState->Assets, "font_atlas");
+    uint32 FontTexture = GetAssetTextureHandle(&GameState->Assets, "font_atlas");
 }
 
 internal void BuildTestScene(game_state *GameState)
@@ -140,7 +140,7 @@ internal void InitGame(game_memory *Memory, game_state *GameState, render_comman
     SubArena(&GameState->FrameArena, WorldArena, FRAME_ARENA_SIZE);
     SubArena(&GameState->MaterialsArena, WorldArena, MATERIALS_ARENA_SIZE);
 
-    LoadAssetPack(ENGA_PACK_PATH, Memory, GameState);
+    LoadAssetsFromEnga(ENGA_PACK_PATH, Memory, GameState);
     asset_store *Assets = &GameState->Assets;
     PushAssetsToRender(Assets, RenderCommands);
 
@@ -213,6 +213,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         DirLight.Direction = Vector3(0.4f, 1.0f, 0.3f);
         DirLight.Intensity = 1.0f;
         PushBindLight(RenderCommands, DirLight);
+        PushBindLight(RenderCommands, Vector3(0.4f, 1.0f, 0.3f));
         PushRenderSkybox(RenderCommands, GameState->SkyHandle);
         AnimateEntities(Region, &GameState->Assets, Controls->dtForFrame);
 
