@@ -16,6 +16,7 @@
             "d:\\windows kits\\10\\include\\10.0.22621.0\\ucrt\\corecrt_stdio_config.h",
             "c:\\users\\artem\\desktop\\engine\\shared\\strings.h",
             "c:\\users\\artem\\desktop\\engine\\engine\\source\\platformapi\\rendercommands.h",
+            "c:\\users\\artem\\desktop\\engine\\shared\\memory.h",
             "c:\\users\\artem\\desktop\\engine\\shared\\enginemath.h",
             "c:\\users\\artem\\desktop\\engine\\shared\\intrinsics.h",
             "d:\\windows kits\\10\\include\\10.0.22621.0\\ucrt\\math.h",
@@ -42,8 +43,7 @@
             "d:\\windows kits\\10\\include\\10.0.22621.0\\ucrt\\corecrt_wstdlib.h",
             "d:\\visualstudio\\vc\\tools\\msvc\\14.51.36231\\include\\limits.h",
             "c:\\users\\artem\\desktop\\engine\\engine\\source\\platformapi\\renderdescription.h",
-            "c:\\users\\artem\\desktop\\engine\\shared\\imageformat.h",
-            "c:\\users\\artem\\desktop\\engine\\engine\\source\\platformapi\\texturetransfer.h"
+            "c:\\users\\artem\\desktop\\engine\\shared\\imageformat.h"
         ],
         "ImportedModules": [],
         "ImportedHeaderUnits": []

@@ -129,6 +129,32 @@ internal void BuildTestScene(game_state *GameState)
     AddEntity(GameState, Entity_Prop, TransformAt(Vector3( 2.5f, 0.0f, 0.0f)), Cube, Params, 0);
 }
 
+internal void A(game_state* GameState)
+{
+    asset_store* Assets = &GameState->Assets;
+    materials* Materials = GameState->Materials;
+
+    uint32 TestTextureHandle = GetAssetTextureHandle(Assets, "TestTexture");
+    uint32 TextureHandles[] = { TestTextureHandle };
+
+    uint32 TestMale = GetAssetMeshHandle(Assets, "TestMale");
+
+    uint32 PropMaterial = UnlitMaterial(Materials);
+    material_params Params = MatParams(PropMaterial, TextureHandles, 1, Vector4(1, 1, 1, 1));
+
+    GameState->player = AddEntity(GameState, Entity_Prop, TransformAt(Vector3(2.5f, 0.0f, 0.0f)), TestMale, Params, 0);
+}
+
+internal void AB(game_state* GameState, input_state* Input)
+{
+
+    Vector3 vec = Vector3(Input->MoveAxis.X, 0, Input->MoveAxis.Z);
+
+    low_entity *player = GetLowEntity(&GameState->Storage, GameState->player);
+    world_position newPos = MapIntoChunkSpace(GameState->World, player->Position, vec * Input->dtForFrame * 4);
+    ChangeEntityLocation(&GameState->WorldArena, GameState->World, &GameState->Storage, GameState->player, newPos);
+}
+
 internal void InitGame(game_memory *Memory, game_state *GameState, render_commands *RenderCommands)
 {
     InitializeArena(&GameState->WorldArena, Memory->PermanentStorageSize - sizeof(game_state), (uint8 *)Memory->PermanentStorage + sizeof(game_state));
@@ -152,23 +178,8 @@ internal void InitGame(game_memory *Memory, game_state *GameState, render_comman
     InitCamera(&GameState->Camera, MapIntoChunkSpace(GameState->World, WorldOrigin(), Vector3(0.0f, 0.0f, 4.0f)), DegToRad(75.0f));
     
     BuildTestScene(GameState);
+    A(GameState);
     PushMaterialsToRender(GameState->Materials, RenderCommands);
-}
-
-internal void A(game_state* GameState)
-{
-    asset_store* Assets = &GameState->Assets;
-    materials* Materials = GameState->Materials;
-
-    uint32 TestTextureHandle = GetAssetTextureHandle(Assets, "TestTexture");
-    uint32 TextureHandles[] = { TestTextureHandle };
-
-    uint32 TestMale = GetAssetMeshHandle(Assets, "TestMale");
-
-    uint32 PropMaterial = UnlitMaterial(Materials);
-    material_params Params = MatParams(PropMaterial, TextureHandles, 1, Vector4(1, 1, 1, 1));
-
-    AddEntity(GameState, Entity_Prop, TransformAt(Vector3(2.5f, 0.0f, 0.0f)), TestMale, Params, 0);
 }
 
 extern "C" __declspec(dllexport)
@@ -196,8 +207,10 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     BeginGizmo(Gizmo, Mouse, RenderCommands);
     DebugUI(GameState);
 
+    AB(GameState, Controls);
+
     rectangle3  SimBounds = Rect3CenterRadius(Vector3(0.0f, 0.0f, 0.0f), SIM_HALF_DIM);
-    sim_region *Region    = BeginSim(&GameState->FrameArena, GameState->World, &GameState->Storage, Camera->Position, SimBounds, SIM_MAX_ENTITIES);
+    sim_region *Region = BeginSim(&GameState->FrameArena, GameState->World, &GameState->Storage, Camera->Position, SimBounds, SIM_MAX_ENTITIES);
     {
         UpdateCamera(Camera, GameState->World, Controls);
 

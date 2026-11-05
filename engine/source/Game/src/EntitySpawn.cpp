@@ -4,8 +4,7 @@
 #include "EngineMath.h"
 #include "GameState.h"
 
-internal uint32 AddEntity(game_state *GameState, entity_type Type, transform Pose,
-                          uint32 MeshHandle, material_params Params, const char *Name)
+internal uint32 AddEntity(game_state *GameState, entity_type Type, transform Pose, uint32 MeshHandle, material_params Params, const char *Name)
 {
     if (Params.SharedMatIndex >= GameState->Materials->Count || (Params.TextureCount && !Params.TextureHandles))
     {

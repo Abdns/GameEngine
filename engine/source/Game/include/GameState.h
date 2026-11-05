@@ -30,6 +30,8 @@ struct game_state
     ui_context    UI;
     gizmo_context Gizmo;
 
+    uint32 player;
+
 };
 
 #endif
