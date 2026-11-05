@@ -10,6 +10,7 @@ enum entity_type
     Entity_Null = 0,
     Entity_Floor,
     Entity_Prop,
+    Entity_Player,
 };
 
 enum entity_flag

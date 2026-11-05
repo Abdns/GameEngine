@@ -61,7 +61,6 @@
     <ClInclude Include="..\engine\source\Game\src\World.cpp" />
     <ClInclude Include="..\engine\source\Game\src\SimEntity.cpp" />
     <ClInclude Include="..\engine\source\Game\src\EntityStorage.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\EntitySpawn.cpp" />
     <ClInclude Include="..\engine\source\Game\src\Editor\EditorUI.cpp" />
     <ClInclude Include="..\engine\source\Game\src\SimRegion.cpp" />
     <ClInclude Include="..\engine\source\Game\src\Material.cpp" />

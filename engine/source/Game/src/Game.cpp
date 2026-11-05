@@ -120,7 +120,6 @@ internal void BuildTestScene(game_state *GameState)
     uint32 Cube = GetAssetMeshHandle(Assets, "cube");
     uint32 Sphere = GetAssetMeshHandle(Assets, "sphere");
     uint32 Plane = GetAssetMeshHandle(Assets, "plane");
-    uint32 TestMale = GetAssetMeshHandle(Assets, "TestMale");
 
     uint32 PropMaterial = UnlitMaterial(Materials);
     material_params Params = MatParams(PropMaterial, TextureHandles, 1, Vector4(1, 1, 1, 1));
@@ -128,8 +127,6 @@ internal void BuildTestScene(game_state *GameState)
     AddEntity(GameState, Entity_Floor, TransformAt(Vector3(0.0f, -2.1f, 0.0f)), Plane, Params, "floor");
     AddEntity(GameState, Entity_Prop, TransformAt(Vector3(-2.5f, 0.0f, 0.0f)), Sphere, Params, 0);
     AddEntity(GameState, Entity_Prop, TransformAt(Vector3( 2.5f, 0.0f, 0.0f)), Cube, Params, 0);
-    AddEntity(GameState, Entity_Prop, TransformAt(Vector3( 2.5f, 0.0f, 0.0f)), TestMale, Params, 0);
-
 }
 
 internal void InitGame(game_memory *Memory, game_state *GameState, render_commands *RenderCommands)
@@ -156,6 +153,22 @@ internal void InitGame(game_memory *Memory, game_state *GameState, render_comman
     
     BuildTestScene(GameState);
     PushMaterialsToRender(GameState->Materials, RenderCommands);
+}
+
+internal void A(game_state* GameState)
+{
+    asset_store* Assets = &GameState->Assets;
+    materials* Materials = GameState->Materials;
+
+    uint32 TestTextureHandle = GetAssetTextureHandle(Assets, "TestTexture");
+    uint32 TextureHandles[] = { TestTextureHandle };
+
+    uint32 TestMale = GetAssetMeshHandle(Assets, "TestMale");
+
+    uint32 PropMaterial = UnlitMaterial(Materials);
+    material_params Params = MatParams(PropMaterial, TextureHandles, 1, Vector4(1, 1, 1, 1));
+
+    AddEntity(GameState, Entity_Prop, TransformAt(Vector3(2.5f, 0.0f, 0.0f)), TestMale, Params, 0);
 }
 
 extern "C" __declspec(dllexport)

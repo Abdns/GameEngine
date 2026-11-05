@@ -149,9 +149,6 @@
     <ClInclude Include="..\engine\source\Game\src\EntityStorage.cpp">
       <Filter>engine\source\Game\src</Filter>
     </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\EntitySpawn.cpp">
-      <Filter>engine\source\Game\src</Filter>
-    </ClInclude>
     <ClInclude Include="..\engine\source\Game\src\Editor\EditorUI.cpp">
       <Filter>engine\source\Game\src\Editor</Filter>
     </ClInclude>
