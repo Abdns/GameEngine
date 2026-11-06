@@ -158,7 +158,7 @@
     <ClInclude Include="..\engine\source\Game\src\Material.cpp">
       <Filter>engine\source\Game\src</Filter>
     </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\Input.cpp">
+    <ClInclude Include="..\engine\source\Game\src\GameInput.cpp">
       <Filter>engine\source\Game\src</Filter>
     </ClInclude>
     <ClInclude Include="..\engine\source\Game\src\UI\UI.cpp">
@@ -174,9 +174,6 @@
       <Filter>engine\source\Game\include</Filter>
     </ClInclude>
     <ClInclude Include="..\engine\source\Game\include\GameState.h">
-      <Filter>engine\source\Game\include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Game\include\Input.h">
       <Filter>engine\source\Game\include</Filter>
     </ClInclude>
     <ClInclude Include="..\engine\source\PlatformApi\PlatformAPI.h">

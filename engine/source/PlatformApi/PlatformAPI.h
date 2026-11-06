@@ -34,51 +34,42 @@ struct game_memory
 
 };
 
-struct game_button_state
+struct platform_button_state
 {
-    int    HalfTransitionCount;
+    int32  HalfTransitionCount;
     bool32 EndedDown;
 };
 
-struct game_controller_input
+enum platform_key
 {
-    bool32 IsConnected;
-    bool32 IsAnalog;
-
-    real32 StickAverageX;
-    real32 StickAverageY;
-
-    union
-    {
-        game_button_state Buttons[6];
-        struct
-        {
-            game_button_state Up;
-            game_button_state Down;
-            game_button_state Left;
-            game_button_state Right;
-            game_button_state LeftShoulder;
-            game_button_state RightShoulder;
-        };
-    };
+    Key_Left  = 0x25,
+    Key_Up    = 0x26,
+    Key_Right = 0x27,
+    Key_Down  = 0x28,
 };
 
-struct game_input
+struct platform_gamepad_input
+{
+    bool32 IsConnected;
+    uint16 Buttons; // XInput button bits.
+    int16  LeftStickX, LeftStickY;
+    int16  RightStickX, RightStickY;
+    uint8  LeftTrigger, RightTrigger;
+};
+
+struct platform_input
 {
     real32 dtForFrame;
 
-    game_button_state MouseButtons[5];
-    int32 MouseX;
-    int32 MouseY;
-    int32 MouseZ;
-    int32 LastMouseX;
-    int32 LastMouseY;
+    platform_button_state Keys[256]; // Virtual-key codes; letters are 'A'..'Z'.
+    platform_button_state MouseButtons[5]; // Left, middle, right, X1, X2.
+    int32 MouseX, MouseY, MouseZ;
+    int32 LastMouseX, LastMouseY;
+    platform_gamepad_input Gamepads[4];
 
     int32 RenderWidth;
     int32 RenderHeight;
     real32 UIScale;
-
-    game_controller_input Controllers[5];
 };
 
 struct game_sound_output_buffer
@@ -88,7 +79,7 @@ struct game_sound_output_buffer
     int16* Samples;
 };
 
-#define GAME_UPDATE_AND_RENDER(name) void name(game_memory* Memory, game_input* Input, render_commands* RenderCommands)
+#define GAME_UPDATE_AND_RENDER(name) void name(game_memory* Memory, const platform_input* Input, render_commands* RenderCommands)
 typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
 
 #define GAME_GET_SOUND_SAMPLES(name) void name(game_memory* Memory, game_sound_output_buffer* SoundBuffer)

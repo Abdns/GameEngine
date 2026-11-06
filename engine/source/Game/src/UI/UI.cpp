@@ -5,7 +5,7 @@
 #include "EngineMath.h"
 #include "PlatformAPI.h"
 #include "RenderCommands.h"
-#include "Input.h"
+#include "GameInput.cpp"
 
 #define UI_WHEEL_DELTA 120
 #define UI_WHEEL_STEP  24.0f
@@ -45,14 +45,14 @@ struct ui_style
 struct ui_context
 {
 	render_commands *Cmd;
-	mouse_input *Mouse;
+	game_mouse_input *Mouse;
 	real32 DpiRatio;
 	ui_style Style;
 
 	real32 Scroll;
 };
 
-internal void BeginUI(ui_context *UI, render_commands *Cmd, mouse_input *Mouse, real32 DpiRatio)
+internal void BeginUI(ui_context *UI, render_commands *Cmd, game_mouse_input *Mouse, real32 DpiRatio)
 {
 	UI->Cmd = Cmd;
 	UI->Mouse = Mouse;

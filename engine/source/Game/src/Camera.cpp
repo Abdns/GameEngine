@@ -2,7 +2,7 @@
 
 #include "Types.h"
 #include "EngineMath.h"
-#include "Input.h"
+#include "GameInput.cpp"
 #include "PlatformAPI.h"
 #include "World.cpp"
 
@@ -58,7 +58,7 @@ internal ray CameraRayFromScreen(camera *Camera, Vector3 SimSpaceP, real32 Mouse
     return RayFromScreen(MouseX, MouseY, ViewportWidth, ViewportHeight, Camera->FovY, SimSpaceP, Basis.Right, Basis.Up, Basis.Forward);
 }
 
-internal void UpdateCamera(camera *Camera, world *World, input_state *Controls)
+internal void UpdateCamera(camera *Camera, world *World, game_input *Controls)
 {
     if (Controls->Mouse.LookDown)
     {

@@ -3,7 +3,7 @@
 
 #include "Types.h"
 #include "Memory.h"
-#include "Input.h"
+#include "GameInput.cpp"
 #include "AssetStore.cpp"
 #include "Material.cpp"
 #include "EntityStorage.cpp"
@@ -26,7 +26,7 @@ struct game_state
 
     camera Camera;
 
-    input_state   Controls;
+    game_input    Controls;
     ui_context    UI;
     gizmo_context Gizmo;
 

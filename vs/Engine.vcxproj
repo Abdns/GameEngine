@@ -64,13 +64,12 @@
     <ClInclude Include="..\engine\source\Game\src\Editor\EditorUI.cpp" />
     <ClInclude Include="..\engine\source\Game\src\SimRegion.cpp" />
     <ClInclude Include="..\engine\source\Game\src\Material.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\Input.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\GameInput.cpp" />
     <ClInclude Include="..\engine\source\Game\src\UI\UI.cpp" />
     <ClInclude Include="..\engine\source\Game\src\Editor\Gizmo.cpp" />
     <ClInclude Include="..\engine\source\Game\src\Editor\Picking.cpp" />
     <ClInclude Include="..\engine\source\Game\include\Game.h" />
     <ClInclude Include="..\engine\source\Game\include\GameState.h" />
-    <ClInclude Include="..\engine\source\Game\include\Input.h" />
     <ClInclude Include="..\engine\source\PlatformApi\PlatformAPI.h" />
     <ClInclude Include="..\engine\source\PlatformApi\RenderCommands.h" />
     <ClInclude Include="..\engine\source\PlatformApi\RenderDescription.h" />

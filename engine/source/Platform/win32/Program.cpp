@@ -106,9 +106,9 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
     uint32 RenderMemorySize = (uint32)Megabytes(4);
     void  *RenderMemory     = PushSize(&PlatformArena, RenderMemorySize);
 
-    game_input  Input[2] = {};
-    game_input* NewInput = &Input[0];
-    game_input* OldInput = &Input[1];
+    platform_input  Input[2] = {};
+    platform_input* NewInput = &Input[0];
+    platform_input* OldInput = &Input[1];
     Win32PrimeMouseInput(Window, NewInput, OldInput);
 
     local_persist vulkan_context   VulkanContext = {};
@@ -174,7 +174,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
         Win32RecordDebugMarker(DebugTimeMarkers, &DebugTimeMarkerIndex, ArrayCount(DebugTimeMarkers), &LockRegion);
 #endif
 
-        game_input* Temp = NewInput; NewInput = OldInput; OldInput = Temp;
+        platform_input* Temp = NewInput; NewInput = OldInput; OldInput = Temp;
 
         int64 EndCycleCount = __rdtsc();
         int64 CycleElapsed = EndCycleCount - LastCycleCount;
