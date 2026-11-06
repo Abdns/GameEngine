@@ -4,7 +4,6 @@
 #include "EngineMath.h"
 #include "PlatformAPI.h"
 
-// Mapped pointer actions shared by the game, editor, and UI for this frame.
 struct game_mouse_input
 {
     Vector2 Position;
@@ -35,7 +34,6 @@ internal bool32 MouseAvailable(const game_mouse_input *Mouse)
     return !Mouse->Consumed && !Mouse->OverUI;
 }
 
-// All device-to-game bindings live here. Platform code only reports devices.
 internal void BeginGameInput(game_input *State, const platform_input *Input)
 {
     const platform_button_state *Select = &Input->MouseButtons[0];
@@ -54,12 +52,12 @@ internal void BeginGameInput(game_input *State, const platform_input *Input)
 
     const platform_button_state *Keys = Input->Keys;
     State->MoveAxis = Vector3(0.0f, 0.0f, 0.0f);
-    if (Keys['D'].EndedDown || Keys[Key_Right].EndedDown) State->MoveAxis.X += 1.0f;
-    if (Keys['A'].EndedDown || Keys[Key_Left].EndedDown)  State->MoveAxis.X -= 1.0f;
-    if (Keys['E'].EndedDown)                           State->MoveAxis.Y += 1.0f;
-    if (Keys['Q'].EndedDown)                           State->MoveAxis.Y -= 1.0f;
-    if (Keys['W'].EndedDown || Keys[Key_Up].EndedDown)    State->MoveAxis.Z += 1.0f;
-    if (Keys['S'].EndedDown || Keys[Key_Down].EndedDown)  State->MoveAxis.Z -= 1.0f;
+    if (Keys['D'].EndedDown) State->MoveAxis.X += 1.0f;
+    if (Keys['A'].EndedDown) State->MoveAxis.X -= 1.0f;
+    if (Keys['E'].EndedDown) State->MoveAxis.Y += 1.0f;
+    if (Keys['Q'].EndedDown) State->MoveAxis.Y -= 1.0f;
+    if (Keys['W'].EndedDown) State->MoveAxis.Z += 1.0f;
+    if (Keys['S'].EndedDown) State->MoveAxis.Z -= 1.0f;
 
     State->dtForFrame   = Input->dtForFrame;
     State->ViewportSize = Vector2((real32)Input->RenderWidth, (real32)Input->RenderHeight);

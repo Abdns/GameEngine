@@ -40,14 +40,6 @@ struct platform_button_state
     bool32 EndedDown;
 };
 
-enum platform_key
-{
-    Key_Left  = 0x25,
-    Key_Up    = 0x26,
-    Key_Right = 0x27,
-    Key_Down  = 0x28,
-};
-
 struct platform_gamepad_input
 {
     bool32 IsConnected;
@@ -61,8 +53,8 @@ struct platform_input
 {
     real32 dtForFrame;
 
-    platform_button_state Keys[256]; // Virtual-key codes; letters are 'A'..'Z'.
-    platform_button_state MouseButtons[5]; // Left, middle, right, X1, X2.
+    platform_button_state Keys[256];
+    platform_button_state MouseButtons[5];
     int32 MouseX, MouseY, MouseZ;
     int32 LastMouseX, LastMouseY;
     platform_gamepad_input Gamepads[4];
