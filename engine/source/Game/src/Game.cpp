@@ -5,7 +5,7 @@
 #include "World.cpp"
 #include "EntityStorage.cpp"
 #include "SimRegion.cpp"
-#include "Input.cpp"
+#include "GameInput.cpp"
 #include "Camera.cpp"
 #include "Material.cpp"
 #include "UI.cpp"
@@ -80,7 +80,7 @@ internal void PushEntitiesToRender(sim_region *Region, asset_store *Assets, memo
 
 internal void SelectEntity(game_state *GameState, sim_region *Region, ray PickRay)
 {
-    mouse_input *Mouse = &GameState->Controls.Mouse;
+    game_mouse_input *Mouse = &GameState->Controls.Mouse;
     if (!MouseAvailable(Mouse) || !Mouse->Pressed) return;
 
     Mouse->Consumed = true;
@@ -145,7 +145,7 @@ internal void A(game_state* GameState)
     GameState->player = AddEntity(GameState, Entity_Prop, TransformAt(Vector3(2.5f, 0.0f, 0.0f)), TestMale, Params, 0);
 }
 
-internal void AB(game_state* GameState, input_state* Input)
+internal void AB(game_state* GameState, game_input* Input)
 {
 
     Vector3 vec = Vector3(Input->MoveAxis.X, 0, Input->MoveAxis.Z);
@@ -199,11 +199,11 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     camera        *Camera   = &GameState->Camera;
     gizmo_context *Gizmo    = &GameState->Gizmo;
-    input_state   *Controls = &GameState->Controls;
-    mouse_input   *Mouse    = &Controls->Mouse;
+    game_input       *Controls = &GameState->Controls;
+    game_mouse_input *Mouse    = &Controls->Mouse;
 
-    BeginInput(Controls, Input);
-    BeginUI(&GameState->UI, RenderCommands, Mouse, Input->UIScale);
+    BindInput(Controls, Input);
+    BeginUI(&GameState->UI, RenderCommands, Mouse, Controls->UIScale);
     BeginGizmo(Gizmo, Mouse, RenderCommands);
     DebugUI(GameState);
 

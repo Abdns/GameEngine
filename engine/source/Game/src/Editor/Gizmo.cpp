@@ -4,7 +4,7 @@
 #include "EngineMath.h"
 #include "PlatformAPI.h"
 #include "RenderCommands.h"
-#include "Input.h"
+#include "GameInput.cpp"
 #include "AssetStore.cpp"
 #include "SimEntity.cpp"
 #include "Picking.cpp"
@@ -26,7 +26,7 @@ struct gizmo_style
 
 struct gizmo_context
 {
-    mouse_input *Mouse;
+    game_mouse_input *Mouse;
 
     uint32 Hot;
     uint32 Active;
@@ -61,7 +61,7 @@ internal gizmo_style DefaultGizmoStyle(uint32 *AxisMeshes, uint32 Material)
     return Style;
 }
 
-internal void BeginGizmo(gizmo_context *Gizmo, mouse_input *Mouse, render_commands *Commands)
+internal void BeginGizmo(gizmo_context *Gizmo, game_mouse_input *Mouse, render_commands *Commands)
 {
     Gizmo->Mouse    = Mouse;
     Gizmo->Hot      = 0;

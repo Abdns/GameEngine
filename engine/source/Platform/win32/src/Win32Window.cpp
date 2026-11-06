@@ -99,7 +99,7 @@ void Win32ToggleFullscreen(HWND Window)
     }
 }
 
-internal void Win32ProcessKeyboardMessage(game_button_state* NewState, bool32 IsDown)
+internal void Win32ProcessKeyboardMessage(platform_button_state* NewState, bool32 IsDown)
 {
     if (NewState->EndedDown != IsDown)
     {
@@ -108,10 +108,8 @@ internal void Win32ProcessKeyboardMessage(game_button_state* NewState, bool32 Is
     }
 }
 
-void Win32ProcessPendingMessages(win32_state* State, game_input* Input)
+void Win32ProcessPendingMessages(win32_state* State, platform_input* Input)
 {
-    game_controller_input* KeyboardController = &Input->Controllers[0];
-
     MSG Message;
     while (PeekMessage(&Message, 0, 0, 0, PM_REMOVE))
     {
@@ -138,17 +136,11 @@ void Win32ProcessPendingMessages(win32_state* State, game_input* Input)
 
                 if (WasDown != IsDown)
                 {
-                    if      (VKCode == 'W')      Win32ProcessKeyboardMessage(&KeyboardController->Up,            IsDown);
-                    else if (VKCode == 'A')      Win32ProcessKeyboardMessage(&KeyboardController->Left,          IsDown);
-                    else if (VKCode == 'S')      Win32ProcessKeyboardMessage(&KeyboardController->Down,          IsDown);
-                    else if (VKCode == 'D')      Win32ProcessKeyboardMessage(&KeyboardController->Right,         IsDown);
-                    else if (VKCode == 'Q')      Win32ProcessKeyboardMessage(&KeyboardController->LeftShoulder,  IsDown);
-                    else if (VKCode == 'E')      Win32ProcessKeyboardMessage(&KeyboardController->RightShoulder, IsDown);
-                    else if (VKCode == VK_UP)    Win32ProcessKeyboardMessage(&KeyboardController->Up,            IsDown);
-                    else if (VKCode == VK_DOWN)  Win32ProcessKeyboardMessage(&KeyboardController->Down,          IsDown);
-                    else if (VKCode == VK_LEFT)  Win32ProcessKeyboardMessage(&KeyboardController->Left,          IsDown);
-                    else if (VKCode == VK_RIGHT) Win32ProcessKeyboardMessage(&KeyboardController->Right,         IsDown);
-                    else if (VKCode == VK_ESCAPE)
+                    if (VKCode < ArrayCount(Input->Keys))
+                    {
+                        Win32ProcessKeyboardMessage(&Input->Keys[VKCode], IsDown);
+                    }
+                    if (VKCode == VK_ESCAPE)
                     {
                         isRunning = false;
                     }

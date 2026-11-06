@@ -12,6 +12,9 @@ build/
 *.iobj
 
 .vs/
+*.ifc.dt.d.json
+*.ifc.dt.module.json
+*.ifc.dt.module.json.command
 *.suo
 *.user
 *.userosscache

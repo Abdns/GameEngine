@@ -399,8 +399,8 @@ int main(int ArgCount, char **Args)
 
     LoadGLB(&Table, &Arena, "..\\assets\\models\\TestShapes\\TestShapes.glb");
     LoadGLB(&Table, &Arena, "..\\assets\\models\\Gizmo\\Gizmo.glb");
-    LoadGLB(&Table, &Arena, "..\\assets\\models\\RiggedColumn\\RiggedColumn.glb");
-    LoadGLB(&Table, &Arena, "..\\assets\\models\\TestMale\\TestMale.glb");
+    LoadGLB(&Table, &Arena, "..\\assets\\models\\TestShapes\\RiggedColumn.glb");
+    LoadGLB(&Table, &Arena, "..\\assets\\models\\TestShapes\\TestMale.glb");
     if (!LoadImages(&Table, &Arena, "..\\assets\\images")) return 1;
     CreateENGA(&Table, OutPath);
 

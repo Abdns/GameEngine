@@ -10,7 +10,8 @@ internal void Win32BuildPath(char* EXEPath, char* OnePastLastSlash, char* FileNa
 void Win32GetInputFileLocation(win32_state* State, bool32 InputStream, int SlotIndex, int DestCount, char* Dest)
 {
     char Filename[64];
-    wsprintfA(Filename, "replay_%d_%s.hmi", SlotIndex, InputStream ? "input" : "state");
+    // v2 stores platform_input and the updated game state; old snapshots are incompatible.
+    wsprintfA(Filename, "replay_%d_%s_v2.hmi", SlotIndex, InputStream ? "input" : "state");
     Win32BuildPath(State->EXEFileName, State->OnePastLastSlash, Filename, DestCount, Dest);
 }
 
@@ -74,13 +75,13 @@ void Win32EndInputPlayBack(win32_state* State)
     State->InputPlayingIndex = 0;
 }
 
-void Win32RecordInput(win32_state* State, game_input* NewInput)
+void Win32RecordInput(win32_state* State, platform_input* NewInput)
 {
     DWORD BytesWritten;
     WriteFile(State->RecordingHandle, NewInput, sizeof(*NewInput), &BytesWritten, 0);
 }
 
-void Win32PlayBackInput(win32_state* State, game_input* NewInput)
+void Win32PlayBackInput(win32_state* State, platform_input* NewInput)
 {
     DWORD BytesRead = 0;
     if (ReadFile(State->PlaybackHandle, NewInput, sizeof(*NewInput), &BytesRead, 0))
@@ -96,7 +97,7 @@ void Win32PlayBackInput(win32_state* State, game_input* NewInput)
     }
 }
 
-void Win32UpdateRecordAndPlayback(win32_state* State, game_input* NewInput)
+void Win32UpdateRecordAndPlayback(win32_state* State, platform_input* NewInput)
 {
     if (State->InputRecordingIndex) Win32RecordInput(State, NewInput);
     if (State->InputPlayingIndex)   Win32PlayBackInput(State, NewInput);
