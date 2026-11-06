@@ -34,7 +34,7 @@ internal bool32 MouseAvailable(const game_mouse_input *Mouse)
     return !Mouse->Consumed && !Mouse->OverUI;
 }
 
-internal void BeginGameInput(game_input *State, const platform_input *Input)
+internal void BindInput(game_input *State, const platform_input *Input)
 {
     const platform_button_state *Select = &Input->MouseButtons[0];
     const platform_button_state *Look   = &Input->MouseButtons[2];

@@ -191,7 +191,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     game_input       *Controls = &GameState->Controls;
     game_mouse_input *Mouse    = &Controls->Mouse;
 
-    BeginGameInput(Controls, Input);
+    BindInput(Controls, Input);
     BeginUI(&GameState->UI, RenderCommands, Mouse, Controls->UIScale);
     BeginGizmo(Gizmo, Mouse, RenderCommands);
     DebugUI(GameState);
