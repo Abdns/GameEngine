@@ -23,28 +23,54 @@
     <NMakeCleanCommandLine>if exist "$(ProjectDir)..\build" rd /s /q "$(ProjectDir)..\build"</NMakeCleanCommandLine>
     <NMakeOutput>$(ProjectDir)..\build\Engine.exe</NMakeOutput>
     <NMakePreprocessorDefinitions>ENGINE_INTERNAL=1;ENGINE_SLOW=1;ENGINE_WIN32=1;VK_USE_PLATFORM_WIN32_KHR;UNICODE;_UNICODE;_DEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
-    <NMakeIncludeSearchPath>$(ProjectDir)..\engine\source;$(ProjectDir)..\shared;$(ProjectDir)..\engine\source\Game\include;$(ProjectDir)..\engine\source\Game\src;$(ProjectDir)..\engine\source\PlatformApi;$(ProjectDir)..\engine\source\Game\src\Assets;$(ProjectDir)..\engine\source\Platform\win32\include;$(ProjectDir)..\engine\source\Platform\win32\src;$(ProjectDir)..\engine\source\Graphics\Vulkan;$(ProjectDir)..\engine\source\Game\src\Editor;$(ProjectDir)..\engine\source\Game\src\UI;$(VULKAN_SDK)\Include;$(VC_IncludePath);$(WindowsSdkDir_10)Include\$(TargetPlatformVersion)\um;$(WindowsSdkDir_10)Include\$(TargetPlatformVersion)\shared;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
+    <NMakeIncludeSearchPath>$(ProjectDir)..\engine\source;$(ProjectDir)..\shared;$(ProjectDir)..\engine\source\Game\src;$(ProjectDir)..\engine\source\PlatformApi;$(ProjectDir)..\engine\source\Game\src\Assets;$(ProjectDir)..\engine\source\Platform\win32\include;$(ProjectDir)..\engine\source\Platform\win32\src;$(ProjectDir)..\engine\source\Graphics\Vulkan;$(ProjectDir)..\engine\source\Game\src\Editor;$(ProjectDir)..\engine\source\Game\src\UI;$(VULKAN_SDK)\Include;$(VC_IncludePath);$(WindowsSdkDir_10)Include\$(TargetPlatformVersion)\um;$(WindowsSdkDir_10)Include\$(TargetPlatformVersion)\shared;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
     <LocalDebuggerCommand>$(ProjectDir)..\build\Engine.exe</LocalDebuggerCommand>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)..\build</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
-  <ItemDefinitionGroup>
-  </ItemDefinitionGroup>
-  <ItemGroup>
+  <ItemDefinitionGroup></ItemDefinitionGroup>
+  <ItemGroup Label="GeneratedFiles">
+    <None Include="..\.vserunonsave" />
+    <None Include="..\build.bat" />
+    <None Include="..\EngaAsset\assets.enga" />
+    <ClInclude Include="..\engine\source\Game\src\Assets\AssetAnimation.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\Assets\AssetReadWrite.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\Assets\AssetStore.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\Camera.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\Editor\DebugEditor.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\Editor\EditorUI.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\Editor\Gizmo.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\Editor\Picking.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\EntitySpawn.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\EntityStorage.cpp" />
     <ClCompile Include="..\engine\source\Game\src\Game.cpp" />
-    <ClCompile Include="..\engine\source\Game\src\UI\Text.cpp" />
-    <ClCompile Include="..\engine\source\Platform\win32\Program.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRenderer.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\GameInput.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\Material.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\SimEntity.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\SimRegion.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\UI\Text.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\UI\UI.cpp" />
+    <ClInclude Include="..\engine\source\Game\src\World.cpp" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderData.h" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderResources.h" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\lit.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\post.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\skybox.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\UI\UI.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\UI\uirect.hlsl" />
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\unlit.hlsl" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\Vulkan.h" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanCore.cpp" />
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanMemory.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanDebug.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanDevice.cpp" />
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanResources.cpp" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanFrame.cpp" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanMemory.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanPasses.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanPipeline.cpp" />
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanFrame.cpp" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRender.h" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRenderer.cpp" />
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanResources.cpp" />
+    <ClCompile Include="..\engine\source\Platform\win32\Program.cpp" />
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32FileIO.cpp" />
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32GameCode.cpp" />
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32GDI.cpp" />
@@ -54,48 +80,23 @@
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32Sound.cpp" />
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32Timer.cpp" />
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32Window.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\Assets\AssetStore.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\Assets\AssetReadWrite.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\Assets\AssetAnimation.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\Camera.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\World.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\SimEntity.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\EntityStorage.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\Editor\EditorUI.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\SimRegion.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\Material.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\GameInput.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\UI\UI.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\Editor\Gizmo.cpp" />
-    <ClInclude Include="..\engine\source\Game\src\Editor\Picking.cpp" />
-    <ClInclude Include="..\engine\source\Game\include\Game.h" />
-    <ClInclude Include="..\engine\source\Game\include\GameState.h" />
     <ClInclude Include="..\engine\source\PlatformApi\PlatformAPI.h" />
     <ClInclude Include="..\engine\source\PlatformApi\RenderCommands.h" />
     <ClInclude Include="..\engine\source\PlatformApi\RenderDescription.h" />
     <ClInclude Include="..\shared\EngaFormat.h" />
-    <ClInclude Include="..\shared\ImageFormat.h" />
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\Vulkan.h" />
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRender.h" />
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderResources.h" />
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderData.h" />
     <ClInclude Include="..\shared\EngineMath.h" />
+    <ClInclude Include="..\shared\Half.h" />
+    <ClInclude Include="..\shared\ImageFormat.h" />
     <ClInclude Include="..\shared\Intrinsics.h" />
     <ClInclude Include="..\shared\Memory.h" />
     <ClInclude Include="..\shared\Strings.h" />
     <ClInclude Include="..\shared\Types.h" />
     <ClInclude Include="..\shared\Win32FileIO.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\unlit.hlsl" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\lit.hlsl" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\skybox.hlsl" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\post.hlsl" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\UI.hlsl" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\uirect.hlsl" />
-    <None Include="..\EngaAsset\assets.enga" />
-    <None Include="..\build.bat" />
-    <None Include="..\.vserunonsave" />
+    <None Include="..\vs\Build.ps1" />
+    <None Include="..\vs\New-BuildToolsSettings.ps1" />
+    <None Include="..\vs\Open.cmd" />
+    <None Include="..\vs\README.md" />
+    <None Include="..\vs\Sync-Projects.ps1" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

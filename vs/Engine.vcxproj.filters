@@ -1,86 +1,114 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="engine">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-000000000001}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="engine\source">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-0000000000d0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="engine\source\Game">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-000000000002}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="engine\source\Game\include">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-000000000021}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="engine\source\Game\src">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-000000000022}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="engine\source\Game\src\Editor">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-000000000024}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="engine\source\Game\src\UI">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-000000000023}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="engine\source\PlatformApi">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-0000000000c0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="engine\source\Game\src\Assets">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-0000000000e1}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="engine\source\Graphics">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-000000000003}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="engine\source\Graphics\Vulkan">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-000000000004}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="engine\source\Graphics\Vulkan\shaders">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-000000000005}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="engine\source\Graphics\Vulkan\shaders\compute">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-000000000015}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="engine\source\Graphics\Vulkan\shaders\interop">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-000000000016}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="shared">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-000000000006}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="engine\source\Platform">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-000000000070}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="engine\source\Platform\win32">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-000000000007}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="engine\source\Platform\win32\src">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-000000000009}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="EngaAsset">
-      <UniqueIdentifier>{a1000000-0000-0000-0000-0000000000b4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="engine\source\Graphics\Vulkan\shaders\UI">
-      <UniqueIdentifier>{56c1b790-f356-4301-8be3-657b0736c036}</UniqueIdentifier>
-    </Filter>
+    <Filter Include="EngaAsset" />
+    <Filter Include="engine" />
+    <Filter Include="engine\source" />
+    <Filter Include="engine\source\Game" />
+    <Filter Include="engine\source\Game\src" />
+    <Filter Include="engine\source\Game\src\Assets" />
+    <Filter Include="engine\source\Game\src\Editor" />
+    <Filter Include="engine\source\Game\src\UI" />
+    <Filter Include="engine\source\Graphics" />
+    <Filter Include="engine\source\Graphics\Vulkan" />
+    <Filter Include="engine\source\Graphics\Vulkan\shaders" />
+    <Filter Include="engine\source\Graphics\Vulkan\shaders\interop" />
+    <Filter Include="engine\source\Graphics\Vulkan\shaders\UI" />
+    <Filter Include="engine\source\Platform" />
+    <Filter Include="engine\source\Platform\win32" />
+    <Filter Include="engine\source\Platform\win32\src" />
+    <Filter Include="engine\source\PlatformApi" />
+    <Filter Include="shared" />
+    <Filter Include="vs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\.vserunonsave" />
+    <None Include="..\build.bat" />
+    <None Include="..\EngaAsset\assets.enga">
+      <Filter>EngaAsset</Filter>
+    </None>
+    <ClInclude Include="..\engine\source\Game\src\Assets\AssetAnimation.cpp">
+      <Filter>engine\source\Game\src\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Game\src\Assets\AssetReadWrite.cpp">
+      <Filter>engine\source\Game\src\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Game\src\Assets\AssetStore.cpp">
+      <Filter>engine\source\Game\src\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Game\src\Camera.cpp">
+      <Filter>engine\source\Game\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Game\src\Editor\DebugEditor.cpp">
+      <Filter>engine\source\Game\src\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Game\src\Editor\EditorUI.cpp">
+      <Filter>engine\source\Game\src\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Game\src\Editor\Gizmo.cpp">
+      <Filter>engine\source\Game\src\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Game\src\Editor\Picking.cpp">
+      <Filter>engine\source\Game\src\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Game\src\EntitySpawn.cpp">
+      <Filter>engine\source\Game\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Game\src\EntityStorage.cpp">
+      <Filter>engine\source\Game\src</Filter>
+    </ClInclude>
     <ClCompile Include="..\engine\source\Game\src\Game.cpp">
       <Filter>engine\source\Game\src</Filter>
     </ClCompile>
-    <ClCompile Include="..\engine\source\Platform\win32\Program.cpp">
-      <Filter>engine\source\Platform\win32</Filter>
-    </ClCompile>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRenderer.cpp">
-      <Filter>engine\source\Graphics\Vulkan</Filter>
+    <ClInclude Include="..\engine\source\Game\src\GameInput.cpp">
+      <Filter>engine\source\Game\src</Filter>
     </ClInclude>
-    <ClCompile Include="..\engine\source\Game\src\UI\Text.cpp">
+    <ClInclude Include="..\engine\source\Game\src\Material.cpp">
+      <Filter>engine\source\Game\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Game\src\SimEntity.cpp">
+      <Filter>engine\source\Game\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Game\src\SimRegion.cpp">
+      <Filter>engine\source\Game\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Game\src\UI\Text.cpp">
       <Filter>engine\source\Game\src\UI</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanCore.cpp">
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Game\src\UI\UI.cpp">
+      <Filter>engine\source\Game\src\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Game\src\World.cpp">
+      <Filter>engine\source\Game\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderData.h">
+      <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderResources.h">
+      <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
+    </ClInclude>
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\lit.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
+    </None>
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\post.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
+    </None>
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\skybox.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
+    </None>
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\UI\UI.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders\UI</Filter>
+    </None>
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\UI\uirect.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders\UI</Filter>
+    </None>
+    <None Include="..\engine\source\Graphics\Vulkan\shaders\unlit.hlsl">
+      <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
+    </None>
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\Vulkan.h">
       <Filter>engine\source\Graphics\Vulkan</Filter>
     </ClInclude>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanMemory.cpp">
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanCore.cpp">
       <Filter>engine\source\Graphics\Vulkan</Filter>
     </ClInclude>
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanDebug.cpp">
@@ -89,7 +117,10 @@
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanDevice.cpp">
       <Filter>engine\source\Graphics\Vulkan</Filter>
     </ClInclude>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanResources.cpp">
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanFrame.cpp">
+      <Filter>engine\source\Graphics\Vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanMemory.cpp">
       <Filter>engine\source\Graphics\Vulkan</Filter>
     </ClInclude>
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanPasses.cpp">
@@ -98,9 +129,18 @@
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanPipeline.cpp">
       <Filter>engine\source\Graphics\Vulkan</Filter>
     </ClInclude>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanFrame.cpp">
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRender.h">
       <Filter>engine\source\Graphics\Vulkan</Filter>
     </ClInclude>
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRenderer.cpp">
+      <Filter>engine\source\Graphics\Vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanResources.cpp">
+      <Filter>engine\source\Graphics\Vulkan</Filter>
+    </ClInclude>
+    <ClCompile Include="..\engine\source\Platform\win32\Program.cpp">
+      <Filter>engine\source\Platform\win32</Filter>
+    </ClCompile>
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32FileIO.cpp">
       <Filter>engine\source\Platform\win32\src</Filter>
     </ClInclude>
@@ -128,54 +168,6 @@
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32Window.cpp">
       <Filter>engine\source\Platform\win32\src</Filter>
     </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\Assets\AssetStore.cpp">
-      <Filter>engine\source\Game\src\Assets</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\Assets\AssetReadWrite.cpp">
-      <Filter>engine\source\Game\src\Assets</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\Assets\AssetAnimation.cpp">
-      <Filter>engine\source\Game\src\Assets</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\Camera.cpp">
-      <Filter>engine\source\Game\src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\World.cpp">
-      <Filter>engine\source\Game\src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\SimEntity.cpp">
-      <Filter>engine\source\Game\src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\EntityStorage.cpp">
-      <Filter>engine\source\Game\src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\Editor\EditorUI.cpp">
-      <Filter>engine\source\Game\src\Editor</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\SimRegion.cpp">
-      <Filter>engine\source\Game\src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\Material.cpp">
-      <Filter>engine\source\Game\src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\GameInput.cpp">
-      <Filter>engine\source\Game\src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\UI\UI.cpp">
-      <Filter>engine\source\Game\src\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\Editor\Picking.cpp">
-      <Filter>engine\source\Game\src\Editor</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Game\src\Editor\Gizmo.cpp">
-      <Filter>engine\source\Game\src\Editor</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Game\include\Game.h">
-      <Filter>engine\source\Game\include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Game\include\GameState.h">
-      <Filter>engine\source\Game\include</Filter>
-    </ClInclude>
     <ClInclude Include="..\engine\source\PlatformApi\PlatformAPI.h">
       <Filter>engine\source\PlatformApi</Filter>
     </ClInclude>
@@ -185,28 +177,16 @@
     <ClInclude Include="..\engine\source\PlatformApi\RenderDescription.h">
       <Filter>engine\source\PlatformApi</Filter>
     </ClInclude>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\Vulkan.h">
-      <Filter>engine\source\Graphics\Vulkan</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRender.h">
-      <Filter>engine\source\Graphics\Vulkan</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderResources.h">
-      <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
-    </ClInclude>
-    <ClInclude Include="..\engine\source\Graphics\Vulkan\shaders\interop\ShaderData.h">
-      <Filter>engine\source\Graphics\Vulkan\shaders\interop</Filter>
-    </ClInclude>
     <ClInclude Include="..\shared\EngaFormat.h">
-      <Filter>shared</Filter>
-    </ClInclude>
-    <ClInclude Include="..\shared\ImageFormat.h">
       <Filter>shared</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\EngineMath.h">
       <Filter>shared</Filter>
     </ClInclude>
-    <ClInclude Include="..\shared\Win32FileIO.h">
+    <ClInclude Include="..\shared\Half.h">
+      <Filter>shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\ImageFormat.h">
       <Filter>shared</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\Intrinsics.h">
@@ -221,30 +201,23 @@
     <ClInclude Include="..\shared\Types.h">
       <Filter>shared</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\unlit.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
+    <ClInclude Include="..\shared\Win32FileIO.h">
+      <Filter>shared</Filter>
+    </ClInclude>
+    <None Include="..\vs\Build.ps1">
+      <Filter>vs</Filter>
     </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\lit.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
+    <None Include="..\vs\New-BuildToolsSettings.ps1">
+      <Filter>vs</Filter>
     </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\skybox.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
+    <None Include="..\vs\Open.cmd">
+      <Filter>vs</Filter>
     </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\post.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders</Filter>
+    <None Include="..\vs\README.md">
+      <Filter>vs</Filter>
     </None>
-    <None Include="..\EngaAsset\assets.enga">
-      <Filter>EngaAsset</Filter>
-    </None>
-    <None Include="..\build.bat" />
-    <None Include="..\.vserunonsave" />
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\UI.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\UI</Filter>
-    </None>
-    <None Include="..\engine\source\Graphics\Vulkan\shaders\uirect.hlsl">
-      <Filter>engine\source\Graphics\Vulkan\shaders\UI</Filter>
+    <None Include="..\vs\Sync-Projects.ps1">
+      <Filter>vs</Filter>
     </None>
   </ItemGroup>
 </Project>

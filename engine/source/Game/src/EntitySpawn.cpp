@@ -2,7 +2,7 @@
 
 #include "Types.h"
 #include "EngineMath.h"
-#include "GameState.h"
+// Included by Game.cpp after game_state is defined.
 
 internal uint32 AddEntity(game_state *GameState, entity_type Type, transform Pose, uint32 MeshHandle, material_params Params, const char *Name)
 {

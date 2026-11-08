@@ -8,6 +8,7 @@
 #include "AssetStore.cpp"
 #include "SimEntity.cpp"
 #include "Picking.cpp"
+#include "Camera.cpp"
 
 #define GIZMO_AXIS_COUNT 3
 
@@ -59,21 +60,6 @@ internal gizmo_style DefaultGizmoStyle(uint32 *AxisMeshes, uint32 Material)
     Style.Material = Material;
 
     return Style;
-}
-
-internal void BeginGizmo(gizmo_context *Gizmo, game_mouse_input *Mouse, render_commands *Commands)
-{
-    Gizmo->Mouse    = Mouse;
-    Gizmo->Hot      = 0;
-    Gizmo->Commands = Commands;
-}
-
-internal void EndGizmo(gizmo_context *Gizmo)
-{
-    if (!Gizmo->Mouse->Down)
-    {
-        Gizmo->Active = 0;
-    }
 }
 
 internal void GizmoSelect(gizmo_context *Gizmo, uint32 StorageIndex)
@@ -200,4 +186,19 @@ internal bool32 Axis(gizmo_context *Gizmo, asset_store *Assets, ray PickRay, Vec
     }
 
     return Moved;
+}
+
+internal void UpdateGizmo(gizmo_context *Gizmo, game_mouse_input *Mouse, asset_store *Assets,
+                          sim_region *Region, ray PickRay, render_commands *Commands)
+{
+    Gizmo->Hot = 0;
+    Gizmo->Mouse = Mouse;
+    Gizmo->Commands = Commands;
+    sim_entity *Selected = GetEntityByStorageIndex(Region, Gizmo->Selected);
+    if (Selected)
+    {
+        Vector3 Position = Selected->Pose.Position;
+        if (Axis(Gizmo, Assets, PickRay, &Position)) Selected->Pose.Position = Position;
+    }
+    if (!Mouse->Down) Gizmo->Active = 0;
 }

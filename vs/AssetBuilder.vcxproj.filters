@@ -1,65 +1,58 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="tools">
-      <UniqueIdentifier>{b1000000-0000-0000-0000-000000000002}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="tools\AssetBuilder">
-      <UniqueIdentifier>{b1000000-0000-0000-0000-000000000003}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="tools\AssetBuilder\Loaders">
-      <UniqueIdentifier>{b1000000-0000-0000-0000-000000000004}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="shared">
-      <UniqueIdentifier>{b1000000-0000-0000-0000-000000000007}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="assets">
-      <UniqueIdentifier>{b1000000-0000-0000-0000-000000000010}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="assets\models">
-      <UniqueIdentifier>{b1000000-0000-0000-0000-000000000011}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="assets\models\TestShapes">
-      <UniqueIdentifier>{b1000000-0000-0000-0000-000000000016}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="assets\models\Gizmo">
-      <UniqueIdentifier>{b1000000-0000-0000-0000-000000000017}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="assets\images">
-      <UniqueIdentifier>{b1000000-0000-0000-0000-000000000012}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="EngaAsset">
-      <UniqueIdentifier>{b1000000-0000-0000-0000-000000000014}</UniqueIdentifier>
-    </Filter>
+    <Filter Include="assets" />
+    <Filter Include="assets\images" />
+    <Filter Include="assets\models" />
+    <Filter Include="assets\models\Gizmo" />
+    <Filter Include="assets\models\TestShapes" />
+    <Filter Include="EngaAsset" />
+    <Filter Include="shared" />
+    <Filter Include="tools" />
+    <Filter Include="tools\AssetBuilder" />
+    <Filter Include="tools\AssetBuilder\Loaders" />
+    <Filter Include="vs" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\tools\AssetBuilder\AssetBuilder.cpp">
-      <Filter>tools\AssetBuilder</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\tools\AssetBuilder\Loaders\TGA.h">
-      <Filter>tools\AssetBuilder\Loaders</Filter>
-    </ClInclude>
-    <ClInclude Include="..\tools\AssetBuilder\Loaders\GLB.h">
-      <Filter>tools\AssetBuilder\Loaders</Filter>
-    </ClInclude>
-    <ClInclude Include="..\tools\AssetBuilder\Loaders\HDR.h">
-      <Filter>tools\AssetBuilder\Loaders</Filter>
-    </ClInclude>
-    <ClInclude Include="..\tools\AssetBuilder\Loaders\Cubemap.h">
-      <Filter>tools\AssetBuilder\Loaders</Filter>
-    </ClInclude>
-    <ClInclude Include="..\tools\AssetBuilder\Loaders\Json.h">
-      <Filter>tools\AssetBuilder\Loaders</Filter>
-    </ClInclude>
+    <None Include="..\.vserunonsave" />
+    <None Include="..\assets\images\font_atlas.tga">
+      <Filter>assets\images</Filter>
+    </None>
+    <None Include="..\assets\images\sky.hdr">
+      <Filter>assets\images</Filter>
+    </None>
+    <None Include="..\assets\images\TestTexture.tga">
+      <Filter>assets\images</Filter>
+    </None>
+    <None Include="..\assets\models\Gizmo\Gizmo.glb">
+      <Filter>assets\models\Gizmo</Filter>
+    </None>
+    <None Include="..\assets\models\TestShapes\RiggedColumn.glb">
+      <Filter>assets\models\TestShapes</Filter>
+    </None>
+    <None Include="..\assets\models\TestShapes\TestMale.glb">
+      <Filter>assets\models\TestShapes</Filter>
+    </None>
+    <None Include="..\assets\models\TestShapes\TestShapes.glb">
+      <Filter>assets\models\TestShapes</Filter>
+    </None>
+    <None Include="..\build.bat" />
+    <None Include="..\EngaAsset\assets.enga">
+      <Filter>EngaAsset</Filter>
+    </None>
     <ClInclude Include="..\shared\EngaFormat.h">
+      <Filter>shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\EngineMath.h">
+      <Filter>shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\Half.h">
       <Filter>shared</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\ImageFormat.h">
       <Filter>shared</Filter>
     </ClInclude>
-    <ClInclude Include="..\shared\Half.h">
+    <ClInclude Include="..\shared\Intrinsics.h">
       <Filter>shared</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\Memory.h">
@@ -74,25 +67,38 @@
     <ClInclude Include="..\shared\Win32FileIO.h">
       <Filter>shared</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\assets\models\TestShapes\TestShapes.glb">
-      <Filter>assets\models\TestShapes</Filter>
+    <ClCompile Include="..\tools\AssetBuilder\AssetBuilder.cpp">
+      <Filter>tools\AssetBuilder</Filter>
+    </ClCompile>
+    <ClInclude Include="..\tools\AssetBuilder\Loaders\Cubemap.h">
+      <Filter>tools\AssetBuilder\Loaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tools\AssetBuilder\Loaders\GLB.h">
+      <Filter>tools\AssetBuilder\Loaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tools\AssetBuilder\Loaders\HDR.h">
+      <Filter>tools\AssetBuilder\Loaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tools\AssetBuilder\Loaders\Json.h">
+      <Filter>tools\AssetBuilder\Loaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tools\AssetBuilder\Loaders\TGA.h">
+      <Filter>tools\AssetBuilder\Loaders</Filter>
+    </ClInclude>
+    <None Include="..\vs\Build.ps1">
+      <Filter>vs</Filter>
     </None>
-    <None Include="..\assets\models\Gizmo\Gizmo.glb">
-      <Filter>assets\models\Gizmo</Filter>
+    <None Include="..\vs\New-BuildToolsSettings.ps1">
+      <Filter>vs</Filter>
     </None>
-    <None Include="..\assets\images\sky.hdr">
-      <Filter>assets\images</Filter>
+    <None Include="..\vs\Open.cmd">
+      <Filter>vs</Filter>
     </None>
-    <None Include="..\assets\images\TestTexture.tga">
-      <Filter>assets\images</Filter>
+    <None Include="..\vs\README.md">
+      <Filter>vs</Filter>
     </None>
-    <None Include="..\assets\images\font_atlas.tga">
-      <Filter>assets\images</Filter>
-    </None>
-    <None Include="..\EngaAsset\assets.enga">
-      <Filter>EngaAsset</Filter>
+    <None Include="..\vs\Sync-Projects.ps1">
+      <Filter>vs</Filter>
     </None>
   </ItemGroup>
 </Project>

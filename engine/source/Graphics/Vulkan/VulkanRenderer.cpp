@@ -348,6 +348,7 @@ internal void ExecuteUICommands(vulkan_context *context, VkCommandBuffer cmd, vu
 
 internal void RenderVulkanFrame(vulkan_context *context, vulkan_resources *res, frame_targets *targets, vulkan_pipelines *pipelines, render_commands *Commands)
 {
+    ReloadShadersIfChanged(context, res, pipelines);
     if (pipelines->Render[Pipeline_Unlit].Vert == VK_NULL_HANDLE)
     {
         return;

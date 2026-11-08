@@ -2,7 +2,7 @@
 setlocal
 
 rem Settings: 1 = enabled, 0 = disabled.
-rem HOT_RELOAD controls "build.bat on-save", called by Visual Studio on Ctrl+S.
+rem HOT_RELOAD controls on-save and on-save-shaders, called on Ctrl+S.
 rem Ctrl+S requires the VSERunOnSave extension and the root .vserunonsave file.
 rem Changing other settings requires a full build and engine restart.
 set "HOT_RELOAD=1"
@@ -13,7 +13,7 @@ set "BUILD_SHADERS=1"
 set "BUILD_ASSETS=1"
 
 rem No argument or "all": full build. "game": DLL only.
-rem "shaders" and "assets": just that stage. "on-save": DLL if enabled.
+rem "shaders" and "assets": just that stage. on-save modes honor HOT_RELOAD.
 set "BuildMode=full"
 if "%~1"=="" goto :mode_ready
 if /i "%~1"=="all" goto :mode_ready
@@ -34,11 +34,18 @@ if /i "%~1"=="on-save" (
     set "BuildMode=game"
     goto :mode_ready
 )
-echo Usage: build.bat [game ^| shaders ^| assets ^| all ^| on-save]
+if /i "%~1"=="on-save-shaders" (
+    if not "%HOT_RELOAD%"=="1" exit /b 0
+    set "BuildMode=shaders"
+    goto :mode_ready
+)
+echo Usage: build.bat [game ^| shaders ^| assets ^| all ^| on-save ^| on-save-shaders]
 exit /b 2
 
 :mode_ready
 set "BuildRoot=%~dp0"
+powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%BuildRoot%vs\Sync-Projects.ps1"
+if errorlevel 1 exit /b 1
 if not exist "%BuildRoot%build\" mkdir "%BuildRoot%build"
 if not exist "%BuildRoot%build\" exit /b 1
 set "LockAttempts=0"
@@ -103,10 +110,19 @@ if not exist "%VULKAN_SDK%\Bin\dxc.exe" (
 )
 if not exist CompiledShaders mkdir CompiledShaders
 if not exist CompiledShaders goto :failed
+if not exist CompiledShaders\pending mkdir CompiledShaders\pending
+if not exist CompiledShaders\pending goto :failed
+rem Compile the whole set before publishing anything. build.guard protects readers.
 for /r "%BuildRoot%engine\source\Graphics\Vulkan\shaders" %%f in (*.hlsl) do (
-    "%VULKAN_SDK%\Bin\dxc.exe" -spirv -fvk-use-dx-layout -fspv-target-env=vulkan1.3 -I "%BuildRoot%engine\source\Graphics\Vulkan\shaders" -T vs_6_0 -E VSMain "%%f" -Fo "CompiledShaders\%%~nf.vert.spv" || goto :failed
-    "%VULKAN_SDK%\Bin\dxc.exe" -spirv -fvk-use-dx-layout -fspv-target-env=vulkan1.3 -I "%BuildRoot%engine\source\Graphics\Vulkan\shaders" -T ps_6_0 -E PSMain "%%f" -Fo "CompiledShaders\%%~nf.frag.spv" || goto :failed
+    "%VULKAN_SDK%\Bin\dxc.exe" -spirv -fvk-use-dx-layout -fspv-target-env=vulkan1.3 -I "%BuildRoot%engine\source\Graphics\Vulkan\shaders" -T vs_6_0 -E VSMain "%%f" -Fo "CompiledShaders\pending\%%~nf.vert.spv" || goto :failed
+    "%VULKAN_SDK%\Bin\dxc.exe" -spirv -fvk-use-dx-layout -fspv-target-env=vulkan1.3 -I "%BuildRoot%engine\source\Graphics\Vulkan\shaders" -T ps_6_0 -E PSMain "%%f" -Fo "CompiledShaders\pending\%%~nf.frag.spv" || goto :failed
 )
+for /r "%BuildRoot%engine\source\Graphics\Vulkan\shaders" %%f in (*.hlsl) do (
+    move /y "CompiledShaders\pending\%%~nf.vert.spv" "CompiledShaders\%%~nf.vert.spv" >nul || goto :failed
+    move /y "CompiledShaders\pending\%%~nf.frag.spv" "CompiledShaders\%%~nf.frag.spv" >nul || goto :failed
+)
+>CompiledShaders\shaders.ready.tmp echo SHADERS_READY
+move /y CompiledShaders\shaders.ready.tmp CompiledShaders\shaders.ready >nul || goto :failed
 if /i "%BuildMode%"=="shaders" goto :success
 
 :compiler_flags
@@ -135,7 +151,6 @@ set CommonCompilerFlags=-MTd^
  -I..\shared^
  -I..\engine\source^
  -I..\engine\source\Game\src\Assets^
- -I..\engine\source\Game\include^
  -I..\engine\source\Game\src^
  -I..\engine\source\Game\src\Editor^
  -I..\engine\source\Game\src\UI^

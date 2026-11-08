@@ -46,6 +46,8 @@ struct render_pipeline
 struct vulkan_pipelines
 {
     render_pipeline Render[Pipeline_Count];
+    uint64 ShaderWriteTime;
+    uint64 NextShaderCheck;
 };
 
 struct descriptor_heap

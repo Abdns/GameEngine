@@ -27,7 +27,17 @@ struct game_input
     real32  dtForFrame;
     Vector2 ViewportSize;
     real32  UIScale;
+    uint8   Debug;
 };
+
+internal bool32 IsDebugMode(const game_input *Controls)
+{
+#if ENGINE_INTERNAL
+    return Controls->Debug;
+#else
+    return false;
+#endif
+}
 
 internal bool32 MouseAvailable(const game_mouse_input *Mouse)
 {
@@ -58,6 +68,10 @@ internal void BindInput(game_input *State, const platform_input *Input)
     if (Keys['Q'].EndedDown) State->MoveAxis.Y -= 1.0f;
     if (Keys['W'].EndedDown) State->MoveAxis.Z += 1.0f;
     if (Keys['S'].EndedDown) State->MoveAxis.Z -= 1.0f;
+    if (Keys['V'].EndedDown && Keys['V'].HalfTransitionCount)
+    {
+        State->Debug = !State->Debug;
+    }
 
     State->dtForFrame   = Input->dtForFrame;
     State->ViewportSize = Vector2((real32)Input->RenderWidth, (real32)Input->RenderHeight);

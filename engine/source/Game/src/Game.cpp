@@ -1,4 +1,8 @@
-#include "Game.h"
+#include "Types.h"
+#include "Intrinsics.h"
+#include "EngineMath.h"
+#include "Memory.h"
+#include "PlatformAPI.h"
 
 #include "AssetStore.cpp"
 #include "SimEntity.cpp"
@@ -12,17 +16,42 @@
 #include "Picking.cpp"
 #include "Gizmo.cpp"
 
-#include "GameState.h"
+struct game_state
+{
+    memory_arena WorldArena;
+    memory_arena FrameArena;
+    memory_arena MaterialsArena;
+
+    world         *World;
+    materials     *Materials;
+    asset_store    Assets;
+    entity_storage Storage;
+
+    uint32 SkyHandle;
+
+    camera Camera;
+
+    game_input    Controls;
+    ui_context    UI;
+    gizmo_context Gizmo;
+
+    uint32 Hero;
+    world_position CameraPosition;
+
+    uint8 debug;
+};
 
 #include "EntitySpawn.cpp"
-#include "EditorUI.cpp"
+#include "DebugEditor.cpp"
 
 #define FRAME_ARENA_SIZE      Megabytes(8)
-#define MATERIALS_ARENA_SIZE      Megabytes(1)
+#define MATERIALS_ARENA_SIZE  Megabytes(1)
 #define WORLD_CHUNK_DIM       16.0f
 #define ENTITY_CAPACITY       4096
 #define SIM_MAX_ENTITIES      4096
 #define SIM_HALF_DIM          48.0f
+
+
 
 internal void LoadAssetsFromEnga(const char* Name, game_memory* Memory, game_state* GameState)
 {
@@ -78,35 +107,6 @@ internal void PushEntitiesToRender(sim_region *Region, asset_store *Assets, memo
     }
 }
 
-internal void SelectEntity(game_state *GameState, sim_region *Region, ray PickRay)
-{
-    game_mouse_input *Mouse = &GameState->Controls.Mouse;
-    if (!MouseAvailable(Mouse) || !Mouse->Pressed) return;
-
-    Mouse->Consumed = true;
-    uint32 Selected = PickEntity(PickRay, Region, &GameState->Assets);
-    GizmoSelect(&GameState->Gizmo, Selected);
-}
-
-internal void InitTools(game_state *GameState)
-{
-    asset_store *Assets    = &GameState->Assets;
-    materials   *Materials = GameState->Materials;
-
-    uint32 AxisMeshes[GIZMO_AXIS_COUNT];
-    AxisMeshes[0] = GetAssetMeshHandle(Assets, "gizmo_axis_x");
-    AxisMeshes[1] = GetAssetMeshHandle(Assets, "gizmo_axis_y");
-    AxisMeshes[2] = GetAssetMeshHandle(Assets, "gizmo_axis_z");
-
-    uint32 GizmoMaterial = OverlayMaterial(Materials);
-
-    GameState->UI.Style = DefaultUIStyle();
-    GameState->Gizmo.Style    = DefaultGizmoStyle(AxisMeshes, GizmoMaterial);
-    GameState->Gizmo.Selected = ENTITY_STORAGE_NONE;
-
-    uint32 FontTexture = GetAssetTextureHandle(&GameState->Assets, "font_atlas");
-}
-
 internal void BuildTestScene(game_state *GameState)
 {
     asset_store *Assets    = &GameState->Assets;
@@ -129,7 +129,7 @@ internal void BuildTestScene(game_state *GameState)
     AddEntity(GameState, Entity_Prop, TransformAt(Vector3( 2.5f, 0.0f, 0.0f)), Cube, Params, 0);
 }
 
-internal void A(game_state* GameState)
+internal void BuildHero(game_state* GameState)
 {
     asset_store* Assets = &GameState->Assets;
     materials* Materials = GameState->Materials;
@@ -139,20 +139,29 @@ internal void A(game_state* GameState)
 
     uint32 TestMale = GetAssetMeshHandle(Assets, "TestMale");
 
-    uint32 PropMaterial = UnlitMaterial(Materials);
+    uint32 PropMaterial = LitMaterial(Materials);
     material_params Params = MatParams(PropMaterial, TextureHandles, 1, Vector4(1, 1, 1, 1));
 
-    GameState->player = AddEntity(GameState, Entity_Prop, TransformAt(Vector3(2.5f, 0.0f, 0.0f)), TestMale, Params, 0);
+    GameState->Hero = AddEntity(GameState, Entity_Prop, TransformAt(Vector3(2.5f, 0.0f, 0.0f)), TestMale, Params, 0);
 }
 
-internal void AB(game_state* GameState, game_input* Input)
+internal void UpdateHero(game_state* GameState, game_input* Input)
 {
+    Vector3 vec = Vector3(Input->MoveAxis.X, 0, -Input->MoveAxis.Z);
 
-    Vector3 vec = Vector3(Input->MoveAxis.X, 0, Input->MoveAxis.Z);
-
-    low_entity *player = GetLowEntity(&GameState->Storage, GameState->player);
+    low_entity *player = GetLowEntity(&GameState->Storage, GameState->Hero);
     world_position newPos = MapIntoChunkSpace(GameState->World, player->Position, vec * Input->dtForFrame * 4);
-    ChangeEntityLocation(&GameState->WorldArena, GameState->World, &GameState->Storage, GameState->player, newPos);
+    ChangeEntityLocation(&GameState->WorldArena, GameState->World, &GameState->Storage, GameState->Hero, newPos);
+}
+
+internal void UpdateENV(game_state* GameState, render_commands* RenderCommands)
+{
+    directional_light DirLight = {};
+    DirLight.Color = Vector4(1, 1, 1, 1);
+    DirLight.Direction = Vector3(0.4f, 1.0f, 0.3f);
+    DirLight.Intensity = 1.0f;
+    PushBindLight(RenderCommands, DirLight);
+    PushRenderSkybox(RenderCommands, GameState->SkyHandle);
 }
 
 internal void InitGame(game_memory *Memory, game_state *GameState, render_commands *RenderCommands)
@@ -167,18 +176,19 @@ internal void InitGame(game_memory *Memory, game_state *GameState, render_comman
     asset_store *Assets = &GameState->Assets;
     PushAssetsToRender(Assets, RenderCommands);
 
-    GameState->World = PushStruct(WorldArena, world);
     GameState->Materials = PushStruct(WorldArena, materials);
+    GameState->World = PushStruct(WorldArena, world);
     WorldInit(GameState->World, WORLD_CHUNK_DIM);
+
     InitMaterials(GameState->Materials);
 
     EntityStorageInit(&GameState->Storage, WorldArena, ENTITY_CAPACITY);
 
     InitTools(GameState);    
-    InitCamera(&GameState->Camera, MapIntoChunkSpace(GameState->World, WorldOrigin(), Vector3(0.0f, 0.0f, 4.0f)), DegToRad(75.0f));
+    InitCamera(&GameState->Camera, MapIntoChunkSpace(GameState->World, WorldOrigin(), Vector3(0.0f, 4.0f, 4.0f)), Vector3(-45.0f, 0.0f, 0.0f), DegToRad(75.0f));
     
     BuildTestScene(GameState);
-    A(GameState);
+    BuildHero(GameState);
     PushMaterialsToRender(GameState->Materials, RenderCommands);
 }
 
@@ -186,7 +196,6 @@ extern "C" __declspec(dllexport)
 GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
-
     game_state *GameState = (game_state *)Memory->PermanentStorage;
 
     if (!Memory->IsInitialized)
@@ -198,55 +207,30 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     ResetArena(&GameState->FrameArena);
 
     camera        *Camera   = &GameState->Camera;
-    gizmo_context *Gizmo    = &GameState->Gizmo;
-    game_input       *Controls = &GameState->Controls;
-    game_mouse_input *Mouse    = &Controls->Mouse;
+    game_input    *Controls = &GameState->Controls;
 
     BindInput(Controls, Input);
-    BeginUI(&GameState->UI, RenderCommands, Mouse, Controls->UIScale);
-    BeginGizmo(Gizmo, Mouse, RenderCommands);
-    DebugUI(GameState);
+    GameState->debug = (uint8)IsDebugMode(Controls);
 
-    AB(GameState, Controls);
+    UpdateHero(GameState, Controls);
+    UpdateCamera(Camera, GameState->World, Controls);
 
     rectangle3  SimBounds = Rect3CenterRadius(Vector3(0.0f, 0.0f, 0.0f), SIM_HALF_DIM);
     sim_region *Region = BeginSim(&GameState->FrameArena, GameState->World, &GameState->Storage, Camera->Position, SimBounds, SIM_MAX_ENTITIES);
     {
-        UpdateCamera(Camera, GameState->World, Controls);
-
         Vector3 CameraSimP = WorldSubtract(GameState->World, &Camera->Position, &Region->Origin);
-
-        ray PickRay = CameraRayFromScreen(Camera, CameraSimP, Mouse->Position.X, Mouse->Position.Y, Controls->ViewportSize.X, Controls->ViewportSize.Y);
-
-        sim_entity *Selected = GetEntityByStorageIndex(Region, Gizmo->Selected);
-        if (Selected)
-        {
-            Vector3 GizmoPosition = Selected->Pose.Position;
-
-            if (Axis(Gizmo, &GameState->Assets, PickRay, &GizmoPosition))
-            {
-                Selected->Pose.Position = GizmoPosition;
-            }
-        }
-
-        SelectEntity(GameState, Region, PickRay);
+        uint32 HighlightIndex = UpdateDebugEditor(GameState, Region, RenderCommands);
 
         Vector3 CameraWorldP = WorldPositionToMeters(GameState->World, Region->Origin) + CameraSimP;
 
         PushBindCamera(RenderCommands, CameraView(Camera, CameraSimP), CameraWorldP, Camera->FovY);
-        directional_light DirLight = {};
-        DirLight.Color = Vector4(1,1,1,1);
-        DirLight.Direction = Vector3(0.4f, 1.0f, 0.3f);
-        DirLight.Intensity = 1.0f;
-        PushBindLight(RenderCommands, DirLight);
-        PushRenderSkybox(RenderCommands, GameState->SkyHandle);
         AnimateEntities(Region, &GameState->Assets, Controls->dtForFrame);
 
-        PushEntitiesToRender(Region, &GameState->Assets, &GameState->FrameArena, RenderCommands, Gizmo->Selected, Gizmo->Style.Selected);
+        PushEntitiesToRender(Region, &GameState->Assets, &GameState->FrameArena, RenderCommands, HighlightIndex, GameState->Gizmo.Style.Selected);
     }
     EndSim(Region, &GameState->WorldArena);
 
-    EndGizmo(Gizmo);
+    UpdateENV(GameState, RenderCommands);
 }
 
 extern "C" __declspec(dllexport)

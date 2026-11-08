@@ -3,7 +3,7 @@
 #include "Types.h"
 #include "EngineMath.h"
 #include "RenderCommands.h"
-#include "GameState.h"
+// Included through DebugEditor.cpp after game_state is defined in Game.cpp.
 
 internal void DebugUI(game_state *GameState)
 {

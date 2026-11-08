@@ -9,8 +9,7 @@
 struct camera
 {
     world_position Position;
-    real32         Yaw;
-    real32         Pitch;
+    Vector3        RotationDegrees;
     real32         FovY;
 };
 
@@ -21,32 +20,39 @@ struct camera_basis
     Vector3 Forward;
 };
 
-internal void InitCamera(camera *Camera, world_position Position, real32 FovY)
+internal void InitCamera(camera *Camera, world_position Position, Vector3 RotationDegrees, real32 FovY)
 {
-    Camera->Position     = Position;
-    Camera->Yaw   = 0.0f;
-    Camera->Pitch = 0.0f;
+    Camera->Position = Position;
+    Camera->RotationDegrees = RotationDegrees;
     Camera->FovY  = FovY;
+}
+
+internal Matrix4 CameraRotation(camera *Camera)
+{
+    // World Y, then local X, then local Z. Angles exposed to callers are degrees.
+    Vector3 R = Camera->RotationDegrees;
+    return Mat4Multiply(Mat4RotationY(DegToRad(R.Y)),
+                        Mat4Multiply(Mat4RotationX(DegToRad(R.X)), Mat4RotationZ(DegToRad(R.Z))));
 }
 
 internal camera_basis GetCameraBasis(camera *Camera)
 {
-    real32 cy = Cos(Camera->Yaw);
-    real32 sy = Sin(Camera->Yaw);
-    real32 cp = Cos(Camera->Pitch);
-    real32 sp = Sin(Camera->Pitch);
-
+    Matrix4 Rotation = CameraRotation(Camera);
     camera_basis Basis;
-    Basis.Forward = Vector3(-sy * cp, sp, -cy * cp);
-    Basis.Right   = Vector3(cy, 0.0f, -sy);
-    Basis.Up      = Cross(Basis.Right, Basis.Forward);
+    Basis.Right   = Mat4Transform(Rotation, Vector3(1.0f, 0.0f, 0.0f), 0.0f);
+    Basis.Up      = Mat4Transform(Rotation, Vector3(0.0f, 1.0f, 0.0f), 0.0f);
+    Basis.Forward = Mat4Transform(Rotation, Vector3(0.0f, 0.0f, -1.0f), 0.0f);
 
     return Basis;
 }
 
 internal Matrix4 CameraView(camera *Camera, Vector3 SimSpaceP)
 {
-    return Mat4Multiply(Mat4RotationX(-Camera->Pitch), Mat4Multiply(Mat4RotationY(-Camera->Yaw), Mat4Translation(-SimSpaceP.X, -SimSpaceP.Y, -SimSpaceP.Z)));
+    Matrix4 Transform = CameraRotation(Camera);
+    Transform.Elements[3][0] = SimSpaceP.X;
+    Transform.Elements[3][1] = SimSpaceP.Y;
+    Transform.Elements[3][2] = SimSpaceP.Z;
+    return Mat4InverseRigid(Transform);
 }
 
 internal ray CameraRayFromScreen(camera *Camera, Vector3 SimSpaceP, real32 MouseX, real32 MouseY, real32 ViewportWidth, real32 ViewportHeight)
@@ -58,19 +64,19 @@ internal ray CameraRayFromScreen(camera *Camera, Vector3 SimSpaceP, real32 Mouse
 
 internal void UpdateCamera(camera *Camera, world *World, game_input *Controls)
 {
-    if (Controls->Mouse.LookDown)
+    if (IsDebugMode(Controls) && Controls->Mouse.LookDown)
     {
-        real32 Sensitivity = 0.003f;
-        Camera->Yaw   -= Controls->Mouse.Delta.X * Sensitivity;
-        Camera->Pitch -= Controls->Mouse.Delta.Y * Sensitivity;
-        Camera->Pitch = Clamp(-1.55f, Camera->Pitch, 1.55f);
+        real32 Sensitivity = 0.003f * (180.0f / Pi32);
+        Camera->RotationDegrees.Y -= Controls->Mouse.Delta.X * Sensitivity;
+        Camera->RotationDegrees.X -= Controls->Mouse.Delta.Y * Sensitivity;
+        Camera->RotationDegrees.X = Clamp(-89.0f, Camera->RotationDegrees.X, 89.0f);
+
+        camera_basis Basis = GetCameraBasis(Camera);
+        Vector3 WorldUp = Vector3(0.0f, 1.0f, 0.0f);
+
+        Vector3 Move = Controls->MoveAxis.X * Basis.Right + Controls->MoveAxis.Y * WorldUp + Controls->MoveAxis.Z * Basis.Forward;
+        real32 Speed = 4.0f;
+
+        Camera->Position = MapIntoChunkSpace(World, Camera->Position, (Speed * Controls->dtForFrame) * Move);
     }
-
-    camera_basis Basis = GetCameraBasis(Camera);
-    Vector3 WorldUp = Vector3(0.0f, 1.0f, 0.0f);
-
-    Vector3 Move = Controls->MoveAxis.X * Basis.Right + Controls->MoveAxis.Y * WorldUp + Controls->MoveAxis.Z * Basis.Forward;
-    real32 Speed = 4.0f;
-
-    Camera->Position = MapIntoChunkSpace(World, Camera->Position, (Speed * Controls->dtForFrame) * Move);
 }

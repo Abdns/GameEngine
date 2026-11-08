@@ -5,6 +5,7 @@
 #include "Strings.h"
 #include "EngineMath.h"
 #include "EngaFormat.h"
+#include "RenderCommands.h"
 
 #define ASSET_HANDLE_NONE 0xFFFFFFFF
 

@@ -31,5 +31,5 @@ float4 PSMain(vs_output input) : SV_Target
 	float4 Color = params.Material.Color;
 	Color *= Tex[TextureHandle].Sample(Samp, input.UV);
 
-	return Color;
+    return float4(1,0,0,1);
 }

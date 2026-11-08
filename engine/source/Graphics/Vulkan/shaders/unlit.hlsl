@@ -29,7 +29,10 @@ float4 PSMain(vs_output input) : SV_Target
     uint TextureHandle = LoadMaterialTexture(params.Material, 0);
     
     float4 Color = params.Material.Color;
-    Color *= Tex[TextureHandle].Sample(Samp, input.UV);
+    if (TextureHandle != TEXTURE_NONE)
+    {
+        Color *= Tex[TextureHandle].Sample(Samp, input.UV);
+    }
     
     return Color;
 }

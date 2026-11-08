@@ -10,6 +10,10 @@ ext_command_timeout = 120
 [engine/source/{Platform,Graphics}/**]
 ext_command_after = unset
 
+[engine/source/Graphics/Vulkan/shaders/**]
+ext_command_after = cmd.exe /d /s /c ""$(SolutionDir)\..\build.bat" on-save-shaders"
+ext_command_timeout = 120
+
 [tools/**]
 ext_command_after = unset
 

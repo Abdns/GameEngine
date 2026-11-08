@@ -37,6 +37,10 @@ vertex LoadVertex(uint64_t base, uint index)
 
 uint LoadMaterialTexture(materia_draw_params Params, uint Index)
 {
+    if (Index >= Params.TextureCount || Params.TextureHandles == 0)
+    {
+        return TEXTURE_NONE;
+    }
     return vk::RawBufferLoad<uint>(Params.TextureHandles + (uint64_t)Index * 4, 4);
 }
 
