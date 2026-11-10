@@ -3,7 +3,6 @@
 #include "Types.h"
 #include "EngineMath.h"
 #include "RenderCommands.h"
-// Included through DebugEditor.cpp after game_state is defined in Game.cpp.
 
 internal void DebugUI(game_state *GameState)
 {
@@ -32,4 +31,9 @@ internal void DebugUI(game_state *GameState)
 			GameState->Gizmo.Selected = Selected ? ENTITY_STORAGE_NONE : Index;
 		}
 	}
+}
+
+internal void ENVDebugMenu()
+{
+
 }

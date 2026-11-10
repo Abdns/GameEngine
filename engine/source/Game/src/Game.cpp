@@ -147,11 +147,14 @@ internal void BuildHero(game_state* GameState)
 
 internal void UpdateHero(game_state* GameState, game_input* Input)
 {
-    Vector3 vec = Vector3(Input->MoveAxis.X, 0, -Input->MoveAxis.Z);
+    if (!GameState->debug)
+    {
+        Vector3 vec = Vector3(Input->MoveAxis.X, 0, -Input->MoveAxis.Z);
 
-    low_entity *player = GetLowEntity(&GameState->Storage, GameState->Hero);
-    world_position newPos = MapIntoChunkSpace(GameState->World, player->Position, vec * Input->dtForFrame * 4);
-    ChangeEntityLocation(&GameState->WorldArena, GameState->World, &GameState->Storage, GameState->Hero, newPos);
+        low_entity *player = GetLowEntity(&GameState->Storage, GameState->Hero);
+        world_position newPos = MapIntoChunkSpace(GameState->World, player->Position, vec * Input->dtForFrame * 4);
+        ChangeEntityLocation(&GameState->WorldArena, GameState->World, &GameState->Storage, GameState->Hero, newPos);
+    }
 }
 
 internal void UpdateENV(game_state* GameState, render_commands* RenderCommands)

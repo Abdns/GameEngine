@@ -71,7 +71,7 @@ internal ui_style DefaultUIStyle()
 	return Style;
 }
 
-internal rect2 DpiScaleRect(ui_context *UI, rect2 Rect)
+internal rect2 DpiRectCorrection(ui_context *UI, rect2 Rect)
 {
 	rect2 result = rect2(Rect.Min * UI->DpiRatio, Rect.Max * UI->DpiRatio);
 
@@ -126,7 +126,7 @@ internal rect2 ClipRect(rect2 Rect, rect2 Clip)
 
 internal void Panel(ui_context *UI, rect2 PanelRect)
 {
-	rect2 rect = DpiScaleRect(UI, PanelRect);
+	rect2 rect = DpiRectCorrection(UI, PanelRect);
 
 	PushRenderRect(UI->Cmd, rect.Min, rect.Max, UI->Style.PanelColor);
 }
@@ -173,7 +173,7 @@ internal bool32 Button(ui_context *UI, Layout layout, rect2 ButtonRect, bool32 S
 
 internal Layout ScrollList(ui_context *UI, Layout layout, rect2 ScrollRect)
 {
-	rect2 rect = DpiScaleRect(UI, ScrollRect);
+	rect2 rect = DpiRectCorrection(UI, ScrollRect);
 
 	ui_interaction interaction = CheckUIInteraction(UI, rect);
 	if (interaction.Type != UIInteraction_None)
@@ -196,5 +196,5 @@ internal Layout ScrollList(ui_context *UI, Layout layout, rect2 ScrollRect)
 
 internal void Image(ui_context *UI, rect2 PanelRect)
 {
-	rect2 rect = DpiScaleRect(UI, PanelRect);
+	rect2 rect = DpiRectCorrection(UI, PanelRect);
 }

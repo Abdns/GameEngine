@@ -24,7 +24,8 @@ static_assert(offsetof(draw_params, Vertices) == 96, "vertex address must match 
 static_assert(sizeof(draw_params) == 112, "draw params must match the shader layout");
 static_assert(sizeof(rect_params) == RECT_PARAMS_STRIDE, "rect params stride must match the shader stride");
 static_assert(sizeof(push_constants) == 16, "push constants contain only two GPU addresses");
-static_assert(sizeof(frame_globals) == 128, "frame globals must match the shader layout");
+static_assert(offsetof(frame_globals, CameraPosition) == 128, "camera position must match the shader layout");
+static_assert(sizeof(frame_globals) == 144, "frame globals must match the shader layout");
 
 struct vulkan_context
 {

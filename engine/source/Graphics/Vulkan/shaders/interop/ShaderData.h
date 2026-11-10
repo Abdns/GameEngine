@@ -51,6 +51,10 @@ struct frame_globals
 
     float3 LightDir;
     float  GlobalsPad0;
+
+    // Same render space as draw_params.Model (relative to the simulation origin).
+    float3 CameraPosition;
+    float  GlobalsPad1;
 };
 
 struct vertex

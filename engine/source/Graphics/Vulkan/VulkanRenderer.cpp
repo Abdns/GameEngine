@@ -191,6 +191,9 @@ internal void FillFrameGlobalsBuffer(vulkan_context *context, vulkan_frame *Fram
 
                     globals->ViewProj = Mat4Multiply(proj, cameraCmd->View);
 
+                    // WorldPosition is absolute; Model and View use the simulation origin.
+                    globals->CameraPosition = Mat4Transform(Mat4InverseRigid(cameraCmd->View), Vector3(0.0f, 0.0f, 0.0f), 1.0f);
+
                     Matrix4 *view = &cameraCmd->View;
                     real32 rightScale = 1.0f / proj.Elements[0][0];
                     real32 upScale    = 1.0f / proj.Elements[1][1];
