@@ -12,6 +12,7 @@
 #include "GameInput.cpp"
 #include "Camera.cpp"
 #include "Material.cpp"
+#include "Text.cpp"
 #include "UI.cpp"
 #include "Picking.cpp"
 #include "Gizmo.cpp"
