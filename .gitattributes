@@ -1,0 +1,27 @@
+* -text
+
+*.h    text eol=lf
+*.hpp  text eol=lf
+*.c    text eol=lf
+*.cpp  text eol=lf
+
+*.sln       text eol=crlf
+*.vcxproj   text eol=crlf
+*.filters   text eol=crlf
+*.props     text eol=crlf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.png    binary
+*.jpg    binary
+*.bmp    binary
+*.ico    binary
+*.wav    binary
+*.ogg    binary
+*.hmi    binary
+*.exe    binary
+*.dll    binary
+*.lib    binary
+*.pdb    binary
+*.obj    binary

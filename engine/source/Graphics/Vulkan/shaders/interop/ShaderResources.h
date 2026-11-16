@@ -1,0 +1,63 @@
+#ifndef SHADERRESOURCES_H
+#define SHADERRESOURCES_H
+
+#include "ShaderData.h"
+
+#define SET_GLOBAL 0
+
+#define BINDING_TEXTURES 0
+#define BINDING_SAMPLER  1
+#define BINDING_CUBEMAPS 2
+#define BINDING_COUNT    3
+
+#define MAX_TEXTURES 32
+#define MAX_CUBEMAPS 4
+#define MAX_MATERIALS 64
+
+#define TEXTURE_NONE 0xFFFFFFFF
+
+#define TEXTURE_SLOT_SCENE MAX_TEXTURES
+#define TEXTURE_SLOT_POST  (TEXTURE_SLOT_SCENE + 1)
+#define TEXTURE_HEAP_SIZE (TEXTURE_SLOT_POST + 1)
+
+#ifndef __cplusplus
+
+[[vk::binding(BINDING_TEXTURES, SET_GLOBAL)]] Texture2D    Tex[TEXTURE_HEAP_SIZE];
+[[vk::binding(BINDING_CUBEMAPS, SET_GLOBAL)]] TextureCube  Sky[MAX_CUBEMAPS];
+[[vk::binding(BINDING_SAMPLER, SET_GLOBAL)]]  SamplerState Samp;
+
+[[vk::push_constant]] push_constants pc;
+
+#define LoadDrawParams(Type) vk::BufferPointer<Type, 16>(pc.ParamsPtr).Get()
+
+vertex LoadVertex(uint64_t base, uint index)
+{
+    return vk::RawBufferLoad<vertex>(base + (uint64_t)index * VERTEX_STRIDE, 4);
+}
+
+uint LoadMaterialTexture(materia_draw_params Params, uint Index)
+{
+    if (Index >= Params.TextureCount || Params.TextureHandles == 0)
+    {
+        return TEXTURE_NONE;
+    }
+    return vk::RawBufferLoad<uint>(Params.TextureHandles + (uint64_t)Index * 4, 4);
+}
+
+uint LoadIndex(uint64_t base, uint index)
+{
+    return vk::RawBufferLoad<uint>(base + (uint64_t)index * 4, 4);
+}
+
+rect_params LoadRect(uint64_t base, uint index)
+{
+    return vk::BufferPointer<rect_params, 16>(base + (uint64_t)index * RECT_PARAMS_STRIDE).Get();
+}
+
+frame_globals LoadGlobals(uint64_t address)
+{
+    return vk::BufferPointer<frame_globals, 16>(address).Get();
+}
+
+#endif
+#endif
