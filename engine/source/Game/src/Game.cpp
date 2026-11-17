@@ -44,6 +44,7 @@ struct game_state
 
 #include "EntitySpawn.cpp"
 #include "DebugEditor.cpp"
+#include "SaveLoad/SaveLoad.cpp"
 
 #define FRAME_ARENA_SIZE      Megabytes(8)
 #define MATERIALS_ARENA_SIZE  Megabytes(1)

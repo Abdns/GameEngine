@@ -11,6 +11,9 @@ typedef PLATFORM_READ_ENTIRE_FILE(platform_read_entire_file);
 #define PLATFORM_FREE_FILE_MEMORY(name)  void name(void *Memory)
 typedef PLATFORM_FREE_FILE_MEMORY(platform_free_file_memory);
 
+#define PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name(const char *Filename, uint32 MemorySize, void *Memory)
+typedef PLATFORM_WRITE_ENTIRE_FILE(platform_write_entire_file);
+
 #if ENGINE_INTERNAL
 #define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name(char* Filename, uint32 MemorySize, void* Memory)
 typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
@@ -24,8 +27,9 @@ struct game_memory
     uint64 PermanentStorageSize;
     void*  PermanentStorage;
 
-    platform_read_entire_file* PlatformReadEntireFile;
-    platform_free_file_memory* PlatformFreeFileMemory;
+    platform_read_entire_file*  PlatformReadEntireFile;
+    platform_write_entire_file* PlatformWriteEntireFile;
+    platform_free_file_memory*  PlatformFreeFileMemory;
 
 
 #if ENGINE_INTERNAL
