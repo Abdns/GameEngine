@@ -72,7 +72,6 @@
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanRenderer.cpp" />
     <ClInclude Include="..\engine\source\Graphics\Vulkan\VulkanResources.cpp" />
     <ClCompile Include="..\engine\source\Platform\win32\Program.cpp" />
-    <ClInclude Include="..\engine\source\Platform\win32\src\Win32FileIO.cpp" />
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32GameCode.cpp" />
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32GDI.cpp" />
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32Input.cpp" />
@@ -92,7 +91,7 @@
     <ClInclude Include="..\shared\Memory.h" />
     <ClInclude Include="..\shared\Strings.h" />
     <ClInclude Include="..\shared\Types.h" />
-    <ClInclude Include="..\shared\Win32FileIO.h" />
+    <ClInclude Include="..\shared\Win32FileIO.cpp" />
     <None Include="..\Sync-Projects.bat" />
     <None Include="..\vs\Build.ps1" />
     <None Include="..\vs\New-BuildToolsSettings.ps1" />

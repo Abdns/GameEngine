@@ -48,7 +48,7 @@
     <ClInclude Include="..\shared\Memory.h" />
     <ClInclude Include="..\shared\Strings.h" />
     <ClInclude Include="..\shared\Types.h" />
-    <ClInclude Include="..\shared\Win32FileIO.h" />
+    <ClInclude Include="..\shared\Win32FileIO.cpp" />
     <None Include="..\Sync-Projects.bat" />
     <ClCompile Include="..\tools\AssetBuilder\AssetBuilder.cpp" />
     <ClInclude Include="..\tools\AssetBuilder\Loaders\Cubemap.h" />

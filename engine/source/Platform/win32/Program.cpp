@@ -4,7 +4,6 @@
 #include <Wingdi.h>
 #include "Types.h"
 #include "Memory.h"
-#include "Win32FileIO.h"
 #include "PlatformAPI.h"
 #include "Vulkan.h"
 
@@ -96,7 +95,12 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
 
     game_memory GameMemory = {};
     Win32AllocateGameMemory(&GameMemory, &State);
-    Win32SetupPlatformAPI(&GameMemory);
+    GameMemory.PlatformReadEntireFile = Win32ReadEntireFile;
+    GameMemory.PlatformWriteEntireFile = Win32WriteEntireFile;
+    GameMemory.PlatformFreeFileMemory = Win32FreeFileMemory;
+#if ENGINE_INTERNAL
+    GameMemory.DEBUGPlatformWriteEntireFile = DEBUGPlatformWriteEntireFile;
+#endif
     Assert(Samples && GameMemory.PermanentStorage);
 
     uint32 PlatformMemorySize = (uint32)Megabytes(16);

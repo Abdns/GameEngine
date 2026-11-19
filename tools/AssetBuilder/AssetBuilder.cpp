@@ -3,7 +3,7 @@
 #include "Types.h"
 #include "Memory.h"
 #include "Strings.h"
-#include "Win32FileIO.h"
+#include "Win32FileIO.cpp"
 #include "EngaFormat.h"
 #include "Loaders/GLB.h"
 #include "Loaders/TGA.h"

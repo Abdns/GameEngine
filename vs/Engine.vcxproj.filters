@@ -145,9 +145,6 @@
     <ClCompile Include="..\engine\source\Platform\win32\Program.cpp">
       <Filter>engine\source\Platform\win32</Filter>
     </ClCompile>
-    <ClInclude Include="..\engine\source\Platform\win32\src\Win32FileIO.cpp">
-      <Filter>engine\source\Platform\win32\src</Filter>
-    </ClInclude>
     <ClInclude Include="..\engine\source\Platform\win32\src\Win32GameCode.cpp">
       <Filter>engine\source\Platform\win32\src</Filter>
     </ClInclude>
@@ -205,7 +202,7 @@
     <ClInclude Include="..\shared\Types.h">
       <Filter>shared</Filter>
     </ClInclude>
-    <ClInclude Include="..\shared\Win32FileIO.h">
+    <ClInclude Include="..\shared\Win32FileIO.cpp">
       <Filter>shared</Filter>
     </ClInclude>
     <None Include="..\Sync-Projects.bat" />

@@ -64,7 +64,7 @@
     <ClInclude Include="..\shared\Types.h">
       <Filter>shared</Filter>
     </ClInclude>
-    <ClInclude Include="..\shared\Win32FileIO.h">
+    <ClInclude Include="..\shared\Win32FileIO.cpp">
       <Filter>shared</Filter>
     </ClInclude>
     <None Include="..\Sync-Projects.bat" />
